@@ -21,6 +21,16 @@ export async function POST(req:Request){
       const seller=await tx.user.findUnique({where:{id:b.sellerId}});
       if(!seller||!seller.active) throw new Error("Vendedor não encontrado ou inativo");
 
+      let linkedOrder:any=null;
+      if(b.orderId){
+        linkedOrder=await tx.opticalOrder.findUnique({where:{id:String(b.orderId)}});
+        if(!linkedOrder) throw new Error("Pedido óptico não encontrado");
+        if(linkedOrder.customerId!==customer.id) throw new Error("Pedido óptico não pertence ao cliente");
+        if(["CANCELADO","DEVOLVIDO"].includes(linkedOrder.status)) throw new Error("Pedido óptico não pode gerar venda");
+        const existingSale=await tx.sale.findUnique({where:{orderId:linkedOrder.id}});
+        if(existingSale) throw new Error("Pedido óptico já possui uma venda");
+      }
+
       let subtotal=0;
       const items:any[]=[];
       for(const item of b.items){
@@ -58,6 +68,7 @@ export async function POST(req:Request){
         data:{
           customerId:customer.id,
           sellerId:seller.id,
+          orderId:linkedOrder?.id,
           subtotal,
           discount,
           surcharge,
