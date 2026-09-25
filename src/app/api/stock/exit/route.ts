@@ -10,6 +10,8 @@ export async function POST(req:Request){
     if(!Number.isFinite(quantity)||quantity<=0) throw new Error("Quantidade inválida");
 
     const result=await db.$transaction(async(tx)=>{
+      const product=await tx.product.findUnique({where:{id:String(b.productId)}});
+      if(!product||!product.active) throw new Error("Produto não encontrado ou inativo");
       const lots=await tx.stockLot.findMany({
         where:{productId:b.productId,archived:false,quantity:{gt:0}},
         orderBy:{receivedAt:"asc"}
