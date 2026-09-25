@@ -53,8 +53,15 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
 export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
   try{
     const {id}=await params;
-    await db.customer.update({where:{id},data:{active:false}});
-    return NextResponse.json({ok:true});
+    const result=await db.$transaction(async tx=>{
+      const current=await tx.customer.findUnique({where:{id}});
+      if(!current) throw new Error("Cliente não encontrado");
+      if(!current.active) return current;
+      const updated=await tx.customer.update({where:{id},data:{active:false}});
+      await writeAudit(tx,{action:"ARCHIVE",entity:"Customer",entityId:id,metadata:{name:current.name}});
+      return updated;
+    });
+    return NextResponse.json({ok:true,customer:result});
   }catch(error){
     return NextResponse.json({error:"Não foi possível arquivar o cliente",detail:String(error)},{status:400});
   }
