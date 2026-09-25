@@ -25,6 +25,10 @@ export async function POST(req:Request){
         data:{paidAmount:paid,status}
       });
 
+      const settlement=await tx.accountSettlement.create({
+        data:{accountId:account.id,amount,method:b.method||undefined,reference:b.reference||undefined,notes:b.notes||undefined}
+      });
+
       const movement=await tx.cashMovement.create({
         data:{
           sessionId:session.id,
@@ -35,7 +39,7 @@ export async function POST(req:Request){
         }
       });
 
-      return {account:updated,movement};
+      return {account:updated,settlement,movement};
     });
 
     return NextResponse.json(result,{status:201});
