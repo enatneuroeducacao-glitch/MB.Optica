@@ -235,6 +235,7 @@ cost Decimal? @db.Decimal(12,2)
 expiresAt DateTime?
 archived Boolean @default(false)
 product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+movementLots StockMovementLot[]
 }
 model StockMovement {
 id String @id @default(cuid())
@@ -247,8 +248,9 @@ referenceId String?
 notes String?
 createdAt DateTime @default(now())
 product Product @relation(fields:[productId],references:[id])
+lotLinks StockMovementLot[]
 }
-model Quote {
+model StockMovementLot {
 id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String
