@@ -9,6 +9,8 @@ export async function POST(req:Request){
     if(!Number.isFinite(amount)||amount<=0) throw new Error("Valor inválido");
 
     const result=await db.$transaction(async(tx)=>{
+      const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
+      if(!session) throw new Error("Não há caixa aberto para registrar a quitação");
       const account=await tx.account.findUnique({where:{id:b.accountId}});
       if(!account) throw new Error("Conta não encontrada");
 
@@ -25,7 +27,8 @@ export async function POST(req:Request){
 
       const movement=await tx.cashMovement.create({
         data:{
-          type:account.type==="RECEBER"?"ENTRADA":"SAIDA",
+          sessionId:session.id,
+          kind:account.type==="RECEBER"?"ENTRADA":"SAIDA",
           amount,
           description:"Pagamento: "+account.description,
           referenceId:account.id
