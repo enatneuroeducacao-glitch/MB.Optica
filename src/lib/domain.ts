@@ -1,0 +1,2 @@
+export const ORDER_STATUS_LABEL={ORCAMENTO:"Orçamento",APROVADO:"Aprovado",PEDIDO:"Pedido",AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",PRONTO:"Pronto",ENTREGUE:"Entregue",CANCELADO:"Cancelado",DEVOLVIDO:"Devolvido"} as const;
+export const money=(value:number)=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(value);

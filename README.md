@@ -1,11 +1,24 @@
 # MB Óptica
 
-Sistema de gestão para óptica, construído do zero.
+Sistema de gestão de última geração para uma óptica, construído do zero.
 
-## Objetivo
+## Módulos
+Clientes · Receitas · Orçamentos · Pedidos · Laboratório · Produtos · Estoque · Vendas · Financeiro · Caixa · Relatórios · Auditoria · Migração.
 
-Criar uma plataforma moderna para clientes, receitas ópticas, orçamentos, pedidos, laboratório, produtos, estoque, vendas e financeiro.
+## Arquitetura
+Next.js + TypeScript + PostgreSQL/Prisma.
 
-## Migração
+Fluxo principal: **Cliente → Receita → Orçamento → Pedido → Laboratório → Conferência → Pronto → Entrega → Venda/Financeiro**.
 
-O backup do BeepStart será tratado como fonte histórica para migração, preservando os dados originais e evitando acoplamento ao sistema antigo.
+## Migração BeepStart
+O backup do BeepStart é fonte histórica, não código-base. A migração deverá validar, mapear, preservar payload original e transformar referências indiretas em relações reais. Receitas ópticas em texto livre só serão estruturadas quando os dados forem suficientemente confiáveis.
+
+**Nunca versionar dados reais de clientes no GitHub.**
+
+## Desenvolvimento
+```bash
+npm install
+npx prisma generate
+npm run dev
+```
+Configure `DATABASE_URL` em `.env.local`.
