@@ -35,7 +35,7 @@ export async function POST(req:Request){
           if(quantity>0){
             const lots=await tx.stockLot.findMany({
               where:{productId:item.productId,archived:false,quantity:{gt:0}},
-              orderBy:{entry:"asc"}
+              orderBy:{receivedAt:"asc"}
             });
             let remaining=quantity;
             for(const lot of lots){
@@ -46,7 +46,7 @@ export async function POST(req:Request){
             }
             if(remaining>0) throw new Error("Estoque insuficiente para "+item.productId);
             await tx.stockMovement.create({
-              data:{productId:item.productId,type:"SAIDA",quantity,reason:"Venda",referenceId:sale.id}
+              data:{productId:item.productId,type:"SAIDA",quantity,reference:"VENDA",referenceId:sale.id,notes:"Saída por venda"}
             });
           }
         }
