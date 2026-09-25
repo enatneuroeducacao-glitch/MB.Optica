@@ -2,6 +2,17 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {writeAudit} from "@/lib/audit";
 
+const toBoolean=(value:unknown,defaultValue:boolean)=>{
+  if(value===undefined)return defaultValue;
+  if(typeof value==="boolean")return value;
+  if(typeof value==="string"){
+    const normalized=value.trim().toLowerCase();
+    if(normalized==="true")return true;
+    if(normalized==="false")return false;
+  }
+  throw new Error("Valor booleano inválido");
+};
+
 export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
     const {id}=await params;
@@ -17,8 +28,8 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       if(!name) throw new Error("Nome do meio de pagamento é obrigatório");
       data.name=name;
     }
-    if(b.isCash!==undefined) data.isCash=Boolean(b.isCash);
-    if(b.active!==undefined) data.active=Boolean(b.active);
+    if(b.isCash!==undefined) data.isCash=toBoolean(b.isCash,false);
+    if(b.active!==undefined) data.active=toBoolean(b.active,false);
 
     if(Object.keys(data).length===0) throw new Error("Nenhuma alteração informada");
 
