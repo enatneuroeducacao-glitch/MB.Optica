@@ -1,72 +1,15 @@
 import {NextResponse} from "next/server";
+import {z} from "zod";
 import {db} from "@/lib/db";
+import {requireRole} from "@/lib/auth";
 import {writeAudit} from "@/lib/audit";
-
-export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
-  const {id}=await params;
-  const product=await db.product.findUnique({where:{id},include:{category:true,supplier:true,lots:{where:{archived:false}}}});
-  if(!product) return NextResponse.json({error:"Produto não encontrado"},{status:404});
-  return NextResponse.json(product);
-}
-
-export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
-  try{
-    const {id}=await params;
-    const b=await req.json();
-    const data:{
-      code?:string; barcode?:string|null; description?:string; unit?:string;
-      cost?:number; salePrice?:number; minimumStock?:number;
-      categoryId?:string|null; supplierId?:string|null; active?:boolean;
-    }={};
-    if(b.code!==undefined){const v=String(b.code).trim();if(!v)throw new Error("Código inválido");data.code=v;}
-    if(b.description!==undefined){const v=String(b.description).trim();if(!v)throw new Error("Descrição inválida");data.description=v;}
-    if(b.barcode!==undefined)data.barcode=b.barcode?String(b.barcode).trim():null;
-    if(b.unit!==undefined){const v=String(b.unit).trim();if(!v)throw new Error("Unidade inválida");data.unit=v;}
-    for(const field of ["cost","salePrice","minimumStock"] as const){
-      if(b[field]!==undefined){
-        const v=Number(b[field]);
-        if(!Number.isFinite(v)||v<0) throw new Error("Valor inválido: "+field);
-        data[field]=v;
-      }
-    }
-    if(b.categoryId!==undefined)data.categoryId=b.categoryId?String(b.categoryId):null;
-    if(b.supplierId!==undefined)data.supplierId=b.supplierId?String(b.supplierId):null;
-    if(b.active!==undefined){
-      if(typeof b.active!=="boolean") throw new Error("active deve ser booleano");
-      data.active=b.active;
-    }
-    if(Object.keys(data).length===0) throw new Error("Nenhuma alteração informada");
-
-    const result=await db.$transaction(async tx=>{
-      const current=await tx.product.findUnique({where:{id}});
-      if(!current) throw new Error("Produto não encontrado");
-      if(data.categoryId){
-        const category=await tx.category.findUnique({where:{id:data.categoryId,active:true}});
-        if(!category) throw new Error("Categoria não encontrada ou inativa");
-      }
-      if(data.supplierId){
-        const supplier=await tx.supplier.findUnique({where:{id:data.supplierId,active:true}});
-        if(!supplier) throw new Error("Fornecedor não encontrado ou inativo");
-      }
-      const updated=await tx.product.update({where:{id},data});
-      await writeAudit(tx,{action:"UPDATE",entity:"Product",entityId:id,metadata:{before:{code:current.code,description:current.description,cost:current.cost.toString(),salePrice:current.salePrice.toString(),active:current.active},after:{code:updated.code,description:updated.description,cost:updated.cost.toString(),salePrice:updated.salePrice.toString(),active:updated.active}}});
-      return updated;
-    });
-    return NextResponse.json(result);
-  }catch(error){return NextResponse.json({error:"Não foi possível atualizar o produto",detail:String(error)},{status:400});}
-}
-
-export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
-  try{
-    const {id}=await params;
-    const result=await db.$transaction(async tx=>{
-      const current=await tx.product.findUnique({where:{id}});
-      if(!current) throw new Error("Produto não encontrado");
-      if(!current.active) return current;
-      const updated=await tx.product.update({where:{id},data:{active:false}});
-      await writeAudit(tx,{action:"ARCHIVE",entity:"Product",entityId:id,metadata:{code:current.code,description:current.description}});
-      return updated;
-    });
-    return NextResponse.json({ok:true,product:result});
-  }catch(error){return NextResponse.json({error:"Não foi possível arquivar o produto",detail:String(error)},{status:400});}
-}
+import {apiError} from "@/lib/api-error";
+const schema=z.object({
+ code:z.string().trim().min(1).max(60).optional(),barcode:z.string().trim().max(60).nullable().optional(),description:z.string().trim().min(2).max(200).optional(),
+ unit:z.string().trim().min(1).max(20).optional(),cost:z.coerce.number().min(0).optional(),salePrice:z.coerce.number().min(0).optional(),minimumStock:z.coerce.number().min(0).optional(),
+ categoryId:z.string().nullable().optional(),supplierId:z.string().nullable().optional(),ncm:z.string().max(20).nullable().optional(),cest:z.string().max(20).nullable().optional(),
+ cfop:z.string().max(10).nullable().optional(),origin:z.string().max(10).nullable().optional(),taxCode:z.string().max(30).nullable().optional(),active:z.boolean().optional()
+});
+export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){try{await requireRole(["ADMIN","GERENTE","VENDEDOR","LABORATORIO"]);const {id}=await params;const p=await db.product.findUnique({where:{id},include:{category:true,supplier:true,lots:{where:{archived:false}}}});if(!p)return NextResponse.json({error:"Produto não encontrado."},{status:404});return NextResponse.json(p);}catch(e){return apiError(e,"Não foi possível carregar o produto.");}}
+export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){try{const actor=await requireRole(["ADMIN","GERENTE"]);const {id}=await params;const b=schema.parse(await req.json());const p=await db.$transaction(async tx=>{const current=await tx.product.findUnique({where:{id}});if(!current)throw new Error("PRODUCT_NOT_FOUND");if(b.categoryId&&!await tx.category.findUnique({where:{id:b.categoryId,active:true}}))throw new Error("CATEGORY_NOT_FOUND");if(b.supplierId&&!await tx.supplier.findUnique({where:{id:b.supplierId,active:true}}))throw new Error("SUPPLIER_NOT_FOUND");const x=await tx.product.update({where:{id},data:{...b,barcode:b.barcode||undefined,categoryId:b.categoryId===null?null:b.categoryId,supplierId:b.supplierId===null?null:b.supplierId,ncm:b.ncm||undefined,cest:b.cest||undefined,cfop:b.cfop||undefined,origin:b.origin||undefined,taxCode:b.taxCode||undefined}});await writeAudit(tx,{action:"UPDATE",entity:"Product",entityId:id,userId:actor.id,metadata:{fields:Object.keys(b)}});return x;});return NextResponse.json(p);}catch(e){if(e instanceof z.ZodError)return NextResponse.json({error:"Dados do produto inválidos."},{status:422});if(e instanceof Error&&e.message==="PRODUCT_NOT_FOUND")return NextResponse.json({error:"Produto não encontrado."},{status:404});if(e instanceof Error&&(e.message==="CATEGORY_NOT_FOUND"||e.message==="SUPPLIER_NOT_FOUND"))return NextResponse.json({error:e.message==="CATEGORY_NOT_FOUND"?"Categoria não encontrada.":"Fornecedor não encontrado."},{status:404});return apiError(e,"Não foi possível atualizar o produto.");}}
+export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){try{const actor=await requireRole(["ADMIN","GERENTE"]);const {id}=await params;const x=await db.$transaction(async tx=>{const current=await tx.product.findUnique({where:{id}});if(!current)throw new Error("PRODUCT_NOT_FOUND");const p=await tx.product.update({where:{id},data:{active:false}});await writeAudit(tx,{action:"ARCHIVE",entity:"Product",entityId:id,userId:actor.id,metadata:{code:current.code}});return p;});return NextResponse.json({ok:true,product:x});}catch(e){if(e instanceof Error&&e.message==="PRODUCT_NOT_FOUND")return NextResponse.json({error:"Produto não encontrado."},{status:404});return apiError(e,"Não foi possível arquivar o produto.");}}

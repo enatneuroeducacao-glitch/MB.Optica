@@ -1,33 +1,50 @@
 import {NextResponse} from "next/server";
+import {z} from "zod";
 import {db} from "@/lib/db";
+import {requireRole} from "@/lib/auth";
+import {writeAudit} from "@/lib/audit";
+import {apiError} from "@/lib/api-error";
+
+const schema=z.object({
+  name:z.string().trim().min(2).max(160),
+  cpfCnpj:z.string().trim().max(30).nullable().optional(),
+  phone:z.string().trim().max(30).nullable().optional(),
+  whatsapp:z.string().trim().max(30).nullable().optional(),
+  email:z.string().trim().email().max(160).nullable().optional(),
+  birthDate:z.string().nullable().optional(),
+  notes:z.string().max(1000).nullable().optional()
+});
 
 export async function GET(){
-  const data=await db.customer.findMany({
-    where:{active:true},
-    orderBy:{name:"asc"},
-    take:100
-  });
-  return NextResponse.json(data);
+  try{
+    await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
+    const data=await db.customer.findMany({
+      where:{active:true},
+      orderBy:{name:"asc"},
+      take:500,
+      include:{addresses:true,_count:{select:{orders:true,sales:true,prescriptions:true,accounts:true}}}
+    });
+    return NextResponse.json(data);
+  }catch(error){return apiError(error,"Não foi possível carregar os clientes.");}
 }
 
 export async function POST(req:Request){
   try{
-    const b=await req.json();
-    if(!b.name||String(b.name).trim().length<2) throw new Error("Nome obrigatório");
-    const cpfCnpj=b.cpfCnpj?String(b.cpfCnpj).trim():undefined;
-    const email=b.email?String(b.email).trim():undefined;
-    const data=await db.customer.create({
-      data:{
-        name:String(b.name).trim(),
-        cpfCnpj:cpfCnpj||undefined,
-        phone:b.phone?String(b.phone).trim():undefined,
-        whatsapp:b.whatsapp?String(b.whatsapp).trim():undefined,
-        email:email||undefined,
-        notes:b.notes?String(b.notes).trim():undefined
-      }
+    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
+    const b=schema.parse(await req.json());
+    const data=await db.$transaction(async tx=>{
+      const created=await tx.customer.create({
+        data:{
+          name:b.name,cpfCnpj:b.cpfCnpj||undefined,phone:b.phone||undefined,whatsapp:b.whatsapp||undefined,
+          email:b.email||undefined,birthDate:b.birthDate?new Date(b.birthDate):undefined,notes:b.notes||undefined
+        }
+      });
+      await writeAudit(tx,{action:"CREATE",entity:"Customer",entityId:created.id,userId:actor.id,metadata:{name:created.name,cpfCnpj:created.cpfCnpj}});
+      return created;
     });
     return NextResponse.json(data,{status:201});
   }catch(error){
-    return NextResponse.json({error:"Não foi possível criar o cliente",detail:String(error)},{status:400});
+    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados do cliente inválidos."},{status:422});
+    return apiError(error,"Não foi possível criar o cliente.");
   }
 }
