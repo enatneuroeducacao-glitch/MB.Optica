@@ -217,6 +217,15 @@ taxCode String?
 code String @unique
 barcode String? @unique
 description String
+brand String?
+model String?
+color String?
+frameSize String?
+lensWidth Int?
+bridgeWidth Int?
+templeLength Int?
+material String?
+frameShape String?
 unit String @default("UN")
 cost Decimal @default(0) @db.Decimal(12,2)
 salePrice Decimal @default(0) @db.Decimal(12,2)
