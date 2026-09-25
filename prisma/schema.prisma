@@ -260,6 +260,20 @@ lot StockLot @relation(fields:[lotId],references:[id])
 @@unique([movementId,lotId])
 @@index([lotId])
 }
+model Quote {
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String
+sellerId String?
+validUntil DateTime?
+discount Decimal @default(0) @db.Decimal(12,2)
+total Decimal @default(0) @db.Decimal(12,2)
+notes String?
+createdAt DateTime @default(now())
+customer Customer @relation(fields:[customerId],references:[id])
+items QuoteItem[]
+order OpticalOrder?
+}
 model QuoteItem {
 id String @id @default(cuid())
 quoteId String
