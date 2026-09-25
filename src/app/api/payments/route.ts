@@ -28,7 +28,7 @@ export async function POST(req:Request){
         : null;
       if(method.isCash&&!session) throw new Error("Não há caixa aberto");
 
-      const paid=await tx.payment.aggregate({where:{saleId:sale.id},_sum:{amount:true}});
+      const paid=await tx.payment.aggregate({where:{saleId:sale.id,reversedAt:null},_sum:{amount:true}});
       const alreadyPaid=Number(paid._sum.amount||0);
       const remaining=Number(sale.total)-alreadyPaid;
       if(amount>remaining) throw new Error("Pagamento superior ao saldo da venda");
