@@ -17,28 +17,23 @@ export async function POST(request: Request) {
     const body = schema.parse(await request.json());
     const identifier = body.email.toLowerCase();
 
-    // TEMPORARY BUILD-PHASE ACCESS. Remove before public/production handoff.
-    let user = await db.user.findUnique({ where: { email: identifier } });
-
+    // TEMPORARY BUILD-PHASE ACCESS. Remove before public production handoff.
     if (identifier === "admin" && body.password === "admin") {
-      const passwordHash = await bcrypt.hash("admin", 12);
-      user = await db.user.upsert({
-        where: { email: TEST_EMAIL },
-        update: {
-          passwordHash,
-          name: "Administrador de Teste",
-          role: "ADMIN",
-          active: true,
-        },
-        create: {
-          name: "Administrador de Teste",
-          email: TEST_EMAIL,
-          passwordHash,
-          role: "ADMIN",
-          active: true,
-        },
+      const token = await createSession({ id: "test-admin", role: "ADMIN", sessionVersion: 1 });
+      (await cookies()).set(AUTH_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 12,
+      });
+      return NextResponse.json({
+        ok: true,
+        user: { id: "test-admin", name: "Administrador de Teste", email: "admin@mb-optica.local", role: "ADMIN" },
       });
     }
+
+    const user = await db.user.findUnique({ where: { email: identifier } });
 
     if (!user || !user.active || !user.passwordHash) {
       return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
