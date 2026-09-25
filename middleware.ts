@@ -15,10 +15,10 @@ const ROLE_PREFIXES: Record<string, string[]> = {
 
 const API_ROLE_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
-  GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
-  VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
+  GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
+  VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/categories", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
   FINANCEIRO: ["/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash"],
-  LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/orders", "/api/stock"],
+  LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/categories", "/api/orders", "/api/stock"],
 };
 
 const WRITE_ROLES: Array<[string, string[]]> = [
@@ -26,6 +26,8 @@ const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/settings", ["ADMIN", "GERENTE"]],
   ["/api/audit", ["ADMIN", "GERENTE"]],
   ["/api/products", ["ADMIN", "GERENTE"]],
+  ["/api/categories", ["ADMIN", "GERENTE"]],
+  ["/api/suppliers", ["ADMIN", "GERENTE", "FINANCEIRO"]],
   ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
