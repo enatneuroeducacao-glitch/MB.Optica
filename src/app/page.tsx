@@ -2,7 +2,6 @@
 
 import {useEffect,useState} from "react";
 import {StatCard} from "@/components/StatCard";
-import {StatusBadge} from "@/components/StatusBadge";
 import {money} from "@/lib/domain";
 
 type DashboardData={
@@ -47,7 +46,7 @@ export default function Dashboard(){
         <div className="panel-heading"><div><h2>Pedidos em andamento</h2><p>O próximo passo será carregar a listagem real de pedidos nesta visão.</p></div><a href="/pedidos">Ver todos</a></div>
         <div className="table">
           <div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span></div>
-          <div className="row"><span>—</span><span>Listagem dinâmica</span><span><StatusBadge status={"PRONTO"}/></span><span>—</span><strong>—</strong></div>
+          <div className="row"><span>—</span><span>Nenhum pedido carregado</span><span>—</span><span>—</span><strong>—</strong></div>
         </div>
       </div>
       <div className="panel">
