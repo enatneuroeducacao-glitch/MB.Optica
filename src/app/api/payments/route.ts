@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
   try{
@@ -38,6 +39,7 @@ export async function POST(req:Request){
         }
       });
 
+      await writeAudit(tx,{action:"CREATE",entity:"Payment",entityId:payment.id,metadata:{saleId:sale.id,amount}});
       return {payment,movement,remaining:remaining-amount};
     });
 
