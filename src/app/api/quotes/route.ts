@@ -62,7 +62,7 @@ export async function POST(req:Request){
    const prescription=await db.prescription.findFirst({where:{id:b.prescriptionId,customerId:b.customerId}});
    if(!prescription)throw new Error("Receita não pertence ao cliente selecionado.");
   }
-  const prepared=[];
+  const prepared:Array<{productId?:string;description:string;kind?:string;eye?:string;quantity:number;unitPrice:number}>=[];
   for(const item of b.items){
    let description=item.description;
    if(item.productId){
