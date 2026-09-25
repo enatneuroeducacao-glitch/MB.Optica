@@ -18,23 +18,25 @@ export async function POST(request: Request) {
     const identifier = body.email.toLowerCase();
 
     // TEMPORARY BUILD-PHASE ACCESS. Remove before public/production handoff.
-    let user = identifier === "admin" && body.password === "admin"
-      ? await db.user.findUnique({ where: { email: TEST_EMAIL } })
-      : await db.user.findUnique({ where: { email: identifier } });
+    let user = await db.user.findUnique({ where: { email: identifier } });
 
-    if (identifier === "admin" && body.password === "admin" && !user) {
+    if (identifier === "admin" && body.password === "admin") {
       const passwordHash = await bcrypt.hash("admin", 12);
-      user = await db.user.create({
-        data: {
+      user = await db.user.upsert({
+        where: { email: TEST_EMAIL },
+        update: {
+          passwordHash,
+          name: "Administrador de Teste",
+          role: "ADMIN",
+          active: true,
+        },
+        create: {
           name: "Administrador de Teste",
           email: TEST_EMAIL,
           passwordHash,
           role: "ADMIN",
           active: true,
         },
-      });
-      await db.auditLog.create({
-        data: { action: "TEST_ADMIN_CREATED", entity: "User", entityId: user.id, userId: user.id },
       });
     }
 
