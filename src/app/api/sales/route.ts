@@ -5,26 +5,63 @@ export async function POST(req:Request){
   try{
     const b=await req.json();
     if(!b.customerId) throw new Error("customerId é obrigatório");
-    const total=Number(b.total||0);
-    if(!Number.isFinite(total)||total<0) throw new Error("Valor total inválido");
+    if(!b.sellerId) throw new Error("sellerId é obrigatório");
+    if(!Array.isArray(b.items)||b.items.length===0) throw new Error("A venda precisa ter itens");
+
+    const discount=Number(b.discount||0);
+    const surcharge=Number(b.surcharge||0);
+    if(!Number.isFinite(discount)||discount<0||!Number.isFinite(surcharge)||surcharge<0) throw new Error("Desconto ou acréscimo inválido");
 
     const result=await db.$transaction(async(tx)=>{
+      const customer=await tx.customer.findUnique({where:{id:b.customerId}});
+      if(!customer||!customer.active) throw new Error("Cliente não encontrado ou inativo");
+
+      const seller=await tx.user.findUnique({where:{id:b.sellerId}});
+      if(!seller||!seller.active) throw new Error("Vendedor não encontrado ou inativo");
+
+      let subtotal=0;
+      const items:any[]=[];
+      for(const item of b.items){
+        const quantity=Number(item.quantity);
+        const unitPrice=Number(item.unitPrice);
+        const itemDiscount=Number(item.discount||0);
+        if(!Number.isFinite(quantity)||quantity<=0) throw new Error("Quantidade de item inválida");
+        if(!Number.isFinite(unitPrice)||unitPrice<0) throw new Error("Preço de item inválido");
+        if(!Number.isFinite(itemDiscount)||itemDiscount<0) throw new Error("Desconto de item inválido");
+        const lineTotal=Math.max(0,quantity*unitPrice-itemDiscount);
+
+        let unitCost=Number(item.unitCost||0);
+        if(item.productId){
+          const product=await tx.product.findUnique({where:{id:item.productId}});
+          if(!product||!product.active) throw new Error("Produto não encontrado ou inativo");
+          if(!item.description) item.description=product.description;
+          if(!Number.isFinite(unitCost)||unitCost<0) unitCost=Number(product.cost);
+        }
+
+        subtotal+=lineTotal;
+        items.push({
+          productId:item.productId||undefined,
+          description:String(item.description||"Item"),
+          quantity,
+          unitPrice,
+          unitCost,
+          discount:itemDiscount,
+          total:lineTotal
+        });
+      }
+
+      const total=Math.max(0,subtotal-discount+surcharge);
+
       const sale=await tx.sale.create({
         data:{
-          customerId:b.customerId,
-          sellerId:b.sellerId||undefined,
+          customerId:customer.id,
+          sellerId:seller.id,
+          subtotal,
+          discount,
+          surcharge,
           total,
-          discount:Number(b.discount||0),
           notes:b.notes||undefined,
-          items:{
-            create:(Array.isArray(b.items)?b.items:[]).map((item:any)=>({
-              productId:item.productId||undefined,
-              description:String(item.description||"Item"),
-              quantity:Number(item.quantity||1),
-              unitPrice:Number(item.unitPrice||0),
-              total:Number(item.total||0)
-            }))
-          }
+          items:{create:items}
         },
         include:{items:true}
       });
@@ -32,25 +69,36 @@ export async function POST(req:Request){
       if(Array.isArray(b.stock)){
         for(const item of b.stock){
           const quantity=Number(item.quantity||0);
-          if(quantity>0){
-            const lots=await tx.stockLot.findMany({
-              where:{productId:item.productId,archived:false,quantity:{gt:0}},
-              orderBy:{receivedAt:"asc"}
-            });
-            let remaining=quantity;
-            for(const lot of lots){
-              if(remaining<=0) break;
-              const take=Math.min(Number(lot.quantity),remaining);
-              await tx.stockLot.update({where:{id:lot.id},data:{quantity:{decrement:take}}});
-              remaining-=take;
-            }
-            if(remaining>0) throw new Error("Estoque insuficiente para "+item.productId);
-            await tx.stockMovement.create({
-              data:{productId:item.productId,type:"SAIDA",quantity,reference:"VENDA",referenceId:sale.id,notes:"Saída por venda"}
-            });
+          if(quantity<=0) continue;
+          const product=await tx.product.findUnique({where:{id:item.productId}});
+          if(!product||!product.active) throw new Error("Produto de estoque inválido: "+item.productId);
+
+          const lots=await tx.stockLot.findMany({
+            where:{productId:product.id,archived:false,quantity:{gt:0}},
+            orderBy:{receivedAt:"asc"}
+          });
+          let remaining=quantity;
+          for(const lot of lots){
+            if(remaining<=0) break;
+            const take=Math.min(Number(lot.quantity),remaining);
+            await tx.stockLot.update({where:{id:lot.id},data:{quantity:{decrement:take}}});
+            remaining-=take;
           }
+          if(remaining>0) throw new Error("Estoque insuficiente para "+product.description);
+
+          await tx.stockMovement.create({
+            data:{
+              productId:product.id,
+              type:"SAIDA",
+              quantity,
+              reference:"VENDA",
+              referenceId:sale.id,
+              notes:"Saída por venda"
+            }
+          });
         }
       }
+
       return sale;
     });
 
