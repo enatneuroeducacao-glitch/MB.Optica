@@ -325,6 +325,8 @@ surcharge Decimal @default(0) @db.Decimal(12,2)
 total Decimal @default(0) @db.Decimal(12,2)
 notes String?
 canceled Boolean @default(false)
+canceledAt DateTime?
+cancelReason String?
 createdAt DateTime @default(now())
 customer Customer? @relation(fields:[customerId],references:[id])
 seller User @relation(fields:[sellerId],references:[id])
@@ -361,6 +363,8 @@ saleId String
 methodId String
 amount Decimal @db.Decimal(12,2)
 reference String?
+reversedAt DateTime?
+reversalReference String?
 paidAt DateTime @default(now())
 sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
 method PaymentMethod @relation(fields:[methodId],references:[id])
