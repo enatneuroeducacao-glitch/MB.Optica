@@ -480,4 +480,19 @@ model StoreSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-\nmodel Appointment {\n  id String @id @default(cuid())\n  customerId String\n  type String\n  professionalType String\n  professionalName String\n  scheduledAt DateTime\n  status String @default("AGENDADO")\n  notes String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)\n  @@index([scheduledAt])\n  @@index([customerId,scheduledAt])\n}\n
+
+model Appointment {
+  id String @id @default(cuid())
+  customerId String
+  type String
+  professionalType String
+  professionalName String
+  scheduledAt DateTime
+  status String @default("AGENDADO")
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+  @@index([scheduledAt])
+  @@index([customerId,scheduledAt])
+}
