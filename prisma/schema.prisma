@@ -144,6 +144,7 @@ orders OpticalOrder[]
 sales Sale[]
 accounts Account[]
 legacyRecords LegacyRecord[]
+appointments Appointment[]
 }
 model Address {
 id String @id @default(cuid())
