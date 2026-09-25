@@ -5,7 +5,7 @@ import {requireRole} from "@/lib/auth";
 import {writeAudit} from "@/lib/audit";
 import {apiError} from "@/lib/api-error";
 const schema=z.object({
- code:z.string().trim().min(1).max(60).optional(),barcode:z.string().trim().max(60).nullable().optional(),description:z.string().trim().min(2).max(200).optional(),
+ code:z.string().trim().min(1).max(60).optional(),barcode:z.string().trim().max(60).nullable().optional(),description:z.string().trim().min(2).max(200).optional(),brand:z.string().trim().max(80).nullable().optional(),model:z.string().trim().max(120).nullable().optional(),color:z.string().trim().max(80).nullable().optional(),frameSize:z.string().trim().max(30).nullable().optional(),lensWidth:z.coerce.number().int().min(0).max(200).nullable().optional(),bridgeWidth:z.coerce.number().int().min(0).max(200).nullable().optional(),templeLength:z.coerce.number().int().min(0).max(250).nullable().optional(),material:z.string().trim().max(80).nullable().optional(),frameShape:z.string().trim().max(80).nullable().optional(),
  unit:z.string().trim().min(1).max(20).optional(),cost:z.coerce.number().min(0).optional(),salePrice:z.coerce.number().min(0).optional(),minimumStock:z.coerce.number().min(0).optional(),
  categoryId:z.string().nullable().optional(),supplierId:z.string().nullable().optional(),ncm:z.string().max(20).nullable().optional(),cest:z.string().max(20).nullable().optional(),
  cfop:z.string().max(10).nullable().optional(),origin:z.string().max(10).nullable().optional(),taxCode:z.string().max(30).nullable().optional(),active:z.boolean().optional()
