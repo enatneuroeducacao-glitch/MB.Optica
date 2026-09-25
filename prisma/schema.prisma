@@ -252,17 +252,13 @@ lotLinks StockMovementLot[]
 }
 model StockMovementLot {
 id String @id @default(cuid())
-number Int @unique @default(autoincrement())
-customerId String
-sellerId String?
-validUntil DateTime?
-discount Decimal @default(0) @db.Decimal(12,2)
-total Decimal @default(0) @db.Decimal(12,2)
-notes String?
-createdAt DateTime @default(now())
-customer Customer @relation(fields:[customerId],references:[id])
-items QuoteItem[]
-order OpticalOrder?
+movementId String
+lotId String
+quantity Decimal @db.Decimal(12,3)
+movement StockMovement @relation(fields:[movementId],references:[id],onDelete:Cascade)
+lot StockLot @relation(fields:[lotId],references:[id])
+@@unique([movementId,lotId])
+@@index([lotId])
 }
 model QuoteItem {
 id String @id @default(cuid())
