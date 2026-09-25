@@ -9,7 +9,7 @@ const schema=z.object({legalName:z.string().max(160).nullable().optional(),trade
 export async function GET(){
   try{
     await requireUser();
-    let settings=await db.storeSettings.findFirst({where:{active:true}});
+    let settings=await db.storeSettings.findFirst({where:{key:"default"}});
     if(!settings)settings=await db.storeSettings.create({data:{tradeName:"MB Óptica",state:"SC"}});
     return NextResponse.json({settings});
   }catch(error){return apiError(error,"Não foi possível carregar as configurações.");}
