@@ -43,7 +43,7 @@ async function printManualOS(){
  <div class="section"><h2>Conferência e atendimento</h2><div class="fields"><div class="field full">Conferência da montagem: _________________________________________________________________________________________</div><div class="field full">Orientações / pendências: __________________________________________________________________________________________</div></div></div>
  <div class="sign"><div>Responsável pelo atendimento</div><div>Cliente</div></div>
  <div class="client-copy"><div class="cutline"><span>✂</span> VIA DO CLIENTE — RECORTE AQUI</div>
-  <div class="client-copy-head"><div><b>MB ÓPTICA</b><br><span>Comprovante de retirada</span></div><div class="os-box"><b>O.S. Nº</b><br>\${osNumber}</div></div>
+  <div class="client-copy-head"><div><b>MB ÓPTICA</b><br><span>Comprovante de retirada</span></div><div class="os-box"><b>O.S. Nº</b><br>${osNumber}</div></div>
   <div class="client-copy-grid">
    <div><b>Cliente</b><br>____________________________________________</div>
    <div><b>Telefone</b><br>____________________________</div>
