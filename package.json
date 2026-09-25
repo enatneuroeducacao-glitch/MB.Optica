@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "import:beepstart": "tsx scripts/import-beepstart.ts",
-    "audit:beepstart": "tsx scripts/audit-beepstart.ts"
+    "audit:beepstart": "tsx scripts/audit-beepstart.ts",
+    "transform:beepstart": "tsx scripts/transform-beepstart.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
