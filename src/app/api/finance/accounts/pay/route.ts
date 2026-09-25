@@ -40,12 +40,13 @@ export async function POST(req:Request){
         }
       });
 
-      const session=methodRecord?.isCash
+      const affectsCash=methodRecord?methodRecord.isCash:true;
+      const session=affectsCash
         ? await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}})
         : null;
-      if(methodRecord?.isCash&&!session) throw new Error("Não há caixa aberto para registrar a quitação");
+      if(affectsCash&&!session) throw new Error("Não há caixa aberto para registrar a quitação");
 
-      const movement=methodRecord?.isCash&&session
+      const movement=affectsCash&&session
         ? await tx.cashMovement.create({
             data:{
               sessionId:session.id,
@@ -57,7 +58,7 @@ export async function POST(req:Request){
           })
         : null;
 
-      await writeAudit(tx,{action:"SETTLE",entity:"Account",entityId:account.id,metadata:{amount,method:b.method||methodRecord?.name||null,isCash:methodRecord?.isCash??null}});
+      await writeAudit(tx,{action:"SETTLE",entity:"Account",entityId:account.id,metadata:{amount,method:b.method||methodRecord?.name||null,isCash:affectsCash}});
       return {account:updated,settlement,movement};
     });
 
