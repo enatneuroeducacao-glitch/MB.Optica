@@ -19,23 +19,32 @@ export async function POST(req:Request){
     if(!customer) throw new Error("Cliente não encontrado ou inativo");
     const dates=b.validUntil?new Date(b.validUntil):undefined;
     if(dates&&Number.isNaN(dates.getTime())) throw new Error("Validade da receita inválida");
+    const prescriptionValues:{[key:string]:number|undefined}={};
+    for(const field of ["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHeight","oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeDnp","oeHeight","pdTotal"]){
+      if(b[field]===undefined||b[field]===null||b[field]==="") prescriptionValues[field]=undefined;
+      else {
+        const value=Number(b[field]);
+        if(!Number.isFinite(value)) throw new Error("Valor inválido na receita: "+field);
+        prescriptionValues[field]=value;
+      }
+    }
     const data=await db.prescription.create({
       data:{
         customerId:b.customerId,
         professional:b.professional||undefined,
-        odSphere:b.odSphere,
-        odCylinder:b.odCylinder,
-        odAxis:b.odAxis,
-        odAdd:b.odAdd,
-        odDnp:b.odDnp,
-        odHeight:b.odHeight,
-        oeSphere:b.oeSphere,
-        oeCylinder:b.oeCylinder,
-        oeAxis:b.oeAxis,
-        oeAdd:b.oeAdd,
-        oeDnp:b.oeDnp,
-        oeHeight:b.oeHeight,
-        pdTotal:b.pdTotal,
+        odSphere:prescriptionValues.odSphere,
+        odCylinder:prescriptionValues.odCylinder,
+        odAxis:prescriptionValues.odAxis,
+        odAdd:prescriptionValues.odAdd,
+        odDnp:prescriptionValues.odDnp,
+        odHeight:prescriptionValues.odHeight,
+        oeSphere:prescriptionValues.oeSphere,
+        oeCylinder:prescriptionValues.oeCylinder,
+        oeAxis:prescriptionValues.oeAxis,
+        oeAdd:prescriptionValues.oeAdd,
+        oeDnp:prescriptionValues.oeDnp,
+        oeHeight:prescriptionValues.oeHeight,
+        pdTotal:prescriptionValues.pdTotal,
         notes:b.notes||undefined,
         originalText:b.originalText||undefined,
         validUntil:dates
