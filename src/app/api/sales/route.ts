@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
   try{
@@ -99,6 +100,7 @@ export async function POST(req:Request){
         }
       }
 
+      await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
       return sale;
     });
 
