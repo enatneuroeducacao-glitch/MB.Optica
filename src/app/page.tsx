@@ -27,8 +27,6 @@ export default function Dashboard(){
       .catch(e=>setError(e instanceof Error?e.message:"Erro ao carregar dashboard"));
   },[]);
 
-  const orders=[{number:"—",customer:"Dados reais",status:"PRONTO" as const,due:"—",value:0}];
-
   return <section className="page">
     <div className="page-heading">
       <div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div>
@@ -49,7 +47,7 @@ export default function Dashboard(){
         <div className="panel-heading"><div><h2>Pedidos em andamento</h2><p>O próximo passo será carregar a listagem real de pedidos nesta visão.</p></div><a href="/pedidos">Ver todos</a></div>
         <div className="table">
           <div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span></div>
-          {orders.map(o=><div className="row" key={o.number}><span>{o.number}</span><span>{o.customer}</span><span><StatusBadge status={o.status}/></span><span>{o.due}</span><strong>{money(o.value)}</strong></div>)}
+          <div className="row"><span>—</span><span>Listagem dinâmica</span><span><StatusBadge status={"PRONTO"}/></span><span>—</span><strong>—</strong></div>
         </div>
       </div>
       <div className="panel">
