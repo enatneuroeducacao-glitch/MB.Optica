@@ -123,6 +123,7 @@ sessionVersion Int @default(0)
 lastLoginAt DateTime?
 sales Sale[]
 orders OpticalOrder[]
+quotes Quote[]
 auditLogs AuditLog[]
 }
 model Customer {
@@ -186,6 +187,7 @@ notes String?
 originalText String?
 customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
 orders OpticalOrder[]
+quotes Quote[]
 }
 model Category {
 id String @id @default(cuid())
@@ -226,6 +228,7 @@ supplier Supplier? @relation(fields:[supplierId],references:[id])
 lots StockLot[]
 movements StockMovement[]
 orderItems OpticalOrderItem[]
+quoteItems QuoteItem[]
 saleItems SaleItem[]
 }
 model StockLot {
@@ -268,23 +271,39 @@ model Quote {
 id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String
+prescriptionId String?
 sellerId String?
+status String @default("ABERTO")
 validUntil DateTime?
+deliveryDate DateTime?
 discount Decimal @default(0) @db.Decimal(12,2)
+surcharge Decimal @default(0) @db.Decimal(12,2)
+entryAmount Decimal @default(0) @db.Decimal(12,2)
 total Decimal @default(0) @db.Decimal(12,2)
+paymentMethod String?
+installments Int?
 notes String?
 createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
 customer Customer @relation(fields:[customerId],references:[id])
+prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+seller User? @relation(fields:[sellerId],references:[id])
 items QuoteItem[]
 order OpticalOrder?
+@@index([status])
+@@index([customerId,createdAt])
 }
 model QuoteItem {
 id String @id @default(cuid())
 quoteId String
+productId String?
 description String
+kind String?
+eye String?
 quantity Decimal @db.Decimal(12,3)
 unitPrice Decimal @db.Decimal(12,2)
 quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
 }
 model OpticalOrder {
 id String @id @default(cuid())
