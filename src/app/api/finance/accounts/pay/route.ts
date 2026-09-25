@@ -12,6 +12,7 @@ export async function POST(req:Request){
     const result=await db.$transaction(async(tx)=>{
       const account=await tx.account.findUnique({where:{id:b.accountId}});
       if(!account) throw new Error("Conta não encontrada");
+      if(account.status==="PAGO"||account.status==="CANCELADO") throw new Error("Conta não pode receber nova quitação");
 
       let methodRecord=null;
       if(b.methodId){
