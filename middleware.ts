@@ -27,7 +27,9 @@ function pathAllowed(role: string, pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const requestHeaders = new Headers(request.headers);\n  requestHeaders.set("x-mb-pathname", pathname);\n  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-mb-pathname", pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
