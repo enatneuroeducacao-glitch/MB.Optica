@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function GET(){
   const data=await db.opticalOrder.findMany({
@@ -43,26 +44,24 @@ export async function POST(req:Request){
     const total=normalizedItems.reduce((sum:number,item:{quantity:number;unitPrice:number})=>sum+item.quantity*item.unitPrice,0);
     if(b.total!==undefined&&(!Number.isFinite(Number(b.total))||Number(b.total)<0)) throw new Error("Total inválido");
 
-    const order=await db.opticalOrder.create({
-      data:{
-        customerId:b.customerId,
-        prescriptionId:b.prescriptionId||undefined,
-        sellerId:b.sellerId||undefined,
-        dueDate:b.dueDate?new Date(b.dueDate):undefined,
-        laboratory:b.laboratory||undefined,
-        notes:b.notes||undefined,
-        total:total,
-        items:{create:normalizedItems},
-        events:{
-          create:{
-            status:"ORCAMENTO",
-            message:"Pedido óptico criado"
-          }
-        }
-      },
-      include:{items:true,events:true}
+    const order=await db.$transaction(async(tx)=>{
+      const created=await tx.opticalOrder.create({
+        data:{
+          customerId:customer.id,
+          prescriptionId:b.prescriptionId?String(b.prescriptionId):undefined,
+          sellerId:b.sellerId?String(b.sellerId):undefined,
+          dueDate:b.dueDate?new Date(b.dueDate):undefined,
+          laboratory:b.laboratory?String(b.laboratory).trim():undefined,
+          notes:b.notes?String(b.notes).trim():undefined,
+          total,
+          items:{create:normalizedItems},
+          events:{create:{status:"ORCAMENTO",message:"Pedido óptico criado"}}
+        },
+        include:{items:true,events:true}
+      });
+      await writeAudit(tx,{action:"CREATE",entity:"OpticalOrder",entityId:created.id,metadata:{customerId:created.customerId,total:created.total.toString(),items:created.items.length}});
+      return created;
     });
-
     return NextResponse.json(order,{status:201});
   }catch(error){
     return NextResponse.json({
