@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {OrderStatus} from "@prisma/client";
+import {writeAudit} from "@/lib/audit";
 
 export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
@@ -44,10 +45,21 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
     if(b.status==="RECEBIDO") data.receivedAt=new Date();
     if(b.status==="ENTREGUE") data.deliveredAt=new Date();
 
-    const order=await db.opticalOrder.update({
-      where:{id},
-      data,
-      include:{customer:true,prescription:true,items:true,events:{orderBy:{createdAt:"asc"}}}
+    const order=await db.$transaction(async tx=>{
+      const updated=await tx.opticalOrder.update({
+        where:{id},
+        data,
+        include:{customer:true,prescription:true,items:true,events:{orderBy:{createdAt:"asc"}}}
+      });
+
+      await writeAudit(tx,{
+        action:"STATUS_CHANGE",
+        entity:"OpticalOrder",
+        entityId:id,
+        metadata:{from:current.status,to:b.status,message:b.message||null}
+      });
+
+      return updated;
     });
 
     return NextResponse.json(order);
