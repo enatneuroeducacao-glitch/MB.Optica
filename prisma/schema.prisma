@@ -1,17 +1,36 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
-enum UserRole { ADMIN GERENTE VENDEDOR LABORATORIO FINANCEIRO }
-enum OrderStatus { ORCAMENTO APROVADO PEDIDO AGUARDANDO_LABORATORIO EM_PRODUCAO RECEBIDO CONFERENCIA PRONTO ENTREGUE CANCELADO DEVOLVIDO }
-enum PaymentStatus { PENDENTE PARCIAL PAGO CANCELADO }
-enum AccountType { RECEBER PAGAR }
-enum StockMovementType { ENTRADA SAIDA AJUSTE TRANSFERENCIA DEVOLUCAO }
-
-enum FiscalDocumentType { NFC_E NF_E NFA_E NFS_E }
-enum FiscalDocumentStatus { PENDENTE AUTORIZADO REJEITADO CANCELADO INUTILIZADO CONTINGENCIA }
-enum FiscalIntegrationMode { NFF NFAE_SAT PAF_NFCE MANUAL }
-
+generator client {
+provider = "prisma-client-js"
+}
+datasource db {
+provider = "postgresql"
+url = env("DATABASE_URL")
+}
+enum UserRole {
+ADMIN GERENTE VENDEDOR LABORATORIO FINANCEIRO
+}
+enum OrderStatus {
+ORCAMENTO APROVADO PEDIDO AGUARDANDO_LABORATORIO EM_PRODUCAO RECEBIDO CONFERENCIA PRONTO ENTREGUE CANCELADO DEVOLVIDO
+}
+enum PaymentStatus {
+PENDENTE PARCIAL PAGO CANCELADO
+}
+enum AccountType {
+RECEBER PAGAR
+}
+enum StockMovementType {
+ENTRADA SAIDA AJUSTE TRANSFERENCIA DEVOLUCAO
+}
+enum FiscalDocumentType {
+NFC_E NF_E NFA_E NFS_E
+}
+enum FiscalDocumentStatus {
+PENDENTE AUTORIZADO REJEITADO CANCELADO INUTILIZADO CONTINGENCIA
+}
+enum FiscalIntegrationMode {
+NFF NFAE_SAT PAF_NFCE MANUAL
+}
 model FiscalConfig {
-  id String @id @default(cuid())
+id String @id @default(cuid())
   legalName String?
   tradeName String?
   cnpj String?
@@ -29,9 +48,8 @@ model FiscalConfig {
   updatedAt DateTime @updatedAt
   documents FiscalDocument[]
 }
-
 model FiscalDocument {
-  id String @id @default(cuid())
+id String @id @default(cuid())
   type FiscalDocumentType
   status FiscalDocumentStatus @default(PENDENTE)
   number String?
@@ -59,28 +77,331 @@ model FiscalDocument {
   @@index([status])
   @@index([accessKey])
 }
-
-model User { id String @id @default(cuid()); name String; email String @unique; role UserRole @default(VENDEDOR); active Boolean @default(true); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; sales Sale[]; orders OpticalOrder[]; auditLogs AuditLog[] }
-model Customer { id String @id @default(cuid()); name String; cpfCnpj String? @unique; phone String?; whatsapp String?; email String?; birthDate DateTime?; notes String?; active Boolean @default(true); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; addresses Address[]; prescriptions Prescription[]; quotes Quote[]; orders OpticalOrder[]; sales Sale[]; accounts Account[]; legacyRecords LegacyRecord[] }
-model Address { id String @id @default(cuid()); customerId String; label String?; street String?; number String?; complement String?; district String?; city String?; state String?; postalCode String?; customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade) }
-model Prescription { id String @id @default(cuid()); customerId String; date DateTime @default(now()); professional String?; validUntil DateTime?; odSphere Decimal? @db.Decimal(6,2); odCylinder Decimal? @db.Decimal(6,2); odAxis Decimal? @db.Decimal(6,2); odAdd Decimal? @db.Decimal(6,2); odPrism Decimal? @db.Decimal(6,2); odBase String?; odDnp Decimal? @db.Decimal(6,2); odHeight Decimal? @db.Decimal(6,2); oeSphere Decimal? @db.Decimal(6,2); oeCylinder Decimal? @db.Decimal(6,2); oeAxis Decimal? @db.Decimal(6,2); oeAdd Decimal? @db.Decimal(6,2); oePrism Decimal? @db.Decimal(6,2); oeBase String?; oeDnp Decimal? @db.Decimal(6,2); oeHeight Decimal? @db.Decimal(6,2); pdTotal Decimal? @db.Decimal(6,2); notes String?; originalText String?; customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade); orders OpticalOrder[] }
-model Category { id String @id @default(cuid()); name String @unique; active Boolean @default(true); products Product[] }
-model Supplier { id String @id @default(cuid()); name String; document String?; phone String?; email String?; notes String?; active Boolean @default(true); products Product[]; accounts Account[] }
-model Product { id String @id @default(cuid()); ncm String?; cest String?; cfop String?; origin String?; taxCode String?; code String @unique; barcode String? @unique; description String; unit String @default("UN"); cost Decimal @default(0) @db.Decimal(12,2); salePrice Decimal @default(0) @db.Decimal(12,2); minimumStock Decimal @default(0) @db.Decimal(12,3); active Boolean @default(true); categoryId String?; supplierId String?; category Category? @relation(fields:[categoryId],references:[id]); supplier Supplier? @relation(fields:[supplierId],references:[id]); lots StockLot[]; movements StockMovement[]; orderItems OpticalOrderItem[]; saleItems SaleItem[] }
-model StockLot { id String @id @default(cuid()); productId String; code String?; description String?; receivedAt DateTime @default(now()); quantity Decimal @db.Decimal(12,3); cost Decimal? @db.Decimal(12,2); expiresAt DateTime?; archived Boolean @default(false); product Product @relation(fields:[productId],references:[id],onDelete:Cascade) }
-model StockMovement { id String @id @default(cuid()); productId String; type StockMovementType; quantity Decimal @db.Decimal(12,3); unitCost Decimal? @db.Decimal(12,2); reference String?; referenceId String?; notes String?; createdAt DateTime @default(now()); product Product @relation(fields:[productId],references:[id]) }
-model Quote { id String @id @default(cuid()); number Int @unique @default(autoincrement()); customerId String; sellerId String?; validUntil DateTime?; discount Decimal @default(0) @db.Decimal(12,2); total Decimal @default(0) @db.Decimal(12,2); notes String?; createdAt DateTime @default(now()); customer Customer @relation(fields:[customerId],references:[id]); items QuoteItem[]; order OpticalOrder? }
-model QuoteItem { id String @id @default(cuid()); quoteId String; description String; quantity Decimal @db.Decimal(12,3); unitPrice Decimal @db.Decimal(12,2); quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade) }
-model OpticalOrder { id String @id @default(cuid()); number Int @unique @default(autoincrement()); customerId String; prescriptionId String?; sellerId String?; status OrderStatus @default(ORCAMENTO); dueDate DateTime?; laboratory String?; laboratorySentAt DateTime?; receivedAt DateTime?; deliveredAt DateTime?; notes String?; total Decimal @default(0) @db.Decimal(12,2); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; customer Customer @relation(fields:[customerId],references:[id]); prescription Prescription? @relation(fields:[prescriptionId],references:[id]); seller User? @relation(fields:[sellerId],references:[id]); items OpticalOrderItem[]; events OrderEvent[]; quoteId String? @unique; quote Quote? @relation(fields:[quoteId],references:[id]); sale Sale? }
-model OpticalOrderItem { id String @id @default(cuid()); orderId String; productId String?; description String; kind String; eye String?; quantity Decimal @default(1) @db.Decimal(12,3); unitPrice Decimal @default(0) @db.Decimal(12,2); order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade); product Product? @relation(fields:[productId],references:[id]) }
-model OrderEvent { id String @id @default(cuid()); orderId String; status OrderStatus; message String; createdAt DateTime @default(now()); order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade) }
-model Sale { id String @id @default(cuid()); number Int @unique @default(autoincrement()); customerId String?; sellerId String; orderId String? @unique; subtotal Decimal @default(0) @db.Decimal(12,2); discount Decimal @default(0) @db.Decimal(12,2); surcharge Decimal @default(0) @db.Decimal(12,2); total Decimal @default(0) @db.Decimal(12,2); notes String?; canceled Boolean @default(false); createdAt DateTime @default(now()); customer Customer? @relation(fields:[customerId],references:[id]); seller User @relation(fields:[sellerId],references:[id]); order OpticalOrder? @relation(fields:[orderId],references:[id]); items SaleItem[]; payments Payment[]; accounts Account[]; fiscalDocument FiscalDocument? }
-model SaleItem { id String @id @default(cuid()); saleId String; productId String?; description String; quantity Decimal @db.Decimal(12,3); unitPrice Decimal @db.Decimal(12,2); unitCost Decimal @default(0) @db.Decimal(12,2); discount Decimal @default(0) @db.Decimal(12,2); total Decimal @default(0) @db.Decimal(12,2); sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade); product Product? @relation(fields:[productId],references:[id]) }
-model PaymentMethod { id String @id @default(cuid()); name String @unique; active Boolean @default(true); isCash Boolean @default(true); payments Payment[]; settlements AccountSettlement[] }
-model Payment { id String @id @default(cuid()); saleId String; methodId String; amount Decimal @db.Decimal(12,2); reference String?; paidAt DateTime @default(now()); sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade); method PaymentMethod @relation(fields:[methodId],references:[id]) }
-model Account { id String @id @default(cuid()); type AccountType; description String; customerId String?; supplierId String?; saleId String?; dueDate DateTime; amount Decimal @db.Decimal(12,2); paidAmount Decimal @default(0) @db.Decimal(12,2); status PaymentStatus @default(PENDENTE); notes String?; customer Customer? @relation(fields:[customerId],references:[id]); supplier Supplier? @relation(fields:[supplierId],references:[id]); sale Sale? @relation(fields:[saleId],references:[id]); settlements AccountSettlement[] }
-model AccountSettlement { id String @id @default(cuid()); accountId String; amount Decimal @db.Decimal(12,2); paidAt DateTime @default(now()); method String?; methodId String?; reference String?; notes String?; account Account @relation(fields:[accountId],references:[id],onDelete:Cascade); paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id]); @@index([accountId,paidAt]) }
-model CashSession { id String @id @default(cuid()); openedAt DateTime @default(now()); closedAt DateTime?; openingCash Decimal @db.Decimal(12,2); closingCash Decimal? @db.Decimal(12,2); notes String?; movements CashMovement[] }
-model CashMovement { id String @id @default(cuid()); sessionId String; kind String; amount Decimal @db.Decimal(12,2); description String; referenceId String?; createdAt DateTime @default(now()); session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade) }
-model AuditLog { id String @id @default(cuid()); userId String?; action String; entity String; entityId String?; metadata Json?; createdAt DateTime @default(now()); user User? @relation(fields:[userId],references:[id]) }
-model LegacyRecord { id String @id @default(cuid()); source String @default("BEEPSTART"); collectionKey String?; legacyId String?; payload Json; customerId String?; importedAt DateTime @default(now()); customer Customer? @relation(fields:[customerId],references:[id]); @@index([collectionKey]); @@index([legacyId]) }
+model User {
+id String @id @default(cuid())
+name String
+email String @unique
+role UserRole @default(VENDEDOR)
+active Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+sales Sale[]
+orders OpticalOrder[]
+auditLogs AuditLog[]
+}
+model Customer {
+id String @id @default(cuid())
+name String
+cpfCnpj String? @unique
+phone String?
+whatsapp String?
+email String?
+birthDate DateTime?
+notes String?
+active Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+addresses Address[]
+prescriptions Prescription[]
+quotes Quote[]
+orders OpticalOrder[]
+sales Sale[]
+accounts Account[]
+legacyRecords LegacyRecord[]
+}
+model Address {
+id String @id @default(cuid())
+customerId String
+label String?
+street String?
+number String?
+complement String?
+district String?
+city String?
+state String?
+postalCode String?
+customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+}
+model Prescription {
+id String @id @default(cuid())
+customerId String
+date DateTime @default(now())
+professional String?
+validUntil DateTime?
+odSphere Decimal? @db.Decimal(6,2)
+odCylinder Decimal? @db.Decimal(6,2)
+odAxis Decimal? @db.Decimal(6,2)
+odAdd Decimal? @db.Decimal(6,2)
+odPrism Decimal? @db.Decimal(6,2)
+odBase String?
+odDnp Decimal? @db.Decimal(6,2)
+odHeight Decimal? @db.Decimal(6,2)
+oeSphere Decimal? @db.Decimal(6,2)
+oeCylinder Decimal? @db.Decimal(6,2)
+oeAxis Decimal? @db.Decimal(6,2)
+oeAdd Decimal? @db.Decimal(6,2)
+oePrism Decimal? @db.Decimal(6,2)
+oeBase String?
+oeDnp Decimal? @db.Decimal(6,2)
+oeHeight Decimal? @db.Decimal(6,2)
+pdTotal Decimal? @db.Decimal(6,2)
+notes String?
+originalText String?
+customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+orders OpticalOrder[]
+}
+model Category {
+id String @id @default(cuid())
+name String @unique
+active Boolean @default(true)
+products Product[]
+}
+model Supplier {
+id String @id @default(cuid())
+name String
+document String?
+phone String?
+email String?
+notes String?
+active Boolean @default(true)
+products Product[]
+accounts Account[]
+}
+model Product {
+id String @id @default(cuid())
+ncm String?
+cest String?
+cfop String?
+origin String?
+taxCode String?
+code String @unique
+barcode String? @unique
+description String
+unit String @default("UN")
+cost Decimal @default(0) @db.Decimal(12,2)
+salePrice Decimal @default(0) @db.Decimal(12,2)
+minimumStock Decimal @default(0) @db.Decimal(12,3)
+active Boolean @default(true)
+categoryId String?
+supplierId String?
+category Category? @relation(fields:[categoryId],references:[id])
+supplier Supplier? @relation(fields:[supplierId],references:[id])
+lots StockLot[]
+movements StockMovement[]
+orderItems OpticalOrderItem[]
+saleItems SaleItem[]
+}
+model StockLot {
+id String @id @default(cuid())
+productId String
+code String?
+description String?
+receivedAt DateTime @default(now())
+quantity Decimal @db.Decimal(12,3)
+cost Decimal? @db.Decimal(12,2)
+expiresAt DateTime?
+archived Boolean @default(false)
+product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+}
+model StockMovement {
+id String @id @default(cuid())
+productId String
+type StockMovementType
+quantity Decimal @db.Decimal(12,3)
+unitCost Decimal? @db.Decimal(12,2)
+reference String?
+referenceId String?
+notes String?
+createdAt DateTime @default(now())
+product Product @relation(fields:[productId],references:[id])
+}
+model Quote {
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String
+sellerId String?
+validUntil DateTime?
+discount Decimal @default(0) @db.Decimal(12,2)
+total Decimal @default(0) @db.Decimal(12,2)
+notes String?
+createdAt DateTime @default(now())
+customer Customer @relation(fields:[customerId],references:[id])
+items QuoteItem[]
+order OpticalOrder?
+}
+model QuoteItem {
+id String @id @default(cuid())
+quoteId String
+description String
+quantity Decimal @db.Decimal(12,3)
+unitPrice Decimal @db.Decimal(12,2)
+quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
+}
+model OpticalOrder {
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String
+prescriptionId String?
+sellerId String?
+status OrderStatus @default(ORCAMENTO)
+dueDate DateTime?
+laboratory String?
+laboratorySentAt DateTime?
+receivedAt DateTime?
+deliveredAt DateTime?
+notes String?
+total Decimal @default(0) @db.Decimal(12,2)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+customer Customer @relation(fields:[customerId],references:[id])
+prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+seller User? @relation(fields:[sellerId],references:[id])
+items OpticalOrderItem[]
+events OrderEvent[]
+quoteId String? @unique
+quote Quote? @relation(fields:[quoteId],references:[id])
+sale Sale?
+}
+model OpticalOrderItem {
+id String @id @default(cuid())
+orderId String
+productId String?
+description String
+kind String
+eye String?
+quantity Decimal @default(1) @db.Decimal(12,3)
+unitPrice Decimal @default(0) @db.Decimal(12,2)
+order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
+}
+model OrderEvent {
+id String @id @default(cuid())
+orderId String
+status OrderStatus
+message String
+createdAt DateTime @default(now())
+order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
+}
+model Sale {
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String?
+sellerId String
+orderId String? @unique
+subtotal Decimal @default(0) @db.Decimal(12,2)
+discount Decimal @default(0) @db.Decimal(12,2)
+surcharge Decimal @default(0) @db.Decimal(12,2)
+total Decimal @default(0) @db.Decimal(12,2)
+notes String?
+canceled Boolean @default(false)
+createdAt DateTime @default(now())
+customer Customer? @relation(fields:[customerId],references:[id])
+seller User @relation(fields:[sellerId],references:[id])
+order OpticalOrder? @relation(fields:[orderId],references:[id])
+items SaleItem[]
+payments Payment[]
+accounts Account[]
+fiscalDocument FiscalDocument?
+}
+model SaleItem {
+id String @id @default(cuid())
+saleId String
+productId String?
+description String
+quantity Decimal @db.Decimal(12,3)
+unitPrice Decimal @db.Decimal(12,2)
+unitCost Decimal @default(0) @db.Decimal(12,2)
+discount Decimal @default(0) @db.Decimal(12,2)
+total Decimal @default(0) @db.Decimal(12,2)
+sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
+}
+model PaymentMethod {
+id String @id @default(cuid())
+name String @unique
+active Boolean @default(true)
+isCash Boolean @default(true)
+payments Payment[]
+settlements AccountSettlement[]
+}
+model Payment {
+id String @id @default(cuid())
+saleId String
+methodId String
+amount Decimal @db.Decimal(12,2)
+reference String?
+paidAt DateTime @default(now())
+sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
+method PaymentMethod @relation(fields:[methodId],references:[id])
+}
+model Account {
+id String @id @default(cuid())
+type AccountType
+description String
+customerId String?
+supplierId String?
+saleId String?
+dueDate DateTime
+amount Decimal @db.Decimal(12,2)
+paidAmount Decimal @default(0) @db.Decimal(12,2)
+status PaymentStatus @default(PENDENTE)
+notes String?
+customer Customer? @relation(fields:[customerId],references:[id])
+supplier Supplier? @relation(fields:[supplierId],references:[id])
+sale Sale? @relation(fields:[saleId],references:[id])
+settlements AccountSettlement[]
+}
+model AccountSettlement {
+id String @id @default(cuid())
+accountId String
+amount Decimal @db.Decimal(12,2)
+paidAt DateTime @default(now())
+method String?
+methodId String?
+reference String?
+notes String?
+account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
+paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id])
+@@index([accountId,paidAt])
+}
+model CashSession {
+id String @id @default(cuid())
+openedAt DateTime @default(now())
+closedAt DateTime?
+openingCash Decimal @db.Decimal(12,2)
+closingCash Decimal? @db.Decimal(12,2)
+notes String?
+movements CashMovement[]
+}
+model CashMovement {
+id String @id @default(cuid())
+sessionId String
+kind String
+amount Decimal @db.Decimal(12,2)
+description String
+referenceId String?
+createdAt DateTime @default(now())
+session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+}
+model AuditLog {
+id String @id @default(cuid())
+userId String?
+action String
+entity String
+entityId String?
+metadata Json?
+createdAt DateTime @default(now())
+user User? @relation(fields:[userId],references:[id])
+}
+model LegacyRecord {
+id String @id @default(cuid())
+source String @default("BEEPSTART")
+collectionKey String?
+legacyId String?
+payload Json
+customerId String?
+importedAt DateTime @default(now())
+customer Customer? @relation(fields:[customerId],references:[id])
+@@index([collectionKey])
+@@index([legacyId])
+}
