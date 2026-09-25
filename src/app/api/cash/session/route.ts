@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function GET(){
   const session=await db.cashSession.findFirst({
@@ -19,9 +20,11 @@ export async function POST(req:Request){
     const session=await db.$transaction(async(tx)=>{
       const open=await tx.cashSession.findFirst({where:{closedAt:null}});
       if(open) throw new Error("Já existe um caixa aberto");
-      return tx.cashSession.create({
+      const session=await tx.cashSession.create({
         data:{openingCash,notes:b.notes||undefined}
       });
+      await writeAudit(tx,{action:"OPEN",entity:"CashSession",entityId:session.id,metadata:{openingCash}});
+      return session;
     });
     return NextResponse.json(session,{status:201});
   }catch(error){
