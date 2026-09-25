@@ -1,96 +1,67 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "mb_optica_session";
-const pageAccess: Record<string,string[]> = {
-  "/clientes": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"],
-  "/receitas": ["ADMIN","GERENTE","VENDEDOR"],
-  "/orcamentos": ["ADMIN","GERENTE","VENDEDOR"],
-  "/pedidos": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
-  "/laboratorio": ["ADMIN","GERENTE","LABORATORIO"],
-  "/produtos": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
-  "/estoque": ["ADMIN","GERENTE","LABORATORIO"],
-  "/fornecedores": ["ADMIN","GERENTE","FINANCEIRO"],
-  "/vendas": ["ADMIN","GERENTE","VENDEDOR"],
-  "/financeiro": ["ADMIN","GERENTE","FINANCEIRO"],
-  "/relatorios": ["ADMIN","GERENTE","FINANCEIRO","VENDEDOR","LABORATORIO"],
-  "/configuracoes": ["ADMIN","GERENTE"],
-  "/migracao": ["ADMIN"],
+const PUBLIC_PAGES = new Set(["/login", "/setup"]);
+const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bootstrap", "/api/health"]);
+
+const ROLE_PREFIXES: Record<string, string[]> = {
+  ADMIN: ["/"],
+  GERENTE: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/laboratorio", "/produtos", "/estoque", "/fornecedores", "/vendas", "/financeiro", "/relatorios", "/configuracoes"],
+  VENDEDOR: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/vendas", "/produtos"],
+  FINANCEIRO: ["/", "/vendas", "/financeiro", "/relatorios"],
+  LABORATORIO: ["/", "/pedidos", "/laboratorio", "/produtos"],
 };
 
-const apiAccess: Record<string,string[]> = {
-  "/api/dashboard": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"],
-  "/api/customers": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"],
-  "/api/prescriptions": ["ADMIN","GERENTE","VENDEDOR"],
-  "/api/products": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
-  "/api/stock": ["ADMIN","GERENTE","LABORATORIO"],
-  "/api/orders": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
-  "/api/sales": ["ADMIN","GERENTE","VENDEDOR"],
-  "/api/payment-methods": ["ADMIN","GERENTE","FINANCEIRO"],
-  "/api/payments": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"],
-  "/api/finance": ["ADMIN","GERENTE","FINANCEIRO"],
-  "/api/cash": ["ADMIN","GERENTE","FINANCEIRO"],
-  "/api/settings": ["ADMIN","GERENTE"],
-  "/api/users": ["ADMIN","GERENTE"],
-  "/api/migration": ["ADMIN"],
-};
-
-function apiAllowed(path:string, role:string) {
-  const match=Object.keys(apiAccess).find(prefix=>path===prefix || path.startsWith(prefix+"/"));
-  return !match || apiAccess[match].includes(role);
-}
-
-function key() {
+function secretKey() {
   const secret = process.env.AUTH_SECRET;
-  return secret ? new TextEncoder().encode(secret) : null;
+  if (!secret || secret.length < 32) return null;
+  return new TextEncoder().encode(secret);
 }
 
-function allowed(path:string, role:string) {
-  const match=Object.keys(pageAccess).find(prefix=>path===prefix || path.startsWith(prefix+"/"));
-  return !match || pageAccess[match].includes(role);
+function pathAllowed(role: string, pathname: string) {
+  const prefixes = ROLE_PREFIXES[role] ?? [];
+  return prefixes.some((prefix) => prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
 export async function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname;
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-mb-pathname", path);
-  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+  const { pathname } = request.nextUrl;
 
-  const publicPath =
-    path === "/login" || path === "/setup" || path === "/acesso-negado" ||
-    path === "/api/health" || path.startsWith("/api/auth/") ||
-    path.startsWith("/_next/") || path === "/favicon.ico";
+  const response = NextResponse.next();
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set("X-DNS-Prefetch-Control", "off");
 
-  if (publicPath) return next();
+  if (PUBLIC_PAGES.has(pathname) || PUBLIC_API.has(pathname)) return response;
 
   const token = request.cookies.get(COOKIE)?.value;
-  if (!token) {
-    if (path.startsWith("/api/")) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const key = secretKey();
+
+  if (!token || !key) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401, headers: response.headers });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const secret = key();
-  if (!secret) {
-    if (path.startsWith("/api/")) return NextResponse.json({ error: "Autenticação não configurada." }, { status: 503 });
-    return NextResponse.redirect(new URL("/login?error=config", request.url));
-  }
-
   try {
-    const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
-    const role=typeof payload.role==="string"?payload.role:"";
-    if (path.startsWith("/api/") && !apiAllowed(path,role)) return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403 });
-    if (!path.startsWith("/api/") && !allowed(path,role)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
-    requestHeaders.set("x-mb-role", role);
-    return next();
-  } catch {
-    if (path.startsWith("/api/")) return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete(COOKIE);
+    const verified = await jwtVerify(token, key, { algorithms: ["HS256"] });
+    const role = typeof verified.payload.role === "string" ? verified.payload.role : "";
+    if (pathname.startsWith("/api/")) return response;
+    if (!pathAllowed(role, pathname)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
     return response;
+  } catch {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Sessão inválida." }, { status: 401, headers: response.headers });
+    }
+    const login = NextResponse.redirect(new URL("/login", request.url));
+    login.cookies.delete(COOKIE);
+    return login;
   }
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
