@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
@@ -29,7 +30,7 @@ export async function POST(req:Request){
       });
       await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected}});
       return {session:closed,expected,difference:countedCash-expected};
-    });
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(result);
   }catch(error){
     return NextResponse.json({error:"Não foi possível fechar o caixa",detail:String(error)},{status:400});
