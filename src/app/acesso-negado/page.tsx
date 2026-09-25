@@ -1,0 +1,1 @@
+export default function Page(){return <main className="denied"><div className="panel"><h1>Acesso não autorizado</h1><p>Seu perfil não possui permissão para acessar este módulo. Se você acredita que isso está incorreto, solicite a revisão do seu perfil ao administrador.</p><a className="primary" href="/">Voltar ao início</a></div></main>}
