@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
   const {id}=await params;
@@ -22,7 +23,9 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
     const b=await req.json();
     const name=b.name!==undefined?String(b.name).trim():undefined;
     if(name!==undefined&&name.length<2) throw new Error("Nome inválido");
-    const data=await db.customer.update({
+    const current=await db.customer.findUnique({where:{id}});
+    if(!current) throw new Error("Cliente não encontrado");
+    const data=await db.$transaction(async tx=>{
       where:{id},
       data:{
         name,
@@ -32,6 +35,20 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
         email:b.email!==undefined?(b.email?String(b.email).trim():null):undefined,
         notes:b.notes!==undefined?(b.notes?String(b.notes).trim():null):undefined
       }
+    });
+      const updated=await tx.customer.update({
+        where:{id},
+        data:{
+          name,
+          cpfCnpj:b.cpfCnpj!==undefined?(b.cpfCnpj?String(b.cpfCnpj).trim():null):undefined,
+          phone:b.phone!==undefined?(b.phone?String(b.phone).trim():null):undefined,
+          whatsapp:b.whatsapp!==undefined?(b.whatsapp?String(b.whatsapp).trim():null):undefined,
+          email:b.email!==undefined?(b.email?String(b.email).trim():null):undefined,
+          notes:b.notes!==undefined?(b.notes?String(b.notes).trim():null):undefined
+        }
+      });
+      await writeAudit(tx,{action:"UPDATE",entity:"Customer",entityId:id,metadata:{before:{name:current.name,cpfCnpj:current.cpfCnpj,phone:current.phone,whatsapp:current.whatsapp,email:current.email},after:{name:updated.name,cpfCnpj:updated.cpfCnpj,phone:updated.phone,whatsapp:updated.whatsapp,email:updated.email}}});
+      return updated;
     });
     return NextResponse.json(data);
   }catch(error){
