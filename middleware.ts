@@ -19,6 +19,28 @@ const pageAccess: Record<string,string[]> = {
   "/migracao": ["ADMIN"],
 };
 
+const apiAccess: Record<string,string[]> = {
+  "/api/dashboard": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"],
+  "/api/customers": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"],
+  "/api/prescriptions": ["ADMIN","GERENTE","VENDEDOR"],
+  "/api/products": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
+  "/api/stock": ["ADMIN","GERENTE","LABORATORIO"],
+  "/api/orders": ["ADMIN","GERENTE","VENDEDOR","LABORATORIO"],
+  "/api/sales": ["ADMIN","GERENTE","VENDEDOR"],
+  "/api/payment-methods": ["ADMIN","GERENTE","FINANCEIRO"],
+  "/api/payments": ["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"],
+  "/api/finance": ["ADMIN","GERENTE","FINANCEIRO"],
+  "/api/cash": ["ADMIN","GERENTE","FINANCEIRO"],
+  "/api/settings": ["ADMIN","GERENTE"],
+  "/api/users": ["ADMIN","GERENTE"],
+  "/api/migration": ["ADMIN"],
+};
+
+function apiAllowed(path:string, role:string) {
+  const match=Object.keys(apiAccess).find(prefix=>path===prefix || path.startsWith(prefix+"/"));
+  return !match || apiAccess[match].includes(role);
+}
+
 function key() {
   const secret = process.env.AUTH_SECRET;
   return secret ? new TextEncoder().encode(secret) : null;
@@ -57,6 +79,7 @@ export async function middleware(request: NextRequest) {
   try {
     const { payload } = await jwtVerify(token, secret, { algorithms: ["HS256"] });
     const role=typeof payload.role==="string"?payload.role:"";
+    if (path.startsWith("/api/") && !apiAllowed(path,role)) return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403 });
     if (!path.startsWith("/api/") && !allowed(path,role)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
     requestHeaders.set("x-mb-role", role);
     return next();
