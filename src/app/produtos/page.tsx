@@ -112,22 +112,6 @@ export default function Produtos(){
    <button className="secondary" onClick={()=>setSearch("")}>Limpar</button>
   </div>
 
-  <div className="panel">
-   <div className="table">
-    <div className="row header"><span>Código</span><span>Produto</span><span>Categoria</span><span>Fornecedor</span><span>Preço</span><span>Estoque</span><span>Ações</span></div>
-    {filtered.map(p=><div className="row" key={p.id}>
-     <strong>{p.code}</strong>
-     <span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}</span>
-     <span>{p.category?.name||"—"}</span>
-     <span>{p.supplier?.name||"—"}</span>
-     <span>R$ {Number(p.salePrice||0).toFixed(2)}</span>
-     <span style={{fontWeight:600,color:p.lowStock?"#a33":"inherit"}}>{Number(p.stock||0).toFixed(3)} {p.unit} {p.lowStock?"· baixo":""}</span>
-     <span style={{display:"flex",gap:7,flexWrap:"wrap"}}><button className="link-button" onClick={()=>edit(p)}>Editar</button><button className="link-button" onClick={()=>{setLabelProduct(p);setLabelQty(1)}}>🏷 Etiqueta</button></span>
-    </div>)}
-    {!filtered.length&&<div style={{padding:22,textAlign:"center",color:"var(--muted)"}}>Nenhum produto encontrado.</div>}
-   </div>
-  </div>
-
   {open&&<div className="panel" style={{padding:20,marginTop:12}}>
    <div className="panel-heading" style={{padding:0,marginBottom:15}}><div><span className="eyebrow">CADASTRO</span><h2>{selected?"Editar produto":"Novo produto"}</h2></div><button className="secondary" onClick={()=>setOpen(false)}>Fechar</button></div>
    <form onSubmit={save}>
@@ -177,6 +161,23 @@ export default function Produtos(){
     </details>
    </form>
   </div>}
+
+
+  <div className="panel">
+   <div className="table">
+    <div className="row header"><span>Código</span><span>Produto</span><span>Categoria</span><span>Fornecedor</span><span>Preço</span><span>Estoque</span><span>Ações</span></div>
+    {filtered.map(p=><div className="row" key={p.id}>
+     <strong>{p.code}</strong>
+     <span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}</span>
+     <span>{p.category?.name||"—"}</span>
+     <span>{p.supplier?.name||"—"}</span>
+     <span>R$ {Number(p.salePrice||0).toFixed(2)}</span>
+     <span style={{fontWeight:600,color:p.lowStock?"#a33":"inherit"}}>{Number(p.stock||0).toFixed(3)} {p.unit} {p.lowStock?"· baixo":""}</span>
+     <span style={{display:"flex",gap:7,flexWrap:"wrap"}}><button className="link-button" onClick={()=>edit(p)}>Editar</button><button className="link-button" onClick={()=>{setLabelProduct(p);setLabelQty(1)}}>🏷 Etiqueta</button></span>
+    </div>)}
+    {!filtered.length&&<div style={{padding:22,textAlign:"center",color:"var(--muted)"}}>Nenhum produto encontrado.</div>}
+   </div>
+  </div>
 
   {labelProduct&&<div className="panel" style={{padding:18,marginTop:12}}>
    <div className="panel-heading" style={{padding:0,marginBottom:12}}><div><span className="eyebrow">ETIQUETA</span><h2>{labelProduct.brand||"MB ÓPTICA"} · {labelProduct.model||labelProduct.description}</h2><p>Modelo estreito para haste. Referência: 95 × 12 mm.</p></div><button className="secondary" onClick={()=>setLabelProduct(null)}>Fechar</button></div>
