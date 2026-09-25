@@ -14,14 +14,16 @@ export async function POST(req:Request){
   try{
     const b=await req.json();
     if(!b.name||String(b.name).trim().length<2) throw new Error("Nome obrigatório");
+    const cpfCnpj=b.cpfCnpj?String(b.cpfCnpj).trim():undefined;
+    const email=b.email?String(b.email).trim():undefined;
     const data=await db.customer.create({
       data:{
         name:String(b.name).trim(),
-        cpfCnpj:b.cpfCnpj||undefined,
-        phone:b.phone||undefined,
-        whatsapp:b.whatsapp||undefined,
-        email:b.email||undefined,
-        notes:b.notes||undefined
+        cpfCnpj:cpfCnpj||undefined,
+        phone:b.phone?String(b.phone).trim():undefined,
+        whatsapp:b.whatsapp?String(b.whatsapp).trim():undefined,
+        email:email||undefined,
+        notes:b.notes?String(b.notes).trim():undefined
       }
     });
     return NextResponse.json(data,{status:201});
