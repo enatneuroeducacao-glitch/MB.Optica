@@ -35,7 +35,7 @@ export async function POST(req:Request){
           productId:b.productId,
           type:"SAIDA",
           quantity,
-          reason:b.reason||"Saída de estoque",
+          reference:"MANUAL",\n          notes:b.reason||"Saída de estoque",
           referenceId:b.referenceId||undefined
         }
       });
