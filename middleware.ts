@@ -54,7 +54,7 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       const apiRolePrefixes: Record<string, string[]> = {
         ADMIN: ["*"],
-        GERENTE: ["/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
+        GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
         VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
         FINANCEIRO: ["/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash"],
         LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/orders", "/api/stock"],
