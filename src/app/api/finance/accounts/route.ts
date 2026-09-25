@@ -19,7 +19,11 @@ export async function GET(){
     })
   ]);
 
-  return NextResponse.json({methods,receivables,payables});
+  const withBalance=(accounts:any[])=>accounts.map(account=>({
+    ...account,
+    outstandingAmount:Math.max(0,Number(account.amount)-Number(account.paidAmount))
+  }));
+  return NextResponse.json({methods,receivables:withBalance(receivables),payables:withBalance(payables)});
 }
 
 export async function POST(req:Request){
