@@ -11,7 +11,7 @@ export async function GET(){
   const result=products.map(product=>{
     const stock=product.lots.reduce((sum,lot)=>sum+Number(lot.quantity),0);
     const minimumStock=Number(product.minimumStock);
-    return {id:product.id,code:product.code,barcode:product.barcode,description:product.description,unit:product.unit,minimumStock,stock,critical:stock<=minimumStock};
+    return {id:product.id,code:product.code,barcode:product.barcode,description:product.description,unit:product.unit,cost:Number(product.cost),minimumStock,stock,critical:stock<=minimumStock};
   });
 
   return NextResponse.json(result);
