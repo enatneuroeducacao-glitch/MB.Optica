@@ -14,6 +14,23 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
     const current=await db.opticalOrder.findUnique({where:{id}});
     if(!current) return NextResponse.json({error:"Pedido não encontrado"},{status:404});
 
+    const transitions:Record<string,string[]>={
+      ORCAMENTO:["APROVADO","CANCELADO"],
+      APROVADO:["PEDIDO","CANCELADO"],
+      PEDIDO:["AGUARDANDO_LABORATORIO","CANCELADO"],
+      AGUARDANDO_LABORATORIO:["EM_PRODUCAO","CANCELADO"],
+      EM_PRODUCAO:["RECEBIDO","CANCELADO"],
+      RECEBIDO:["CONFERENCIA","CANCELADO"],
+      CONFERENCIA:["PRONTO","CANCELADO"],
+      PRONTO:["ENTREGUE","CANCELADO"],
+      ENTREGUE:["DEVOLVIDO"],
+      DEVOLVIDO:[],
+      CANCELADO:[]
+    };
+    if(current.status!==b.status && !transitions[current.status]?.includes(b.status)){
+      throw new Error(`Transição não permitida: ${current.status} → ${b.status}`);
+    }
+
     const data:any={
       status:b.status,
       events:{
