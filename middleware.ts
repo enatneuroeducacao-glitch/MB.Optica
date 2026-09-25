@@ -43,15 +43,6 @@ export async function middleware(request: NextRequest) {
 
   if (!token || !key) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401, headers: response.headers });
-    }
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  try {
-    const verified = await jwtVerify(token, key, { algorithms: ["HS256"] });
-    const role = typeof verified.payload.role === "string" ? verified.payload.role : "";
-    if (pathname.startsWith("/api/")) {
       const apiRolePrefixes: Record<string, string[]> = {
         ADMIN: ["*"],
         GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
@@ -60,11 +51,36 @@ export async function middleware(request: NextRequest) {
         LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/orders", "/api/stock"],
       };
       const prefixes = apiRolePrefixes[role] ?? [];
-      const allowed = prefixes.includes("*") || prefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
-      if (!allowed) return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
+      const namespaceAllowed = prefixes.includes("*") || prefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
+      if (!namespaceAllowed) {
+        return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
+      }
+
+      const writeMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
+      if (writeMethods.has(request.method)) {
+        const writeRoles: Array<[string, string[]]> = [
+          ["/api/users", ["ADMIN"]],
+          ["/api/settings", ["ADMIN", "GERENTE"]],
+          ["/api/audit", ["ADMIN", "GERENTE"]],
+          ["/api/products", ["ADMIN", "GERENTE"]],
+          ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
+          ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
+          ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
+          ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
+          ["/api/payment-methods", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+          ["/api/payments", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+          ["/api/finance", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+          ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+          ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
+        ];
+        const rule = writeRoles.find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"));
+        if (rule && !rule[1].includes(role)) {
+          return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
+        }
+      }
       return response;
     }
-    if (!pathAllowed(role, pathname)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
+ return NextResponse.redirect(new URL("/acesso-negado", request.url));
     return response;
   } catch {
     if (pathname.startsWith("/api/")) {
