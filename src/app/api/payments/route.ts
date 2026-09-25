@@ -11,18 +11,34 @@ export async function POST(req:Request){
 
     const result=await db.$transaction(async(tx)=>{
       const sale=await tx.sale.findUnique({where:{id:b.saleId}});
-      if(!sale) throw new Error("Venda não encontrada");
+      if(!sale||sale.canceled) throw new Error("Venda não encontrada ou cancelada");
+
+      const method=await tx.paymentMethod.findUnique({where:{id:b.methodId}});
+      if(!method||!method.active) throw new Error("Meio de pagamento inválido");
+
+      const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
+      if(!session) throw new Error("Não há caixa aberto");
+
+      const paid=await tx.payment.aggregate({where:{saleId:sale.id},_sum:{amount:true}});
+      const alreadyPaid=Number(paid._sum.amount||0);
+      const remaining=Number(sale.total)-alreadyPaid;
+      if(amount>remaining) throw new Error("Pagamento superior ao saldo da venda");
 
       const payment=await tx.payment.create({
+        data:{saleId:sale.id,methodId:method.id,amount,reference:b.reference||undefined}
+      });
+
+      const movement=await tx.cashMovement.create({
         data:{
-          saleId:sale.id,
-          methodId:b.methodId,
+          sessionId:session.id,
+          kind:"ENTRADA",
           amount,
-          reference:b.reference||undefined
+          description:"Pagamento da venda #"+sale.number,
+          referenceId:sale.id
         }
       });
 
-      return payment;
+      return {payment,movement,remaining:remaining-amount};
     });
 
     return NextResponse.json(result,{status:201});
