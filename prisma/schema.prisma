@@ -118,6 +118,9 @@ role UserRole @default(VENDEDOR)
 active Boolean @default(true)
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
+passwordHash String?
+sessionVersion Int @default(0)
+lastLoginAt DateTime?
 sales Sale[]
 orders OpticalOrder[]
 auditLogs AuditLog[]
@@ -453,4 +456,27 @@ importedAt DateTime @default(now())
 customer Customer? @relation(fields:[customerId],references:[id])
 @@index([collectionKey])
 @@index([legacyId])
+}
+
+
+model StoreSettings {
+  id String @id @default(cuid())
+  legalName String?
+  tradeName String @default("MB Óptica")
+  document String?
+  phone String?
+  whatsapp String?
+  email String?
+  street String?
+  number String?
+  complement String?
+  district String?
+  city String?
+  state String? @default("SC")
+  postalCode String?
+  timezone String @default("America/Sao_Paulo")
+  currency String @default("BRL")
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
