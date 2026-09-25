@@ -14,19 +14,35 @@ export async function GET(){
 export async function POST(req:Request){
   try{
     const b=await req.json();
-    if(!b.code||!b.description) throw new Error("Código e descrição são obrigatórios");
+    const code=String(b.code||"").trim();
+    const description=String(b.description||"").trim();
+    if(!code||!description) throw new Error("Código e descrição são obrigatórios");
+    const cost=Number(b.cost??0);
+    const salePrice=Number(b.salePrice??0);
+    const minimumStock=Number(b.minimumStock??0);
+    if(!Number.isFinite(cost)||cost<0||!Number.isFinite(salePrice)||salePrice<0||!Number.isFinite(minimumStock)||minimumStock<0) throw new Error("Valores financeiros ou estoque inválidos");
+    const categoryId=b.categoryId?String(b.categoryId):undefined;
+    const supplierId=b.supplierId?String(b.supplierId):undefined;
+    if(categoryId){
+      const category=await db.category.findUnique({where:{id:categoryId,active:true}});
+      if(!category) throw new Error("Categoria não encontrada ou inativa");
+    }
+    if(supplierId){
+      const supplier=await db.supplier.findUnique({where:{id:supplierId,active:true}});
+      if(!supplier) throw new Error("Fornecedor não encontrado ou inativo");
+    }
 
     const product=await db.product.create({
       data:{
-        code:String(b.code).trim(),
-        barcode:b.barcode||undefined,
-        description:String(b.description).trim(),
-        unit:b.unit||"UN",
-        cost:Number(b.cost||0),
-        salePrice:Number(b.salePrice||0),
-        minimumStock:Number(b.minimumStock||0),
-        categoryId:b.categoryId||undefined,
-        supplierId:b.supplierId||undefined
+        code,
+        barcode:b.barcode?String(b.barcode).trim():undefined,
+        description,
+        unit:b.unit?String(b.unit).trim():"UN",
+        cost,
+        salePrice,
+        minimumStock,
+        categoryId,
+        supplierId
       }
     });
 
