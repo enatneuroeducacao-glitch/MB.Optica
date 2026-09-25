@@ -13,6 +13,30 @@ const ROLE_PREFIXES: Record<string, string[]> = {
   LABORATORIO: ["/", "/pedidos", "/laboratorio", "/produtos"],
 };
 
+const API_ROLE_PREFIXES: Record<string, string[]> = {
+  ADMIN: ["*"],
+  GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
+  VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
+  FINANCEIRO: ["/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash"],
+  LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/orders", "/api/stock"],
+};
+
+const WRITE_ROLES: Array<[string, string[]]> = [
+  ["/api/users", ["ADMIN"]],
+  ["/api/settings", ["ADMIN", "GERENTE"]],
+  ["/api/audit", ["ADMIN", "GERENTE"]],
+  ["/api/products", ["ADMIN", "GERENTE"]],
+  ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/payment-methods", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+  ["/api/payments", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+  ["/api/finance", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+  ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
+  ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
+];
+
 function secretKey() {
   const secret = process.env.AUTH_SECRET;
   if (!secret || secret.length < 32) return null;
@@ -21,7 +45,12 @@ function secretKey() {
 
 function pathAllowed(role: string, pathname: string) {
   const prefixes = ROLE_PREFIXES[role] ?? [];
-  return prefixes.some((prefix) => prefix === "*" ? true : prefix === "/" ? pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
+  return prefixes.some((prefix) => prefix === "*" || prefix === "/" ? prefix === "*" || pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
+}
+
+function apiPathAllowed(role: string, pathname: string) {
+  const prefixes = API_ROLE_PREFIXES[role] ?? [];
+  return prefixes.some((prefix) => prefix === "*" || pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
 export async function middleware(request: NextRequest) {
@@ -43,44 +72,34 @@ export async function middleware(request: NextRequest) {
 
   if (!token || !key) {
     if (pathname.startsWith("/api/")) {
-      const apiRolePrefixes: Record<string, string[]> = {
-        ADMIN: ["*"],
-        GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
-        VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
-        FINANCEIRO: ["/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash"],
-        LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/orders", "/api/stock"],
-      };
-      const prefixes = apiRolePrefixes[role] ?? [];
-      const namespaceAllowed = prefixes.includes("*") || prefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/"));
-      if (!namespaceAllowed) {
+      return NextResponse.json({ error: "Não autenticado." }, { status: 401, headers: response.headers });
+    }
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  try {
+    const verified = await jwtVerify(token, key, { algorithms: ["HS256"] });
+    const role = typeof verified.payload.role === "string" ? verified.payload.role : "";
+
+    if (pathname.startsWith("/api/")) {
+      if (!apiPathAllowed(role, pathname)) {
         return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
       }
 
       const writeMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
       if (writeMethods.has(request.method)) {
-        const writeRoles: Array<[string, string[]]> = [
-          ["/api/users", ["ADMIN"]],
-          ["/api/settings", ["ADMIN", "GERENTE"]],
-          ["/api/audit", ["ADMIN", "GERENTE"]],
-          ["/api/products", ["ADMIN", "GERENTE"]],
-          ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
-          ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
-          ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
-          ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
-          ["/api/payment-methods", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-          ["/api/payments", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-          ["/api/finance", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-          ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-          ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
-        ];
-        const rule = writeRoles.find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"));
+        const rule = WRITE_ROLES.find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"));
         if (rule && !rule[1].includes(role)) {
           return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
         }
       }
       return response;
     }
- return NextResponse.redirect(new URL("/acesso-negado", request.url));
+
+    if (!pathAllowed(role, pathname)) {
+      return NextResponse.redirect(new URL("/acesso-negado", request.url));
+    }
+
     return response;
   } catch {
     if (pathname.startsWith("/api/")) {
@@ -93,5 +112,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
