@@ -18,6 +18,11 @@ export async function POST(req:Request){
       const method=await tx.paymentMethod.findUnique({where:{id:b.methodId}});
       if(!method||!method.active) throw new Error("Meio de pagamento inválido");
 
+      if(b.reference){
+        const duplicate=await tx.payment.findFirst({where:{saleId:sale.id,reference:String(b.reference)}});
+        if(duplicate) throw new Error("Pagamento com esta referência já foi registrado");
+      }
+
       const session=method.isCash
         ? await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}})
         : null;
