@@ -68,11 +68,18 @@ export async function POST(req:Request){
       });
 
       if(Array.isArray(b.stock)){
+        const requested=new Map<string,number>();
         for(const item of b.stock){
+          const productId=String(item.productId||"");
           const quantity=Number(item.quantity||0);
-          if(quantity<=0) continue;
-          const product=await tx.product.findUnique({where:{id:item.productId}});
-          if(!product||!product.active) throw new Error("Produto de estoque inválido: "+item.productId);
+          if(!productId||quantity<=0) continue;
+          if(!Number.isFinite(quantity)) throw new Error("Quantidade de estoque inválida");
+          requested.set(productId,(requested.get(productId)||0)+quantity);
+        }
+
+        for(const [productId,quantity] of requested){
+          const product=await tx.product.findUnique({where:{id:productId}});
+          if(!product||!product.active) throw new Error("Produto de estoque inválido: "+productId);
 
           const lots=await tx.stockLot.findMany({
             where:{productId:product.id,archived:false,quantity:{gt:0}},
@@ -82,8 +89,12 @@ export async function POST(req:Request){
           for(const lot of lots){
             if(remaining<=0) break;
             const take=Math.min(Number(lot.quantity),remaining);
-            await tx.stockLot.update({where:{id:lot.id},data:{quantity:{decrement:take}}});
-            remaining-=take;
+            if(take<=0) continue;
+            const updated=await tx.stockLot.updateMany({
+              where:{id:lot.id,quantity:{gte:take}},
+              data:{quantity:{decrement:take}}
+            });
+            if(updated.count===1) remaining-=take;
           }
           if(remaining>0) throw new Error("Estoque insuficiente para "+product.description);
 
