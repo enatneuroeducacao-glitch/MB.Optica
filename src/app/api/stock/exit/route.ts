@@ -21,12 +21,14 @@ export async function POST(req:Request){
       for(const lot of lots){
         if(remaining<=0) break;
         const take=Math.min(Number(lot.quantity),remaining);
-        await tx.stockLot.update({
-          where:{id:lot.id},
+        const updated=await tx.stockLot.updateMany({
+          where:{id:lot.id,quantity:{gte:take}},
           data:{quantity:{decrement:take}}
         });
-        consumed.push({lotId:lot.id,quantity:take});
-        remaining-=take;
+        if(updated.count===1){
+          consumed.push({lotId:lot.id,quantity:take});
+          remaining-=take;
+        }
       }
 
       if(remaining>0) throw new Error("Estoque insuficiente");
