@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
   try{
@@ -12,6 +13,7 @@ export async function POST(req:Request){
       if(!product) throw new Error("Produto não encontrado");
       const lot=await tx.stockLot.create({data:{productId:product.id,code:b.code||undefined,description:b.description||product.description,quantity,cost:b.cost!==undefined?Number(b.cost):Number(product.cost),receivedAt:b.entry?new Date(b.entry):new Date(),expiresAt:b.expiresAt?new Date(b.expiresAt):undefined}});
       const movement=await tx.stockMovement.create({data:{productId:product.id,type:"ENTRADA",quantity,unitCost:Number(b.cost??product.cost),reference:"LOTE",referenceId:lot.id,notes:b.reason||"Entrada de estoque"}});
+      await writeAudit(tx,{action:"CREATE",entity:"StockMovement",entityId:movement.id,metadata:{type:"ENTRADA",quantity,lotId:lot.id}});
       return {lot,movement};
     });
     return NextResponse.json(result,{status:201});
