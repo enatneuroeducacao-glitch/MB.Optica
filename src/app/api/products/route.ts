@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function GET(){
   const data=await db.product.findMany({
@@ -32,7 +33,8 @@ export async function POST(req:Request){
       if(!supplier) throw new Error("Fornecedor não encontrado ou inativo");
     }
 
-    const product=await db.product.create({
+    const product=await db.$transaction(async tx=>{
+      const created=await tx.product.create({
       data:{
         code,
         barcode:b.barcode?String(b.barcode).trim():undefined,
@@ -46,6 +48,9 @@ export async function POST(req:Request){
       }
     });
 
+      await writeAudit(tx,{action:"CREATE",entity:"Product",entityId:created.id,metadata:{code:created.code,description:created.description,salePrice:created.salePrice.toString()}});
+      return created;
+    });
     return NextResponse.json(product,{status:201});
   }catch(error){
     return NextResponse.json({error:"Produto inválido",detail:String(error)},{status:400});
