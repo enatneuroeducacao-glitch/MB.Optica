@@ -4,7 +4,7 @@ import {useEffect,useState} from "react";
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;email?:string|null};
 type Rx=any;
 
-const empty={customerId:"",professional:"",validUntil:"",odSphere:"",odCylinder:"",odAxis:"",odAdd:"",odPrism:"",odDnp:"",odHeight:"",oeSphere:"",oeCylinder:"",oeAxis:"",oeAdd:"",oePrism:"",oeDnp:"",oeHeight:"",pdTotal:"",notes:""};
+const empty={customerId:"",professional:"",validUntil:"",odSphere:"",odCylinder:"",odAxis:"",odAdd:"",odPrism:"",odBase:"",odDnp:"",odHeight:"",oeSphere:"",oeCylinder:"",oeAxis:"",oeAdd:"",oePrism:"",oeBase:"",oeDnp:"",oeHeight:"",pdTotal:"",notes:""};
 const nums=["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHeight","oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeDnp","oeHeight","pdTotal"];
 const fieldLabels:Record<string,string>={sphere:"Esférico (ESF)",cylinder:"Cilíndrico (CIL)",axis:"Eixo (AX)",add:"Adição (ADD)",prism:"Prisma",dnp:"DNP",height:"Altura"};
 
@@ -65,13 +65,13 @@ export default function Receitas(){
      <div className="panel" style={{padding:14,border:"1px solid var(--line)"}}>
       <h3 style={{margin:"0 0 10px",textAlign:"center"}}>OE — Olho Esquerdo</h3>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-       {["oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeDnp","oeHeight"].map(k=><input key={k} placeholder={k.replace("oe","")} value={(form as any)[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}
+       {["oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeBase","oeDnp","oeHeight"].map(k=><input key={k} placeholder={k.replace("oe","")} value={(form as any)[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}
       </div>
      </div>
      <div className="panel" style={{padding:14,border:"1px solid var(--line)"}}>
       <h3 style={{margin:"0 0 10px",textAlign:"center"}}>OD — Olho Direito</h3>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-       {["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHeight"].map(k=><input key={k} placeholder={k.replace("od","")} value={(form as any)[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}
+       {["odSphere","odCylinder","odAxis","odAdd","odPrism","odBase","odDnp","odHeight"].map(k=><input key={k} placeholder={k.replace("od","")} value={(form as any)[k]} onChange={e=>setForm({...form,[k]:e.target.value})}/>)}
       </div>
      </div>
     </div>
