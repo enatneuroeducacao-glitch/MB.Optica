@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma db push --skip-generate && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -12,6 +13,7 @@
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push --skip-generate",
     "db:studio": "prisma studio",
     "import:beepstart": "tsx scripts/import-beepstart.ts",
     "audit:beepstart": "tsx scripts/audit-beepstart.ts",
