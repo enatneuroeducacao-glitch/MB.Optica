@@ -20,15 +20,17 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
     const {id}=await params;
     const b=await req.json();
+    const name=b.name!==undefined?String(b.name).trim():undefined;
+    if(name!==undefined&&name.length<2) throw new Error("Nome inválido");
     const data=await db.customer.update({
       where:{id},
       data:{
-        name:b.name!==undefined?String(b.name).trim():undefined,
-        cpfCnpj:b.cpfCnpj,
-        phone:b.phone,
-        whatsapp:b.whatsapp,
-        email:b.email,
-        notes:b.notes
+        name,
+        cpfCnpj:b.cpfCnpj!==undefined?(b.cpfCnpj?String(b.cpfCnpj).trim():null):undefined,
+        phone:b.phone!==undefined?(b.phone?String(b.phone).trim():null):undefined,
+        whatsapp:b.whatsapp!==undefined?(b.whatsapp?String(b.whatsapp).trim():null):undefined,
+        email:b.email!==undefined?(b.email?String(b.email).trim():null):undefined,
+        notes:b.notes!==undefined?(b.notes?String(b.notes).trim():null):undefined
       }
     });
     return NextResponse.json(data);
