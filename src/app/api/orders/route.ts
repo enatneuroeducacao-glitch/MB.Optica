@@ -40,7 +40,7 @@ export async function POST(req:Request){
       if(!Number.isFinite(unitPrice)||unitPrice<0) throw new Error("Preço de item inválido");
       return {productId:item.productId?String(item.productId):undefined,description:String(item.description||"Item óptico").trim(),kind:String(item.kind||"OUTRO").trim(),eye:item.eye?String(item.eye).trim():undefined,quantity,unitPrice};
     });
-    const total=normalizedItems.reduce((sum,item)=>sum+item.quantity*item.unitPrice,0);
+    const total=normalizedItems.reduce((sum:number,item:{quantity:number;unitPrice:number})=>sum+item.quantity*item.unitPrice,0);
     if(b.total!==undefined&&(!Number.isFinite(Number(b.total))||Number(b.total)<0)) throw new Error("Total inválido");
 
     const order=await db.opticalOrder.create({
