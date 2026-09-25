@@ -17,8 +17,10 @@ export async function POST(req:Request){
       const method=await tx.paymentMethod.findUnique({where:{id:b.methodId}});
       if(!method||!method.active) throw new Error("Meio de pagamento inválido");
 
-      const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
-      if(!session) throw new Error("Não há caixa aberto");
+      const session=method.isCash
+        ? await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}})
+        : null;
+      if(method.isCash&&!session) throw new Error("Não há caixa aberto");
 
       const paid=await tx.payment.aggregate({where:{saleId:sale.id},_sum:{amount:true}});
       const alreadyPaid=Number(paid._sum.amount||0);
@@ -29,17 +31,19 @@ export async function POST(req:Request){
         data:{saleId:sale.id,methodId:method.id,amount,reference:b.reference||undefined}
       });
 
-      const movement=await tx.cashMovement.create({
-        data:{
-          sessionId:session.id,
-          kind:"ENTRADA",
-          amount,
-          description:"Pagamento da venda #"+sale.number,
-          referenceId:sale.id
-        }
-      });
+      const movement=method.isCash&&session
+        ? await tx.cashMovement.create({
+            data:{
+              sessionId:session.id,
+              kind:"ENTRADA",
+              amount,
+              description:"Pagamento da venda #"+sale.number,
+              referenceId:sale.id
+            }
+          })
+        : null;
 
-      await writeAudit(tx,{action:"CREATE",entity:"Payment",entityId:payment.id,metadata:{saleId:sale.id,amount}});
+      await writeAudit(tx,{action:"CREATE",entity:"Payment",entityId:payment.id,metadata:{saleId:sale.id,amount,isCash:method.isCash}});
       return {payment,movement,remaining:remaining-amount};
     });
 
