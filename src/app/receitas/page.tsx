@@ -8,6 +8,40 @@ const empty={customerId:"",professional:"",validUntil:"",odSphere:"",odCylinder:
 const nums=["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHeight","oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeDnp","oeHeight","pdTotal"];
 const fieldLabels:Record<string,string>={sphere:"Esférico (ESF)",cylinder:"Cilíndrico (CIL)",axis:"Eixo (AX)",add:"Adição (ADD)",prism:"Prisma",dnp:"DNP",height:"Altura"};
 
+function printManualOS(){
+ const win=window.open("","_blank","width=900,height=1000");
+ if(!win){alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");return;}
+ win.document.write(`<!doctype html><html><head><title>O.S. Manual - MB Óptica</title><style>
+ @page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:11px}
+ .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:10px}.brand{font-size:20px;font-weight:700}.title{font-size:16px;font-weight:700}
+ .section{border:1px solid #777;margin-bottom:8px;padding:8px}.section h2{font-size:12px;margin:0 0 7px;text-transform:uppercase}
+ .fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{border-bottom:1px solid #555;min-height:25px;padding:4px 2px}.full{grid-column:1/-1}
+ .rx{display:grid;grid-template-columns:1fr 1fr;gap:8px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:13px}.line{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+ .sale{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.large{min-height:42px;border:1px solid #777;padding:5px}
+ .sign{display:grid;grid-template-columns:1fr 1fr;gap:45px;margin-top:30px}.sign div{border-top:1px solid #111;padding-top:5px;text-align:center}.footer{text-align:center;font-size:8px;margin-top:10px}
+ </style></head><body>
+ <div class="top"><div><div class="brand">MB ÓPTICA</div><div>Gestão inteligente</div></div><div class="title">O.S. DE ATENDIMENTO / VENDA</div></div>
+ <div class="section"><h2>Dados do cliente</h2><div class="fields">
+ <div class="field">Cliente: ______________________________________________</div><div class="field">CPF/CNPJ: ______________________________</div>
+ <div class="field">Telefone: ______________________________________________</div><div class="field">Data: ____/____/________</div>
+ <div class="field full">Endereço: __________________________________________________________________________________________</div>
+ </div></div>
+ <div class="section"><h2>Receita / Medidas</h2><div class="rx">
+ <div class="eye"><h3>OE — OLHO ESQUERDO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
+ <div class="eye"><h3>OD — OLHO DIREITO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
+ </div><div class="fields" style="margin-top:7px"><div class="field">DP TOTAL: __________________</div><div class="field">PROFISSIONAL: ______________________________</div></div></div>
+ <div class="section"><h2>Venda / Serviço</h2><div class="sale">
+ <div class="field">O.S. Nº: __________________</div><div class="field">Pedido Nº: ________________</div><div class="field">Vendedor: __________________</div>
+ <div class="field">Armação: __________________________________</div><div class="field">Lente: ____________________________________</div><div class="field">Tratamento: _______________________________</div>
+ <div class="field">Prazo de entrega: _________________________</div><div class="field">Valor: R$ __________________</div><div class="field">Forma de pagamento: _______________________</div>
+ </div><div class="large" style="margin-top:7px">Observações / especificações: ______________________________________________________________________________________<br><br>____________________________________________________________________________________________________________</div></div>
+ <div class="section"><h2>Conferência e atendimento</h2><div class="fields"><div class="field full">Conferência da montagem: _________________________________________________________________________________________</div><div class="field full">Orientações / pendências: __________________________________________________________________________________________</div></div></div>
+ <div class="sign"><div>Responsável pelo atendimento</div><div>Cliente</div></div>
+ <div class="footer">Documento interno para preenchimento manual — MB Óptica</div>
+ <script>window.onload=()=>{window.focus();window.print();}</script></body></html>`);
+ win.document.close();
+}
+
 function printOS(r:Rx,c?:Customer){
  if(!c)return;
  const esc=(v:any)=>String(v??"—").replace(/[&<>"]/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[x]!));
@@ -47,7 +81,7 @@ export default function Receitas(){
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMessage("");const r=await fetch("/api/prescriptions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(!r.ok){setMessage(d.error||"Não foi possível registrar a receita.");return}setMessage("Receita registrada com sucesso.");setForm(empty);setOpen(false);load()};
  const filtered=rows.filter(r=>{const c=customers.find(x=>x.id===r.customerId);return ((c?.name||"")+" "+(c?.cpfCnpj||"")+" "+(r.professional||"")).toLowerCase().includes(search.toLowerCase())});
  return <section className="page">
-  <div className="page-heading"><div><span className="eyebrow">MB ÓPTICA</span><h1>Receitas ópticas</h1><p>Cadastro e histórico de receitas vinculadas aos clientes.</p></div><button className="primary" onClick={()=>setOpen(true)}>+ Nova receita</button></div>
+  <div className="page-heading"><div><span className="eyebrow">MB ÓPTICA</span><h1>Receitas ópticas</h1><p>Cadastro e histórico de receitas vinculadas aos clientes.</p></div><div style={{display:"flex",gap:8}}><button className="secondary" onClick={printManualOS}>🖨 O.S. manual</button><button className="primary" onClick={()=>setOpen(true)}>+ Nova receita</button></div></div>
   {message&&<div className="panel" style={{padding:12,marginBottom:12}}>{message}</div>}
   <div className="toolbar"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar cliente ou profissional..."/><button className="secondary" onClick={load}>Atualizar</button></div>
   {open&&<div className="panel" style={{padding:20,marginBottom:12}}>
