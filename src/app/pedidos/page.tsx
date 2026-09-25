@@ -178,7 +178,10 @@ export default function Pedidos(){
      <label>Quantidade<input required type="number" min="1" step="1" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label>
      <label>Preço unitário<input required type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})} placeholder="0,00"/></label>
     </div>
-    <label style={{display:"block",marginTop:12}}>Observações / instruções ao laboratório<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Material, tratamento, montagem, observações de conferência..."/></label>
+    <label style={{display:"block",marginTop:16}}>
+     <span style={{display:"block",fontWeight:600,marginBottom:7}}>Observações / instruções ao laboratório</span>
+     <textarea rows={5} style={{width:"100%",minHeight:130,resize:"vertical"}} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Material, tratamento, montagem, observações de conferência..."/>
+    </label>
     <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:12}}><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary" type="submit">Criar pedido</button></div>
    </form>
   </div>}
