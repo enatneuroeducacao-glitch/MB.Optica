@@ -63,6 +63,13 @@ export default function Estoque(){
    <div className="stat-card"><b>{zero}</b><span>SEM ESTOQUE</span></div>
   </div>
 
+  <div className="toolbar" style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:8}}>
+   <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar código, barras ou produto..." />
+   <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="TODOS">Todos</option><option value="OK">Estoque OK</option><option value="BAIXO">Estoque baixo</option><option value="ZERADO">Sem estoque</option></select>
+   <select value={movementFilter} onChange={e=>setMovementFilter(e.target.value)}><option value="TODOS">Movimentações: todas</option><option value="ENTRADA">Entradas</option><option value="SAIDA">Saídas</option></select>
+   <button className="secondary" onClick={()=>{setSearch("");setStatusFilter("TODOS");setMovementFilter("TODOS")}}>Limpar</button>
+  </div>
+
   {mode&&<div className="panel" style={{padding:20,marginBottom:12}}>
    <div className="panel-heading" style={{padding:0,marginBottom:15}}>
     <div><span className="eyebrow">{mode==="entry"?"MOVIMENTAÇÃO DE ENTRADA":"MOVIMENTAÇÃO DE SAÍDA"}</span><h2>{mode==="entry"?"Entrada de estoque":"Saída de estoque"}</h2><p style={{margin:0,color:"var(--muted)"}}>{mode==="entry"?"Registre compras e recebimentos por lote.":"Registre vendas, perdas, ajustes ou transferências."}</p></div>
@@ -79,13 +86,6 @@ export default function Estoque(){
     <button className="primary" type="submit">{mode==="entry"?"Registrar entrada":"Registrar saída"}</button>
    </form>
   </div>}
-
-  <div className="toolbar" style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr auto",gap:8}}>
-   <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar código, barras ou produto..." />
-   <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="TODOS">Todos</option><option value="OK">Estoque OK</option><option value="BAIXO">Estoque baixo</option><option value="ZERADO">Sem estoque</option></select>
-   <select value={movementFilter} onChange={e=>setMovementFilter(e.target.value)}><option value="TODOS">Movimentações: todas</option><option value="ENTRADA">Entradas</option><option value="SAIDA">Saídas</option></select>
-   <button className="secondary" onClick={()=>{setSearch("");setStatusFilter("TODOS");setMovementFilter("TODOS")}}>Limpar</button>
-  </div>
 
   <div className="panel" style={{marginTop:12}}>
    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderBottom:"1px solid var(--line)"}}>
