@@ -28,7 +28,10 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       DEVOLVIDO:[],
       CANCELADO:[]
     };
-    if(current.status!==b.status && !transitions[current.status]?.includes(b.status)){
+    if(current.status===b.status){
+      return NextResponse.json(current);
+    }
+    if(!transitions[current.status]?.includes(b.status)){
       throw new Error(`Transição não permitida: ${current.status} → ${b.status}`);
     }
 
@@ -42,6 +45,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       }
     };
 
+    if(b.status==="AGUARDANDO_LABORATORIO") data.laboratorySentAt=new Date();
     if(b.status==="RECEBIDO") data.receivedAt=new Date();
     if(b.status==="ENTREGUE") data.deliveredAt=new Date();
 
