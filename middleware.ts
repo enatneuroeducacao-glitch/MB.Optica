@@ -11,6 +11,10 @@ function key() {
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-mb-pathname", path);
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+
   const publicPath =
     path === "/login" ||
     path === "/setup" ||
@@ -19,31 +23,25 @@ export async function middleware(request: NextRequest) {
     path.startsWith("/_next/") ||
     path === "/favicon.ico";
 
-  if (publicPath) return NextResponse.next();
+  if (publicPath) return next();
 
   const token = request.cookies.get(COOKIE)?.value;
   if (!token) {
-    if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
-    }
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const secret = key();
   if (!secret) {
-    if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "Autenticação não configurada." }, { status: 503 });
-    }
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "Autenticação não configurada." }, { status: 503 });
     return NextResponse.redirect(new URL("/login?error=config", request.url));
   }
 
   try {
     await jwtVerify(token, secret, { algorithms: ["HS256"] });
-    return NextResponse.next();
+    return next();
   } catch {
-    if (path.startsWith("/api/")) {
-      return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
-    }
+    if (path.startsWith("/api/")) return NextResponse.json({ error: "Sessão inválida." }, { status: 401 });
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.delete(COOKIE);
     return response;
