@@ -11,7 +11,7 @@ export async function POST(req:Request){
     const result=await db.$transaction(async(tx)=>{
       const lots=await tx.stockLot.findMany({
         where:{productId:b.productId,archived:false,quantity:{gt:0}},
-        orderBy:{entry:"asc"}
+        orderBy:{receivedAt:"asc"}
       });
 
       let remaining=quantity;
