@@ -22,7 +22,8 @@ async function printManualOS(){
  .fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{border-bottom:1px solid #555;min-height:25px;padding:4px 2px}.full{grid-column:1/-1}
  .rx{display:grid;grid-template-columns:1fr 1fr;gap:8px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:13px}.line{display:grid;grid-template-columns:1fr 1fr;gap:5px}
  .sale{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}.large{min-height:42px;border:1px solid #777;padding:5px}
- .sign{display:grid;grid-template-columns:1fr 1fr;gap:45px;margin-top:30px}.sign div{border-top:1px solid #111;padding-top:5px;text-align:center}.footer{text-align:center;font-size:8px;margin-top:10px}
+ .sign{display:grid;grid-template-columns:1fr 1fr;gap:45px;margin-top:24px}.sign div{border-top:1px solid #111;padding-top:5px;text-align:center}
+ .client-copy{border:1.5px dashed #555;margin-top:16px;padding:8px}.cutline{border-top:1px dashed #555;margin:-2px 0 8px;padding-top:4px;text-align:center;font-size:9px;font-weight:700}.client-copy-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.client-copy-head b{font-size:14px}.os-box{border:1px solid #555;padding:5px 10px;text-align:center}.client-copy-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:5px;font-size:9px}.client-copy-grid>div{border-bottom:1px solid #777;min-height:28px;padding:3px}.pickup-note{font-size:8px;border:1px solid #aaa;padding:5px;margin-top:6px}.pickup-sign{font-size:8px;margin-top:7px}.footer{text-align:center;font-size:8px;margin-top:8px}
  </style></head><body>
  <div class="top"><div><div class="brand">MB ÓPTICA</div><div>Gestão inteligente</div></div><div class="title">O.S. DE ATENDIMENTO / VENDA</div></div>
  <div class="section"><h2>Dados do cliente</h2><div class="fields">
@@ -41,6 +42,19 @@ async function printManualOS(){
  </div><div class="large" style="margin-top:7px">Observações / especificações: ______________________________________________________________________________________<br><br>____________________________________________________________________________________________________________</div></div>
  <div class="section"><h2>Conferência e atendimento</h2><div class="fields"><div class="field full">Conferência da montagem: _________________________________________________________________________________________</div><div class="field full">Orientações / pendências: __________________________________________________________________________________________</div></div></div>
  <div class="sign"><div>Responsável pelo atendimento</div><div>Cliente</div></div>
+ <div class="client-copy"><div class="cutline"><span>✂</span> VIA DO CLIENTE — RECORTE AQUI</div>
+  <div class="client-copy-head"><div><b>MB ÓPTICA</b><br><span>Comprovante de retirada</span></div><div class="os-box"><b>O.S. Nº</b><br>\${osNumber}</div></div>
+  <div class="client-copy-grid">
+   <div><b>Cliente</b><br>____________________________________________</div>
+   <div><b>Telefone</b><br>____________________________</div>
+   <div><b>Data da O.S.</b><br>____/____/________</div>
+   <div><b>Previsão de retirada</b><br>____/____/________</div>
+   <div><b>Produto / serviço</b><br>____________________________________________</div>
+   <div><b>Valor / saldo</b><br>R$ ________________________</div>
+  </div>
+  <div class="pickup-note"><b>Para retirar:</b> apresente esta via ou informe o número da O.S. ao atendimento. Confira o produto no momento da retirada.</div>
+  <div class="pickup-sign">Assinatura / confirmação da retirada: ______________________________________________</div>
+ </div>
  <div class="footer">Documento interno para preenchimento manual — MB Óptica</div>
  <script>window.onload=()=>{window.focus();window.print();}</script></body></html>`);
  win.document.close();
