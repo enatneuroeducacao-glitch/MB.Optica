@@ -57,7 +57,7 @@ function printLabels(p:any,quantity:number){
 
 export default function Produtos(){
  const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]);
- const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(false),[search,setSearch]=useState(""),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState("");
+ const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState("");
 
  const load=async()=>{
   const [p,c,s]=await Promise.all([
@@ -87,7 +87,7 @@ export default function Produtos(){
   setOpen(true);
  };
 
- const filtered=useMemo(()=>rows.filter(p=>(p.code+" "+(p.barcode||"")+" "+p.description+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase().includes(search.toLowerCase())),[rows,search]);
+ const filtered=useMemo(()=>rows.filter(p=>{const text=(p.code+" "+(p.barcode||"")+" "+p.description+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase();return text.includes(search.toLowerCase())&&(!categoryFilter||p.categoryId===categoryFilter)&&(stockFilter==="TODOS"||(stockFilter==="BAIXO"&&p.lowStock)||(stockFilter==="COM_BARRAS"&&!!p.barcode))}),[rows,search,categoryFilter,stockFilter]);
  const low=rows.filter(p=>p.lowStock).length;
  const frames=rows.filter(p=>/armação|oculos|óculos|frame/i.test((p.category?.name||"")+" "+(p.description||""))).length;
  const set=(key:string,value:string)=>setForm((x:any)=>({...x,[key]:value}));
@@ -95,7 +95,7 @@ export default function Produtos(){
  return <section className="page">
   <div className="page-heading">
    <div><span className="eyebrow">CATÁLOGO</span><h1>Produtos</h1><p>Cadastro, estoque, identificação e etiquetas para a operação da ótica.</p></div>
-   <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setLabelCatalogOpen(true)}>🏷 Etiquetas</button><button className="primary" onClick={()=>{setSelected(null);setForm(empty);setOpen(true)}}>+ Novo produto</button></div>
+   <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setLabelCatalogOpen(true)}>🏷 Etiquetas</button><button className="primary" onClick={()=>{setSelected(null);setForm(empty);setOpen(true);window.scrollTo({top:0,behavior:"smooth"})}}>+ Novo produto</button></div>
   </div>
 
   {msg&&<div className="panel" style={{padding:12,marginBottom:12,color:"#a33"}}>{msg}</div>}
@@ -107,13 +107,15 @@ export default function Produtos(){
    <div className="stat-card"><b>{rows.filter(p=>p.barcode).length}</b><span>COM CÓDIGO DE BARRAS</span></div>
   </div>
 
-  <div className="toolbar">
+  <div className="toolbar" style={{display:"grid",gridTemplateColumns:"minmax(260px,2fr) 1fr 1fr auto",gap:8}}>
    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar código, barras, marca, modelo ou descrição..." />
-   <button className="secondary" onClick={()=>setSearch("")}>Limpar</button>
+   <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+   <select value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="TODOS">Todos</option><option value="BAIXO">Estoque baixo</option><option value="COM_BARRAS">Com código de barras</option></select>
+   <button className="secondary" onClick={()=>{setSearch("");setCategoryFilter("");setStockFilter("TODOS")}}>Limpar</button>
   </div>
 
-  {open&&<div className="panel" style={{padding:20,marginTop:12}}>
-   <div className="panel-heading" style={{padding:0,marginBottom:15}}><div><span className="eyebrow">CADASTRO</span><h2>{selected?"Editar produto":"Novo produto"}</h2></div><button className="secondary" onClick={()=>setOpen(false)}>Fechar</button></div>
+  {open&&<div className="panel" style={{padding:20,marginTop:12,border:"1px solid var(--line)"}}>
+   <div className="panel-heading" style={{padding:0,marginBottom:15}}><div><span className="eyebrow">CADASTRO RÁPIDO</span><h2>{selected?"Editar produto":"Novo produto"}</h2><p style={{margin:0,color:"var(--muted)"}}>Cadastre a armação, lente, acessório ou serviço e mantenha a identificação pronta para venda e etiqueta.</p></div><button className="secondary" onClick={()=>setOpen(false)}>Fechar</button></div>
    <form onSubmit={save}>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
      <input placeholder="Código interno" value={form.code} onChange={e=>set("code",e.target.value)} required/>
@@ -163,7 +165,8 @@ export default function Produtos(){
   </div>}
 
 
-  <div className="panel">
+  <div className="panel" style={{marginTop:12}}>
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderBottom:"1px solid var(--line)"}}><div><b>Produtos cadastrados</b><div style={{fontSize:12,color:"var(--muted)"}}>{filtered.length} produto(s) exibido(s)</div></div><button className="secondary" onClick={()=>setOpen(true)}>+ Cadastrar produto</button></div>
    <div className="table">
     <div className="row header"><span>Código</span><span>Produto</span><span>Categoria</span><span>Fornecedor</span><span>Preço</span><span>Estoque</span><span>Ações</span></div>
     {filtered.map(p=><div className="row" key={p.id}>
