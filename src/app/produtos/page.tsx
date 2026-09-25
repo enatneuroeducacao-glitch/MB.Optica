@@ -57,7 +57,7 @@ function printLabels(p:any,quantity:number){
 
 export default function Produtos(){
  const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]);
- const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(false),[search,setSearch]=useState(""),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null);
+ const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(false),[search,setSearch]=useState(""),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState("");
 
  const load=async()=>{
   const [p,c,s]=await Promise.all([
@@ -95,7 +95,7 @@ export default function Produtos(){
  return <section className="page">
   <div className="page-heading">
    <div><span className="eyebrow">CATÁLOGO</span><h1>Produtos</h1><p>Cadastro, estoque, identificação e etiquetas para a operação da ótica.</p></div>
-   <button className="primary" onClick={()=>{setSelected(null);setForm(empty);setOpen(true)}}>+ Novo produto</button>
+   <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setLabelCatalogOpen(true)}>🏷 Etiquetas</button><button className="primary" onClick={()=>{setSelected(null);setForm(empty);setOpen(true)}}>+ Novo produto</button></div>
   </div>
 
   {msg&&<div className="panel" style={{padding:12,marginBottom:12,color:"#a33"}}>{msg}</div>}
@@ -178,6 +178,24 @@ export default function Produtos(){
     {!filtered.length&&<div style={{padding:22,textAlign:"center",color:"var(--muted)"}}>Nenhum produto encontrado.</div>}
    </div>
   </div>
+
+  {labelCatalogOpen&&<div className="panel" style={{padding:18,marginTop:12}}>
+   <div className="panel-heading" style={{padding:0,marginBottom:12}}>
+    <div><span className="eyebrow">IMPRESSÃO</span><h2>Etiquetas de óculos</h2><p>Selecione um produto cadastrado e imprima a etiqueta para a haste.</p></div>
+    <button className="secondary" onClick={()=>setLabelCatalogOpen(false)}>Fechar</button>
+   </div>
+   <div className="toolbar" style={{marginBottom:10}}>
+    <input value={labelSearch} onChange={e=>setLabelSearch(e.target.value)} placeholder="Buscar produto, código, marca ou modelo..." />
+   </div>
+   {!rows.length&&<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Cadastre pelo menos um produto para habilitar a impressão da etiqueta.</div>}
+   {!!rows.length&&<div className="table">
+    <div className="row header"><span>Código</span><span>Produto</span><span>Marca / modelo</span><span>Preço</span><span>Etiqueta</span></div>
+    {rows.filter(p=>(p.code+" "+(p.barcode||"")+" "+p.description+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase().includes(labelSearch.toLowerCase())).map(p=><div className="row" key={p.id}>
+     <strong>{p.code}</strong><span>{p.description}</span><span>{p.brand||"—"}{p.model?" · "+p.model:""}</span><span>R$ {Number(p.salePrice||0).toFixed(2)}</span>
+     <button className="link-button" onClick={()=>{setLabelProduct(p);setLabelQty(1);setLabelCatalogOpen(false)}}>🏷 Imprimir</button>
+    </div>)}
+   </div>}
+  </div>}
 
   {labelProduct&&<div className="panel" style={{padding:18,marginTop:12}}>
    <div className="panel-heading" style={{padding:0,marginBottom:12}}><div><span className="eyebrow">ETIQUETA</span><h2>{labelProduct.brand||"MB ÓPTICA"} · {labelProduct.model||labelProduct.description}</h2><p>Modelo estreito para haste. Referência: 95 × 12 mm.</p></div><button className="secondary" onClick={()=>setLabelProduct(null)}>Fechar</button></div>
