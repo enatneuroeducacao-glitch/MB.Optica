@@ -13,6 +13,7 @@ export async function POST(req:Request){
     const entryDate=b.entry?new Date(b.entry):new Date();
     const expiresAt=b.expiresAt?new Date(b.expiresAt):undefined;
     if(Number.isNaN(entryDate.getTime())||(expiresAt&&Number.isNaN(expiresAt.getTime()))) throw new Error("Data de estoque inválida");
+    if(expiresAt&&expiresAt<entryDate) throw new Error("Validade do lote não pode ser anterior à entrada");
     const result=await db.$transaction(async tx=>{
       const product=await tx.product.findUnique({where:{id:b.productId}});
       if(!product||!product.active) throw new Error("Produto não encontrado ou inativo");
