@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
@@ -61,7 +62,7 @@ export async function POST(req:Request){
 
       await writeAudit(tx,{action:"SETTLE",entity:"Account",entityId:account.id,metadata:{amount,method:b.method||methodRecord?.name||null,isCash:affectsCash}});
       return {account:updated,settlement,movement};
-    });
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
     return NextResponse.json(result,{status:201});
   }catch(error){
