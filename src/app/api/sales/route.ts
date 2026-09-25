@@ -98,6 +98,7 @@ export async function POST(req:Request){
             orderBy:{receivedAt:"asc"}
           });
           let remaining=quantity;
+          const consumedLots:{lotId:string,quantity:number}[]=[];
           for(const lot of lots){
             if(remaining<=0) break;
             const take=Math.min(Number(lot.quantity),remaining);
@@ -106,18 +107,19 @@ export async function POST(req:Request){
               where:{id:lot.id,quantity:{gte:take}},
               data:{quantity:{decrement:take}}
             });
-            if(updated.count===1) remaining-=take;
+            if(updated.count===1){ consumedLots.push({lotId:lot.id,quantity:take}); remaining-=take; }
           }
           if(remaining>0) throw new Error("Estoque insuficiente para "+product.description);
 
-          await tx.stockMovement.create({
+          const movement=await tx.stockMovement.create({
             data:{
               productId:product.id,
               type:"SAIDA",
               quantity,
               reference:"VENDA",
               referenceId:sale.id,
-              notes:"Saída por venda"
+              notes:"Saída por venda",
+              lotLinks:{create:consumedLots}
             }
           });
         }
