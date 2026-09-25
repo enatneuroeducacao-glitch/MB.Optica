@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 export async function POST(req:Request){
   try{
@@ -26,7 +27,8 @@ export async function POST(req:Request){
         where:{id:session.id},
         data:{closedAt:new Date(),closingCash:countedCash,notes:b.notes||session.notes||undefined}
       });
-      return {session:closed,expected, difference:countedCash-expected};
+      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected}});
+      return {session:closed,expected,difference:countedCash-expected};
     });
     return NextResponse.json(result);
   }catch(error){
