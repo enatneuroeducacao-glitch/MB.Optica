@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {writeAudit} from "@/lib/audit";
 
 const allowed=new Set(["ENTRADA","SAIDA","SANGRIA","REFORCO"]);
 
@@ -13,7 +14,7 @@ export async function POST(req:Request){
     const result=await db.$transaction(async(tx)=>{
       const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
       if(!session) throw new Error("Não há caixa aberto");
-      return tx.cashMovement.create({
+      const movement=await tx.cashMovement.create({
         data:{
           sessionId:session.id,
           kind:String(b.kind),
@@ -22,6 +23,8 @@ export async function POST(req:Request){
           referenceId:b.referenceId||undefined
         }
       });
+      await writeAudit(tx,{action:"CREATE",entity:"CashMovement",entityId:movement.id,metadata:{kind:b.kind,amount}});
+      return movement;
     });
     return NextResponse.json(result,{status:201});
   }catch(error){
