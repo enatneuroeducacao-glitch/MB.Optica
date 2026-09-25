@@ -22,7 +22,8 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       AGUARDANDO_LABORATORIO:["EM_PRODUCAO","CANCELADO"],
       EM_PRODUCAO:["RECEBIDO","CANCELADO"],
       RECEBIDO:["CONFERENCIA","CANCELADO"],
-      CONFERENCIA:["PRONTO","AGUARDANDO_LABORATORIO","CANCELADO"],
+      CONFERENCIA:["PRONTO","RETORNO_GARANTIA","CANCELADO"],
+      RETORNO_GARANTIA:["AGUARDANDO_LABORATORIO","CANCELADO"],
       PRONTO:["ENTREGUE","CANCELADO"],
       ENTREGUE:["DEVOLVIDO"],
       DEVOLVIDO:[],
@@ -45,6 +46,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       }
     };
 
+    if(b.status==="RETORNO_GARANTIA") { data.warrantyReturnAt=new Date(); data.warrantyReason=b.warranty?.reason?String(b.warranty.reason).trim():undefined; data.warrantyOriginalFiscalNumber=b.warranty?.originalFiscalNumber?String(b.warranty.originalFiscalNumber).trim():undefined; data.warrantyOriginalFiscalKey=b.warranty?.originalFiscalKey?String(b.warranty.originalFiscalKey).trim():undefined; data.warrantyNotes=b.warranty?.notes?String(b.warranty.notes).trim():undefined; }
     if(b.status==="AGUARDANDO_LABORATORIO") data.laboratorySentAt=new Date();
     if(b.status==="RECEBIDO") data.receivedAt=new Date();
     if(b.status==="ENTREGUE") data.deliveredAt=new Date();
