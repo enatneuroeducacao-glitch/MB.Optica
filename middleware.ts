@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE = "mb_optica_session";
-const PUBLIC_PAGES = new Set(["/login", "/setup"]);
+const PUBLIC_PAGES = new Set(["/login", "/setup", "/acesso-negado"]);
 const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bootstrap", "/api/health"]);
 
 const ROLE_PREFIXES: Record<string, string[]> = {
@@ -27,7 +27,7 @@ function pathAllowed(role: string, pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);\n  requestHeaders.set("x-mb-pathname", pathname);\n  const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
