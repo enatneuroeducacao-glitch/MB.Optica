@@ -1,0 +1,2 @@
+"use client";
+export default function Error({reset}:{error:Error&{digest?:string};reset:()=>void}){return <main className="denied"><div className="panel"><h1>Ocorreu um erro</h1><p>Não foi possível concluir esta operação. Nenhum detalhe técnico sensível é exibido nesta tela.</p><button className="primary" onClick={()=>reset()}>Tentar novamente</button></div></main>}
