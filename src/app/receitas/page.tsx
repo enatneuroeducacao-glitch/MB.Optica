@@ -8,7 +8,11 @@ const empty={customerId:"",professional:"",validUntil:"",odSphere:"",odCylinder:
 const nums=["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHeight","oeSphere","oeCylinder","oeAxis","oeAdd","oePrism","oeDnp","oeHeight","pdTotal"];
 const fieldLabels:Record<string,string>={sphere:"Esférico (ESF)",cylinder:"Cilíndrico (CIL)",axis:"Eixo (AX)",add:"Adição (ADD)",prism:"Prisma",dnp:"DNP",height:"Altura"};
 
-function printManualOS(){
+async function printManualOS(){
+ const numberResponse=await fetch("/api/service-orders/next",{method:"POST"});
+ const numberData=await numberResponse.json();
+ if(!numberResponse.ok){alert(numberData.error||"Não foi possível gerar o número da O.S.");return;}
+ const osNumber=numberData.display;
  const win=window.open("","_blank","width=900,height=1000");
  if(!win){alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");return;}
  win.document.write(`<!doctype html><html><head><title>O.S. Manual - MB Óptica</title><style>
@@ -31,7 +35,7 @@ function printManualOS(){
  <div class="eye"><h3>OD — OLHO DIREITO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
  </div><div class="fields" style="margin-top:7px"><div class="field">DP TOTAL: __________________</div><div class="field">PROFISSIONAL: ______________________________</div></div></div>
  <div class="section"><h2>Venda / Serviço</h2><div class="sale">
- <div class="field">O.S. Nº: __________________</div><div class="field">Pedido Nº: ________________</div><div class="field">Vendedor: __________________</div>
+ <div class="field">O.S. Nº: ${esc(osNumber)}</div><div class="field">Pedido Nº: ________________</div><div class="field">Vendedor: __________________</div>
  <div class="field">Armação: __________________________________</div><div class="field">Lente: ____________________________________</div><div class="field">Tratamento: _______________________________</div>
  <div class="field">Prazo de entrega: _________________________</div><div class="field">Valor: R$ __________________</div><div class="field">Forma de pagamento: _______________________</div>
  </div><div class="large" style="margin-top:7px">Observações / especificações: ______________________________________________________________________________________<br><br>____________________________________________________________________________________________________________</div></div>
