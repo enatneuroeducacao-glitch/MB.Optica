@@ -2,6 +2,17 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {writeAudit} from "@/lib/audit";
 
+const toBoolean=(value:unknown,defaultValue:boolean)=>{
+  if(value===undefined)return defaultValue;
+  if(typeof value==="boolean")return value;
+  if(typeof value==="string"){
+    const normalized=value.trim().toLowerCase();
+    if(normalized==="true")return true;
+    if(normalized==="false")return false;
+  }
+  throw new Error("Valor booleano inválido");
+};
+
 export async function GET(){
   const methods=await db.paymentMethod.findMany({orderBy:{name:"asc"}});
   return NextResponse.json(methods);
@@ -15,7 +26,7 @@ export async function POST(req:Request){
 
     const method=await db.$transaction(async tx=>{
       const created=await tx.paymentMethod.create({
-        data:{name,isCash:b.isCash===undefined?true:Boolean(b.isCash),active:b.active===undefined?true:Boolean(b.active)}
+        data:{name,isCash:toBoolean(b.isCash,true),active:toBoolean(b.active,true)}
       });
       await writeAudit(tx,{
         action:"CREATE",
