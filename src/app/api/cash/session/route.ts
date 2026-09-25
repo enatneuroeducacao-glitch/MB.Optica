@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
+import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
 
 export async function GET(){
@@ -25,7 +26,7 @@ export async function POST(req:Request){
       });
       await writeAudit(tx,{action:"OPEN",entity:"CashSession",entityId:session.id,metadata:{openingCash}});
       return session;
-    });
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(session,{status:201});
   }catch(error){
     return NextResponse.json({error:"Não foi possível abrir o caixa",detail:String(error)},{status:400});
