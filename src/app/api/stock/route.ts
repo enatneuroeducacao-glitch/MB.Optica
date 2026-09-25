@@ -4,25 +4,14 @@ import {db} from "@/lib/db";
 export async function GET(){
   const products=await db.product.findMany({
     where:{active:true},
-    include:{lots:true},
+    include:{lots:{where:{archived:false}}},
     orderBy:{description:"asc"}
   });
 
-  const result=products.map((product:any)=>{
-    const stock=product.lots.reduce((sum:number,lot:any)=>{
-      return sum+(lot.archived?0:Number(lot.quantity||0));
-    },0);
-
-    return {
-      id:product.id,
-      code:product.code,
-      barcode:product.barcode,
-      description:product.description,
-      unit:product.unit,
-      minimumStock:product.minimumStock,
-      stock,
-      critical:stock<=Number(product.minimumStock||0)
-    };
+  const result=products.map(product=>{
+    const stock=product.lots.reduce((sum,lot)=>sum+Number(lot.quantity),0);
+    const minimumStock=Number(product.minimumStock);
+    return {id:product.id,code:product.code,barcode:product.barcode,description:product.description,unit:product.unit,minimumStock,stock,critical:stock<=minimumStock};
   });
 
   return NextResponse.json(result);
