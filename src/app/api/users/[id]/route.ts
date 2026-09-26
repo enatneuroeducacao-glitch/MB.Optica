@@ -59,7 +59,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             fields: Object.keys(body),
             passwordChanged: Boolean(body.password),
             roleChanged: Boolean(body.role),
-            activeChanged: body.active !== undefined,\n            permissionsChanged: body.permissions !== undefined,
+            activeChanged: body.active !== undefined,
+            permissionsChanged: body.permissions !== undefined,
           },
         },
       });
