@@ -197,7 +197,8 @@ export async function GET(){
         order:{select:{id:true,number:true,status:true}},
         items:{include:{product:{select:{id:true,code:true,description:true}}}},
         payments:{include:{method:{select:{id:true,name:true,isCash:true}}},orderBy:{paidAt:"asc"}},
-        accounts:{orderBy:{dueDate:"asc"}}
+        accounts:{orderBy:{dueDate:"asc"}},
+        fiscalDocument:true
       }
     });
     return NextResponse.json(rows);
