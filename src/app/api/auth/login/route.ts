@@ -10,30 +10,13 @@ const schema = z.object({
   password: z.string().min(3).max(200),
 });
 
-const TEST_EMAIL = "admin@mb-optica.local";
 
 export async function POST(request: Request) {
   try {
     const body = schema.parse(await request.json());
     const identifier = body.email.toLowerCase();
 
-    // TEMPORARY BUILD-PHASE ACCESS. Remove before public production handoff.
-    if (identifier === "admin" && body.password === "admin") {
-      const token = await createSession({ id: "test-admin", role: "ADMIN", sessionVersion: 1 });
-      (await cookies()).set(AUTH_COOKIE, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 12,
-      });
-      return NextResponse.json({
-        ok: true,
-        user: { id: "test-admin", name: "Administrador de Teste", email: "admin@mb-optica.local", role: "ADMIN" },
-      });
-    }
-
-    const user = await db.user.findUnique({ where: { email: identifier } });
+    // TEMPORARY BUILD-PHASE ACCESS. Remove where: { email: identifier } });
 
     if (!user || !user.active || !user.passwordHash) {
       return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
@@ -58,7 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: user.permissions },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
