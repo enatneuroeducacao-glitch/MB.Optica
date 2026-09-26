@@ -50,7 +50,11 @@ function pathAllowed(role: string, pathname: string) {
   return prefixes.some((prefix) => prefix === "*" || prefix === "/" ? prefix === "*" || pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
-const PAGE_PERMISSIONS: Record<string,string> = {"/agenda":"agenda","/clientes":"clientes","/receitas":"receitas","/orcamentos":"orcamentos","/pedidos":"pedidos","/laboratorio":"laboratorio","/produtos":"produtos","/estoque":"estoque","/fornecedores":"fornecedores","/vendas":"vendas","/financeiro":"financeiro","/relatorios":"relatorios","/configuracoes":"configuracoes","/migracao":"migracao"};\nconst API_PERMISSIONS: Record<string,string> = {"/api/customers":"clientes","/api/prescriptions":"receitas","/api/orders":"pedidos","/api/products":"produtos","/api/categories":"produtos","/api/suppliers":"fornecedores","/api/sales":"vendas","/api/payments":"vendas","/api/payment-methods":"financeiro","/api/finance":"financeiro","/api/financeiro":"financeiro","/api/cash":"financeiro","/api/stock":"estoque","/api/relatorios":"relatorios","/api/audit":"auditoria","/api/users":"usuarios","/api/settings":"configuracoes"};\nfunction permissionAllowed(permissions: unknown, key: string) { if (!permissions || typeof permissions !== "object") return true; const value=(permissions as Record<string,unknown>)[key]; return value !== false; }\n\nfunction apiPathAllowed(role: string, pathname: string) {
+const PAGE_PERMISSIONS: Record<string,string> = {"/agenda":"agenda","/clientes":"clientes","/receitas":"receitas","/orcamentos":"orcamentos","/pedidos":"pedidos","/laboratorio":"laboratorio","/produtos":"produtos","/estoque":"estoque","/fornecedores":"fornecedores","/vendas":"vendas","/financeiro":"financeiro","/relatorios":"relatorios","/configuracoes":"configuracoes","/migracao":"migracao"};
+const API_PERMISSIONS: Record<string,string> = {"/api/customers":"clientes","/api/prescriptions":"receitas","/api/orders":"pedidos","/api/products":"produtos","/api/categories":"produtos","/api/suppliers":"fornecedores","/api/sales":"vendas","/api/payments":"vendas","/api/payment-methods":"financeiro","/api/finance":"financeiro","/api/financeiro":"financeiro","/api/cash":"financeiro","/api/stock":"estoque","/api/relatorios":"relatorios","/api/audit":"auditoria","/api/users":"usuarios","/api/settings":"configuracoes"};
+function permissionAllowed(permissions: unknown, key: string) { if (!permissions || typeof permissions !== "object") return true; const value=(permissions as Record<string,unknown>)[key]; return value !== false; }
+
+function apiPathAllowed(role: string, pathname: string) {
   const prefixes = API_ROLE_PREFIXES[role] ?? [];
   return prefixes.some((prefix) => prefix === "*" || pathname === prefix || pathname.startsWith(prefix + "/"));
 }
@@ -81,7 +85,8 @@ export async function middleware(request: NextRequest) {
 
   try {
     const verified = await jwtVerify(token, key, { algorithms: ["HS256"] });
-    const role = typeof verified.payload.role === "string" ? verified.payload.role : "";\n    const permissions = verified.payload.permissions;
+    const role = typeof verified.payload.role === "string" ? verified.payload.role : "";
+    const permissions = verified.payload.permissions;
 
     if (pathname.startsWith("/api/")) {
       if (!apiPathAllowed(role, pathname)) {
@@ -98,7 +103,9 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    const pagePermission = Object.entries(PAGE_PERMISSIONS).find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"))?.[1];\n    if (pagePermission && !permissionAllowed(permissions, pagePermission)) return NextResponse.redirect(new URL("/acesso-negado", request.url));\n    if (!pathAllowed(role, pathname)) {
+    const pagePermission = Object.entries(PAGE_PERMISSIONS).find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"))?.[1];
+    if (pagePermission && !permissionAllowed(permissions, pagePermission)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
+    if (!pathAllowed(role, pathname)) {
       return NextResponse.redirect(new URL("/acesso-negado", request.url));
     }
 
