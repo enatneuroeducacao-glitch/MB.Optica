@@ -12,3 +12,5 @@
 .sales-payment-box{margin-top:18px;padding:18px;border:1px solid #dfe5ec;border-radius:14px;background:#f8fafc}
 .sales-payment-title{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}.sales-payment-title span{font-size:13px;color:var(--muted)}
 .sales-payment-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.sales-payment-shortcuts span{padding:6px 10px;border-radius:999px;background:#e8f5f1;color:#18705b;font-size:12px;font-weight:700}
+
+.sales-pix-box{margin-top:12px;padding:14px;border:1px solid #cfe7df;border-radius:12px;background:#f3faf7}.sales-pix-preview{display:flex;align-items:center;gap:16px;margin-top:12px;padding:12px;background:#fff;border-radius:10px}.sales-pix-qr{width:120px;height:120px;border:1px solid #e2e8f0}.sales-pix-manager{margin-top:12px;padding:14px;border:1px dashed #a8cfc3;border-radius:10px;background:#fff}
