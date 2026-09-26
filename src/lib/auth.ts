@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 export const AUTH_COOKIE = "mb_optica_session";
 const SESSION_HOURS = 12;
 
-type SessionPayload = JWTPayload & { userId: string; role: string; version: number };
+type SessionPayload = JWTPayload & { userId: string; role: string; version: number; permissions?: Record<string, boolean> };
 
 function secretKey() {
   const secret = process.env.AUTH_SECRET;
@@ -42,7 +42,7 @@ export async function getCurrentUser() {
     }
     const user = await db.user.findUnique({ where: { id: payload.userId } });
     if (!user || !user.active || user.sessionVersion !== payload.version) return null;
-    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active };
+    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, permissions: (user.permissions as Record<string,boolean>) ?? {} };
   } catch {
     return null;
   }
@@ -69,3 +69,4 @@ export function safeEqual(a: string, b: string) {
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+\nexport function permissionAllowed(permissions: unknown, key: string) {\n  if (!permissions || typeof permissions !== "object") return true;\n  const value = (permissions as Record<string,unknown>)[key];\n  return value !== false;\n}\n
