@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { effectivePermissions, hasPermission, ROLE_DEFAULT_PERMISSIONS, API_PERMISSIONS } from "../src/lib/permissions";
+import { effectivePermissions, hasPermission, ROLE_DEFAULT_PERMISSIONS, API_PERMISSIONS, API_PUBLIC_AUTHENTICATED } from "../src/lib/permissions";
 
 const root=process.cwd();
 const assert=(condition:boolean,message:string)=>{if(!condition)throw new Error("SECURITY AUDIT FAILED: "+message)};
@@ -21,6 +21,20 @@ assert(!hasPermission("GERENTE",{financeiro:false}, "financeiro"), "explicit per
 assert(API_PERMISSIONS["/api/financeiro"]==="financeiro", "finance center API must be protected");
 assert(API_PERMISSIONS["/api/sales"]==="vendas", "sales API must be protected by sales permission");
 assert(API_PERMISSIONS["/api/users"]==="usuarios", "users API must be protected by users permission");
+
+const walk=(dir:string):string[]=>{
+  const entries=fs.readdirSync(dir,{withFileTypes:true});
+  return entries.flatMap(entry=>{
+    const full=path.join(dir,entry.name);
+    return entry.isDirectory()?walk(full):entry.name==="route.ts"?[full]:[];
+  });
+};
+const apiRoot=path.join(root,"src/app/api");
+const unmapped=walk(apiRoot).map(file=>{
+  const rel=path.relative(apiRoot,path.dirname(file)).split(path.sep).filter(Boolean);
+  return "/api/"+rel.join("/");
+}).filter(route=>!API_PUBLIC_AUTHENTICATED.has(route)&&!["/api/auth/login","/api/auth/logout","/api/auth/bootstrap","/api/health"].includes(route)&&!Object.keys(API_PERMISSIONS).some(prefix=>route===prefix||route.startsWith(prefix+"/")));
+assert(unmapped.length===0, "unmapped API routes: "+unmapped.join(", "));
 
 const schema=fs.readFileSync(path.join(root,"prisma/schema.prisma"),"utf8");
 assert(/model StoreSettings[\s\S]*logoData String\?/.test(schema), "StoreSettings.logoData is not persisted in Prisma schema");
