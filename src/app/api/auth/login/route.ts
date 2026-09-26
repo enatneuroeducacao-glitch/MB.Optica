@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { AUTH_COOKIE, createSession } from "@/lib/auth";
+import { effectivePermissions } from "@/lib/permissions";
 
 const schema = z.object({
   email: z.string().trim().min(3).max(160),
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: user.permissions },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: effectivePermissions(user.role, user.permissions) },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
