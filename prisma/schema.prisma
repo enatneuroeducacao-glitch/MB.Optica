@@ -371,6 +371,9 @@ discount Decimal @default(0) @db.Decimal(12,2)
 surcharge Decimal @default(0) @db.Decimal(12,2)
 total Decimal @default(0) @db.Decimal(12,2)
 notes String?
+paymentCondition String?
+installments Int?
+pixPayload String?
 canceled Boolean @default(false)
 canceledAt DateTime?
 cancelReason String?
