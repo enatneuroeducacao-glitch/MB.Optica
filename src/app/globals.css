@@ -17,3 +17,19 @@
 
 .finance-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.finance-tabs button{border:1px solid #dce3ea;background:#fff;padding:10px 16px;border-radius:10px;font-weight:700;color:#526173}.finance-tabs button.active{background:#173b36;color:#fff;border-color:#173b36}.finance-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}.finance-kpis div{padding:14px;border:1px solid #e5eaf0;border-radius:12px;background:#f8fafc}.finance-kpis b{display:block;font-size:22px}.finance-kpis span{font-size:12px;color:#6b7788}.offline-dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block}.notice{margin:12px 0;padding:12px 16px;border-radius:10px;background:#eaf6f2;color:#17634f;font-weight:600}
 @media(max-width:700px){.finance-kpis{grid-template-columns:1fr}.finance-tabs{overflow:auto;flex-wrap:nowrap}.finance-tabs button{white-space:nowrap}}
+
+/* Finance center layout */
+.finance-center .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:0 20px 20px}
+.finance-center .form-grid label{display:grid;gap:6px;min-width:0;font-size:10px;font-weight:700;color:#4d5a6d}
+.finance-center .form-grid label.wide{grid-column:1/-1}
+.finance-center .form-grid input,.finance-center .form-grid select,.finance-center .form-grid textarea{width:100%;min-width:0;border:1px solid #dfe5ec;border-radius:8px;padding:10px 11px;background:#fff;color:var(--text);font-size:11px;outline:none}
+.finance-center .form-grid textarea{min-height:78px;resize:vertical}
+.finance-center .form-grid input:focus,.finance-center .form-grid select:focus,.finance-center .form-grid textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(15,118,110,.08)}
+.finance-center .form-grid .primary{justify-self:start}
+.finance-center .finance-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px}
+.finance-center .finance-list>div>span{min-width:0;line-height:1.45}
+.finance-center .finance-list>div>strong{white-space:nowrap}
+.finance-center .panel .finance-list{overflow:hidden}
+.finance-center .cash-state{margin-bottom:18px}
+.finance-center .grid-two{align-items:start}
+@media(max-width:700px){.finance-center .form-grid{grid-template-columns:1fr;padding:0 14px 16px}.finance-center .form-grid label.wide{grid-column:auto}.finance-center .finance-list>div{grid-template-columns:1fr auto}.finance-center .finance-list>div button{grid-column:2;grid-row:1/3}.finance-center .page-heading .primary{width:100%}}
