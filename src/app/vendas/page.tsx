@@ -88,7 +88,7 @@ await load();
     <label>Pedido óptico<select value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Venda avulsa</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>
     <label>Produto / serviço<select required value={form.productId} onChange={e=>{const p=products.find(x=>x.id===e.target.value);setForm({...form,productId:e.target.value,unitPrice:p?String(p.salePrice):""})}}><option value="">Selecione</option>{products.map(p=><option key={p.id} value={p.id}>{p.code} · {p.description} · {money(p.salePrice)}</option>)}</select></label>
     <label>Quantidade<input required type="number" min="0.001" step="0.001" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label><label>Preço unitário<input required type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})}/></label><label>Desconto<input type="number" min="0" step="0.01" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})}/></label><label>Acréscimo<input type="number" min="0" step="0.01" value={form.surcharge} onChange={e=>setForm({...form,surcharge:e.target.value})}/></label><div className="sales-total-box"><span>Total</span><strong>{money(total)}</strong></div>
-   <div className="sales-payment-box">
+   <div className="sales-payment-box sales-wide">
     <div className="sales-payment-title"><b>Condição de pagamento</b><span>Escolha como esta venda será recebida.</span></div>
     <div className="sales-form-grid">
      <label>Forma
@@ -122,8 +122,7 @@ await load();
       </div>}
      {form.paymentCondition==="PIX"&&form.pixPayload&&<label className="sales-wide">PIX copia e cola<input value={pixKeys.some(k=>k.id===form.pixPayload)?pixPayload(pixKeys.find(k=>k.id===form.pixPayload)!,total):form.pixPayload} readOnly/></label>}
     </div>
-    <div className="sales-payment-shortcuts"><span>✓ PIX</span><span>✓ Débito</span><span>✓ Crédito</span><span>✓ Dinheiro</span><span>✓ Crediário</span><span>✓ Parcelamento</span></div>
-   </div>
+    
    </div><label className="sales-wide">Observações<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Entrega, garantia, atendimento..."/></label><div className="sales-actions"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary">Finalizar venda</button></div></form>
   </div></div>}
 
