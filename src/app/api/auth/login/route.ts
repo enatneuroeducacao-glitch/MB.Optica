@@ -11,13 +11,14 @@ const schema = z.object({
   password: z.string().min(3).max(200),
 });
 
-
 export async function POST(request: Request) {
   try {
     const body = schema.parse(await request.json());
     const identifier = body.email.toLowerCase();
 
-    // TEMPORARY BUILD-PHASE ACCESS. Remove where: { email: identifier } });
+    const user = await db.user.findUnique({
+      where: { email: identifier },
+    });
 
     if (!user || !user.active || !user.passwordHash) {
       return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 401 });
