@@ -6,22 +6,26 @@ type Customer={id:string;name:string;cpfCnpj?:string|null};
 type Product={id:string;code:string;description:string;salePrice:number|string;cost:number|string};
 type Order={id:string;number:number;customerId:string;total:number|string;status:string;items?:any[]};
 type Method={id:string;name:string;isCash:boolean;active:boolean};
+type PixKey={id:string;type:string;key:string;holderName:string;holderDocument?:string|null;city?:string|null};
 type Sale=any;
 
 const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const dt=(v:any)=>v?new Date(v).toLocaleString("pt-BR"):"—";
+const crc16=(value:string)=>{let crc=0xffff;for(let i=0;i<value.length;i++){crc^=value.charCodeAt(i)<<8;for(let b=0;b<8;b++)crc=(crc&0x8000)?((crc<<1)^0x1021)&0xffff:(crc<<1)&0xffff}return crc.toString(16).toUpperCase().padStart(4,"0")};
+const tlv=(id:string,value:string)=>id+String(value.length).padStart(2,"0")+value;
+const pixPayload=(p:PixKey,amount:number)=>{const merchant=(p.holderName||"MB OPTICA").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,25);const city=(p.city||"JOINVILLE").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,15);let body=tlv("00","01")+tlv("01","12")+tlv("26",tlv("00","BR.GOV.BCB.PIX")+tlv("01",p.key)+(amount>0?tlv("02",money(amount).replace(/[^0-9,]/g,"").replace(",",".")):""))+tlv("52","0000")+tlv("53","986")+tlv("58","BR")+tlv("59",merchant)+tlv("60",city)+tlv("62",tlv("05","***"));const crc=crc16(body+"6304");return body+"6304"+crc};
 
 export default function Vendas(){
- const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]);
+ const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
- const [pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""});
+ const [pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
-  const [s,c,p,o,m,u,cs]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/auth/me"),fetch("/api/cash/session")]);
-  const [sd,cd,pd,od,md,ud,csd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),u.json(),cs.json()]);
+  const [s,c,p,o,m,u,cs]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session")]);
+  const [sd,cd,pd,od,md,pkd,ud,csd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),(await fetch("/api/pix-keys")).json(),u.json(),cs.json()]);
   if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok)setCustomers(Array.isArray(cd)?cd:[]);if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
-  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);
+  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);
  };
  useEffect(()=>{load()},[]);
  const product=products.find(p=>p.id===form.productId);
@@ -102,9 +106,19 @@ await load();
       </label><label>1º vencimento
        <input type="date" value={form.firstDueDate} onChange={e=>setForm({...form,firstDueDate:e.target.value})}/>
       </label></>}
-     {(form.paymentCondition==="PIX"||form.pixPayload)&&<label className="sales-wide">PIX copia e cola
-       <textarea rows={2} value={form.pixPayload} onChange={e=>setForm({...form,pixPayload:e.target.value})} placeholder="Cole aqui o código PIX para gerar o QR na impressão."/>
-      </label>}
+     {form.paymentCondition==="PIX"&&<div className="sales-wide sales-pix-box">
+       <div className="sales-payment-title"><b>PIX da loja</b><span>Selecione uma chave cadastrada ou cadastre uma nova.</span></div>
+       <div className="sales-form-grid">
+        <label>Chave PIX<select value={form.pixPayload} onChange={e=>setForm({...form,pixPayload:e.target.value})}><option value="">Selecione uma chave</option>{pixKeys.map(k=><option key={k.id} value={k.id}>{k.type} · {k.key} · {k.holderName}</option>)}</select></label>
+        <div className="sales-actions"><button type="button" className="secondary" onClick={()=>setShowPixManager(v=>!v)}>⚙ Cadastrar chave PIX</button></div>
+       </div>
+       {form.pixPayload&&pixKeys.some(k=>k.id===form.pixPayload)&&<div className="sales-pix-preview"><span>QR será gerado automaticamente para o valor da venda.</span><img className="sales-pix-qr" src={"https://quickchart.io/qr?size=180&text="+encodeURIComponent(pixPayload(pixKeys.find(k=>k.id===form.pixPayload)!,total))}/></div>}
+       {showPixManager&&<div className="sales-pix-manager"><div className="sales-form-grid">
+        <label>Tipo<select value={pixForm.type} onChange={e=>setPixForm({...pixForm,type:e.target.value})}><option value="ALEATORIA">Aleatória</option><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="EMAIL">E-mail</option><option value="TELEFONE">Telefone</option></select></label>
+        <label>Chave<input value={pixForm.key} onChange={e=>setPixForm({...pixForm,key:e.target.value})}/></label><label>Titular<input value={pixForm.holderName} onChange={e=>setPixForm({...pixForm,holderName:e.target.value})}/></label><label>Cidade<input value={pixForm.city} onChange={e=>setPixForm({...pixForm,city:e.target.value})}/></label>
+       </div><button type="button" className="primary" onClick={async()=>{const rr=await fetch("/api/pix-keys",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(pixForm)});const dd=await rr.json();if(!rr.ok){setMsg(dd.error||"Erro ao cadastrar PIX");return}setPixForm({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"});setShowPixManager(false);setMsg("Chave PIX cadastrada.");await load()}}>Salvar chave PIX</button></div>}
+      </div>}
+     {form.paymentCondition==="PIX"&&form.pixPayload&&<label className="sales-wide">PIX copia e cola<input value={pixKeys.some(k=>k.id===form.pixPayload)?pixPayload(pixKeys.find(k=>k.id===form.pixPayload)!,total):form.pixPayload} readOnly/></label>}
     </div>
     <div className="sales-payment-shortcuts"><span>✓ PIX</span><span>✓ Débito</span><span>✓ Crédito</span><span>✓ Dinheiro</span><span>✓ Crediário</span><span>✓ Parcelamento</span></div>
    </div>
