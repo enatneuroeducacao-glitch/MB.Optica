@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser, requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
-const schema=z.object({legalName:z.string().max(160).nullable().optional(),tradeName:z.string().min(2).max(120).optional(),document:z.string().max(30).nullable().optional(),phone:z.string().max(30).nullable().optional(),whatsapp:z.string().max(30).nullable().optional(),email:z.string().email().nullable().optional(),street:z.string().max(160).nullable().optional(),number:z.string().max(30).nullable().optional(),complement:z.string().max(100).nullable().optional(),district:z.string().max(100).nullable().optional(),city:z.string().max(100).nullable().optional(),state:z.string().length(2).nullable().optional(),postalCode:z.string().max(20).nullable().optional(),timezone:z.string().max(80).optional(),currency:z.string().length(3).optional()});
+const schema=z.object({legalName:z.string().max(160).nullable().optional(),tradeName:z.string().min(2).max(120).optional(),logoData:z.string().max(1400000).nullable().optional(),document:z.string().max(30).nullable().optional(),phone:z.string().max(30).nullable().optional(),whatsapp:z.string().max(30).nullable().optional(),email:z.string().email().nullable().optional(),street:z.string().max(160).nullable().optional(),number:z.string().max(30).nullable().optional(),complement:z.string().max(100).nullable().optional(),district:z.string().max(100).nullable().optional(),city:z.string().max(100).nullable().optional(),state:z.string().length(2).nullable().optional(),postalCode:z.string().max(20).nullable().optional(),timezone:z.string().max(80).optional(),currency:z.string().length(3).optional()});
 
 export async function GET(){
   try{
