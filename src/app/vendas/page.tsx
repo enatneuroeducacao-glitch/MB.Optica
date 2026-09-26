@@ -41,11 +41,13 @@ e.preventDefault();setMsg("");
 if(!user?.id){setMsg("Usuário da sessão não identificado.");return}
 if(!form.customerId||!form.productId){setMsg("Cliente e produto são obrigatórios.");return}
 const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
+const selectedPix=form.paymentCondition==="PIX"?pixKeys.find(k=>k.id===form.pixPayload):undefined;
+const pixCode=selectedPix?pixPayload(selectedPix,total):form.pixPayload;
 if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
-const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:form.pixPayload||undefined,firstDueDate:form.firstDueDate,items:[{productId:form.productId,description:product?.description||"Item",quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||product?.salePrice||0),unitCost:Number(product?.cost||0)}],stock:[{productId:form.productId,quantity:Number(form.quantity)}]})});
+const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,items:[{productId:form.productId,description:product?.description||"Item",quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||product?.salePrice||0),unitCost:Number(product?.cost||0)}],stock:[{productId:form.productId,quantity:Number(form.quantity)}]})});
 const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}
 if(form.paymentCondition!=="CARNÊ"&&form.paymentMethodId){
-const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:form.pixPayload||undefined})});
+const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:pixCode||undefined})});
 const pd=await pr.json();if(!pr.ok)setMsg("Venda criada, mas o recebimento não foi registrado: "+(pd.detail||pd.error||"erro"));else setMsg("Venda #"+d.number+" registrada e recebida.");
 }else setMsg("Venda #"+d.number+" registrada.");
 setOpen(false);
