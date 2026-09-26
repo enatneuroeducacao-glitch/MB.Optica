@@ -79,6 +79,9 @@ export async function POST(req:Request){
           surcharge,
           total,
           notes:b.notes||undefined,
+          paymentCondition:b.paymentCondition||undefined,
+          installments:installments||undefined,
+          pixPayload:b.pixPayload||undefined,
           items:{create:items}
         },
         include:{items:true}
