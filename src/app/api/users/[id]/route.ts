@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           passwordHash,
           ...(body.password || body.active !== undefined || body.role ? { sessionVersion: { increment: 1 } } : {}),
         },
-        select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true },
+        select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true },
       });
 
       await tx.auditLog.create({
@@ -59,7 +59,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             fields: Object.keys(body),
             passwordChanged: Boolean(body.password),
             roleChanged: Boolean(body.role),
-            activeChanged: body.active !== undefined,
+            activeChanged: body.active !== undefined,\n            permissionsChanged: body.permissions !== undefined,
           },
         },
       });
