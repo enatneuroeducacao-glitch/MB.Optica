@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { API_PERMISSIONS, API_PUBLIC_AUTHENTICATED, PAGE_PERMISSIONS, ROLE_API_PREFIXES, ROLE_DEFAULT_PERMISSIONS, WRITE_ROLES, pathMatches } from "@/lib/permissions";
 
 const COOKIE = "mb_optica_session";
 const PUBLIC_PAGES = new Set(["/login", "/setup", "/acesso-negado"]);
@@ -7,37 +8,11 @@ const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bo
 
 const ROLE_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
-  GERENTE: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/laboratorio", "/produtos", "/estoque", "/fornecedores", "/vendas", "/financeiro", "/relatorios", "/configuracoes"],
+  GERENTE: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/laboratorio", "/produtos", "/estoque", "/fornecedores", "/vendas", "/financeiro", "/relatorios", "/configuracoes", "/migracao"],
   VENDEDOR: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/vendas", "/produtos"],
   FINANCEIRO: ["/", "/vendas", "/financeiro", "/relatorios"],
   LABORATORIO: ["/", "/pedidos", "/laboratorio", "/produtos"],
 };
-
-const API_ROLE_PREFIXES: Record<string, string[]> = {
-  ADMIN: ["*"],
-  GERENTE: ["/api/auth/me", "/api/audit", "/api/settings", "/api/users", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers", "/api/orders", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash", "/api/stock", "/api/sales"],
-  VENDEDOR: ["/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions", "/api/products", "/api/categories", "/api/orders", "/api/payment-methods", "/api/payments", "/api/sales"],
-  FINANCEIRO: ["/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments", "/api/finance", "/api/cash"],
-  LABORATORIO: ["/api/auth/me", "/api/dashboard", "/api/products", "/api/categories", "/api/orders", "/api/stock"],
-};
-
-const WRITE_ROLES: Array<[string, string[]]> = [
-  ["/api/users", ["ADMIN"]],
-  ["/api/settings", ["ADMIN", "GERENTE"]],
-  ["/api/audit", ["ADMIN", "GERENTE"]],
-  ["/api/products", ["ADMIN", "GERENTE"]],
-  ["/api/categories", ["ADMIN", "GERENTE"]],
-  ["/api/suppliers", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-  ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
-  ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
-  ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
-  ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
-  ["/api/payment-methods", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-  ["/api/payments", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-  ["/api/finance", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-  ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
-  ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
-];
 
 function secretKey() {
   const secret = process.env.AUTH_SECRET;
@@ -50,13 +25,27 @@ function pathAllowed(role: string, pathname: string) {
   return prefixes.some((prefix) => prefix === "*" || prefix === "/" ? prefix === "*" || pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
-const PAGE_PERMISSIONS: Record<string,string> = {"/agenda":"agenda","/clientes":"clientes","/receitas":"receitas","/orcamentos":"orcamentos","/pedidos":"pedidos","/laboratorio":"laboratorio","/produtos":"produtos","/estoque":"estoque","/fornecedores":"fornecedores","/vendas":"vendas","/financeiro":"financeiro","/relatorios":"relatorios","/configuracoes":"configuracoes","/migracao":"migracao"};
-const API_PERMISSIONS: Record<string,string> = {"/api/customers":"clientes","/api/prescriptions":"receitas","/api/orders":"pedidos","/api/products":"produtos","/api/categories":"produtos","/api/suppliers":"fornecedores","/api/sales":"vendas","/api/payments":"vendas","/api/payment-methods":"financeiro","/api/finance":"financeiro","/api/financeiro":"financeiro","/api/cash":"financeiro","/api/stock":"estoque","/api/relatorios":"relatorios","/api/audit":"auditoria","/api/users":"usuarios","/api/settings":"configuracoes"};
 function permissionAllowed(permissions: unknown, key: string) { if (!permissions || typeof permissions !== "object") return true; const value=(permissions as Record<string,unknown>)[key]; return value !== false; }
 
 function apiPathAllowed(role: string, pathname: string) {
-  const prefixes = API_ROLE_PREFIXES[role] ?? [];
-  return prefixes.some((prefix) => prefix === "*" || pathname === prefix || pathname.startsWith(prefix + "/"));
+  const prefixes = ROLE_API_PREFIXES[role] ?? [];
+  return prefixes.some((prefix) => prefix === "*" || pathMatches(pathname, prefix));
+}
+
+function permissionForApi(pathname: string) {
+  const match = Object.entries(API_PERMISSIONS)
+    .filter(([prefix]) => pathMatches(pathname, prefix))
+    .sort((a, b) => b[0].length - a[0].length)[0];
+  return match?.[1] ?? null;
+}
+
+function effectivePermissionFromToken(role: string, permissions: unknown, key: string) {
+  if (role === "ADMIN") return true;
+  if (permissions && typeof permissions === "object" && !Array.isArray(permissions)) {
+    const value = (permissions as Record<string, unknown>)[key];
+    if (typeof value === "boolean") return value;
+  }
+  return ROLE_DEFAULT_PERMISSIONS[role]?.includes(key) ?? false;
 }
 
 export async function middleware(request: NextRequest) {
@@ -86,16 +75,22 @@ export async function middleware(request: NextRequest) {
   try {
     const verified = await jwtVerify(token, key, { algorithms: ["HS256"] });
     const role = typeof verified.payload.role === "string" ? verified.payload.role : "";
-    const permissions = verified.payload.permissions;
-
+  
     if (pathname.startsWith("/api/")) {
+      if (API_PUBLIC_AUTHENTICATED.has(pathname)) return response;
+
       if (!apiPathAllowed(role, pathname)) {
         return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
       }
 
+      const permission = permissionForApi(pathname);
+      if (permission && !effectivePermissionFromToken(role, verified.payload.permissions, permission)) {
+        return NextResponse.json({ error: "Acesso bloqueado pela permissão individual deste usuário." }, { status: 403, headers: response.headers });
+      }
+
       const writeMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
       if (writeMethods.has(request.method)) {
-        const rule = WRITE_ROLES.find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"));
+        const rule = WRITE_ROLES.find(([prefix]) => pathMatches(pathname, prefix));
         if (rule && !rule[1].includes(role)) {
           return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
         }
@@ -103,8 +98,8 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    const pagePermission = Object.entries(PAGE_PERMISSIONS).find(([prefix]) => pathname === prefix || pathname.startsWith(prefix + "/"))?.[1];
-    if (pagePermission && !permissionAllowed(permissions, pagePermission)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
+    const pagePermission = Object.entries(PAGE_PERMISSIONS).find(([prefix]) => pathMatches(pathname, prefix))?.[1];
+    if (pagePermission && !effectivePermissionFromToken(role, verified.payload.permissions, pagePermission)) return NextResponse.redirect(new URL("/acesso-negado", request.url));
     if (!pathAllowed(role, pathname)) {
       return NextResponse.redirect(new URL("/acesso-negado", request.url));
     }
