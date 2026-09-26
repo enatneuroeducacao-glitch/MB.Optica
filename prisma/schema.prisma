@@ -509,6 +509,7 @@ model StoreSettings {
   id String @id @default(cuid())
   legalName String?
   tradeName String @default("MB Óptica")
+  logoData String?
   document String?
   phone String?
   whatsapp String?
