@@ -491,17 +491,42 @@ metadata Json?
 createdAt DateTime @default(now())
 user User? @relation(fields:[userId],references:[id])
 }
+model MigrationRun {
+  id String @id @default(cuid())
+  source String
+  sourceFingerprint String @unique
+  status String @default("RUNNING")
+  total Int
+  imported Int @default(0)
+  mapped Int @default(0)
+  warnings Int @default(0)
+  errors Int @default(0)
+  report Json?
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  legacyRecords LegacyRecord[]
+}
+
 model LegacyRecord {
-id String @id @default(cuid())
-source String @default("BEEPSTART")
-collectionKey String?
-legacyId String?
-payload Json
-customerId String?
-importedAt DateTime @default(now())
-customer Customer? @relation(fields:[customerId],references:[id])
-@@index([collectionKey])
-@@index([legacyId])
+  id String @id @default(cuid())
+  source String @default("BEEPSTART")
+  collectionKey String?
+  legacyId String?
+  legacyKey String @unique
+  payload Json
+  customerId String?
+  migrationRunId String?
+  targetEntity String?
+  targetId String?
+  status String @default("PRESERVED")
+  errorMessage String?
+  importedAt DateTime @default(now())
+  customer Customer? @relation(fields:[customerId],references:[id])
+  migrationRun MigrationRun? @relation(fields:[migrationRunId],references:[id])
+  @@index([collectionKey])
+  @@index([legacyId])
+  @@index([migrationRunId])
+  @@index([targetEntity,targetId])
 }
 
 
