@@ -69,4 +69,9 @@ export function safeEqual(a: string, b: string) {
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
-\nexport function permissionAllowed(permissions: unknown, key: string) {\n  if (!permissions || typeof permissions !== "object") return true;\n  const value = (permissions as Record<string,unknown>)[key];\n  return value !== false;\n}\n
+
+export function permissionAllowed(permissions: unknown, key: string) {
+  if (!permissions || typeof permissions !== "object") return true;
+  const value = (permissions as Record<string,unknown>)[key];
+  return value !== false;
+}
