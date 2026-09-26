@@ -70,6 +70,32 @@ await load();
     <label>Pedido óptico<select value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Venda avulsa</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>
     <label>Produto / serviço<select required value={form.productId} onChange={e=>{const p=products.find(x=>x.id===e.target.value);setForm({...form,productId:e.target.value,unitPrice:p?String(p.salePrice):""})}}><option value="">Selecione</option>{products.map(p=><option key={p.id} value={p.id}>{p.code} · {p.description} · {money(p.salePrice)}</option>)}</select></label>
     <label>Quantidade<input required type="number" min="0.001" step="0.001" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label><label>Preço unitário<input required type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})}/></label><label>Desconto<input type="number" min="0" step="0.01" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})}/></label><label>Acréscimo<input type="number" min="0" step="0.01" value={form.surcharge} onChange={e=>setForm({...form,surcharge:e.target.value})}/></label><div className="sales-total-box"><span>Total</span><strong>{money(total)}</strong></div>
+   <div className="sales-payment-box">
+    <div className="sales-payment-title"><b>Condição de pagamento</b><span>Escolha como esta venda será recebida.</span></div>
+    <div className="sales-form-grid">
+     <label>Forma
+      <select value={form.paymentCondition} onChange={e=>setForm({...form,paymentCondition:e.target.value})}>
+       <option value="AVISTA">À vista</option><option value="PIX">PIX</option><option value="CARTAO">Cartão</option><option value="CARNÊ">Crediário / Carnê</option>
+      </select>
+     </label>
+     <label>Meio de recebimento
+      <select value={form.paymentMethodId} onChange={e=>setForm({...form,paymentMethodId:e.target.value})}>
+       <option value="">Não receber agora</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}{m.isCash?" · caixa":""}</option>)}
+      </select>
+     </label>
+     {form.paymentCondition==="CARNÊ"&&<><label>Parcelas
+       <select value={form.installments} onChange={e=>setForm({...form,installments:e.target.value})}>{Array.from({length:24},(_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select>
+      </label><label>Entrada
+       <input type="number" min="0" step="0.01" max={total} value={form.entryAmount} onChange={e=>setForm({...form,entryAmount:e.target.value})}/>
+      </label><label>1º vencimento
+       <input type="date" value={form.firstDueDate} onChange={e=>setForm({...form,firstDueDate:e.target.value})}/>
+      </label></>}
+     {(form.paymentCondition==="PIX"||form.pixPayload)&&<label className="sales-wide">PIX copia e cola
+       <textarea rows={2} value={form.pixPayload} onChange={e=>setForm({...form,pixPayload:e.target.value})} placeholder="Cole aqui o código PIX para gerar o QR na impressão."/>
+      </label>}
+    </div>
+    <div className="sales-payment-shortcuts"><span>✓ PIX</span><span>✓ Débito</span><span>✓ Crédito</span><span>✓ Dinheiro</span><span>✓ Crediário</span><span>✓ Parcelamento</span></div>
+   </div>
    </div><label className="sales-wide">Observações<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Entrega, garantia, atendimento..."/></label><div className="sales-actions"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary">Finalizar venda</button></div></form>
   </div></div>}
 
