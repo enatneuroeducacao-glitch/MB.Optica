@@ -63,6 +63,11 @@ export async function POST(req:Request){
       }
 
       const total=Math.max(0,subtotal-discount+surcharge);
+      const installments=Math.max(0,Math.floor(Number(b.installments||0)));
+      const entryAmount=Math.max(0,Math.min(total,Number(b.entryAmount||0)));
+      const paymentMethodId=b.paymentMethodId?String(b.paymentMethodId):null;
+      if(installments>0&&!paymentMethodId&&entryAmount>0) throw new Error("Selecione o meio de pagamento da entrada");
+      if(installments>0&&installments>60) throw new Error("Parcelamento limitado a 60 parcelas");
 
       const sale=await tx.sale.create({
         data:{
@@ -78,6 +83,49 @@ export async function POST(req:Request){
         },
         include:{items:true}
       });
+
+      let createdAccounts:any[]=[];
+      let entryPayment:any=null;
+      if(installments>0){
+        const balance=Math.max(0,total-entryAmount);
+        const firstDue=new Date(String(b.firstDueDate||new Date().toISOString()));
+        if(Number.isNaN(firstDue.getTime())) throw new Error("Data da primeira parcela inválida");
+        const installmentValue=Number((balance/installments).toFixed(2));
+        let accumulated=0;
+        for(let i=1;i<=installments;i++){
+          const amount=i===installments?Number((balance-accumulated).toFixed(2)):installmentValue;
+          accumulated+=amount;
+          const due=new Date(firstDue);
+          due.setMonth(due.getMonth()+(i-1));
+          createdAccounts.push(await tx.account.create({
+            data:{
+              type:"RECEBER",
+              description:"Carnê venda #"+sale.number+" — parcela "+i+"/"+installments,
+              customerId:customer.id,
+              saleId:sale.id,
+              dueDate:due,
+              amount,
+              paidAmount:0,
+              status:"PENDENTE",
+              notes:"Parcela gerada automaticamente pelo PDV"
+            }
+          }));
+        }
+        if(entryAmount>0){
+          const method=await tx.paymentMethod.findUnique({where:{id:paymentMethodId!}});
+          if(!method||!method.active) throw new Error("Meio de pagamento da entrada inválido");
+          if(method.isCash){
+            const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
+            if(!session) throw new Error("Não há caixa aberto para registrar a entrada");
+            await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount:entryAmount,description:"Entrada da venda #"+sale.number,referenceId:sale.id}});
+          }
+          entryPayment=await tx.payment.create({data:{saleId:sale.id,methodId:method.id,amount:entryAmount,reference:b.entryReference||undefined}});
+          if(createdAccounts.length){
+            const first=createdAccounts[0];
+            await tx.account.update({where:{id:first.id},data:{paidAmount:entryAmount,status:entryAmount>=Number(first.amount)?"PAGO":"PARCIAL"}});
+          }
+        }
+      }
 
       if(Array.isArray(b.stock)){
         const requested=new Map<string,number>();
@@ -129,7 +177,7 @@ export async function POST(req:Request){
       return sale;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
-    return NextResponse.json(result,{status:201});
+    return NextResponse.json({...result,accounts:createdAccounts,entryPayment},{status:201});
   }catch(error){
     return NextResponse.json({error:"Não foi possível registrar a venda",detail:String(error)},{status:400});
   }
@@ -145,7 +193,8 @@ export async function GET(){
         seller:{select:{id:true,name:true}},
         order:{select:{id:true,number:true,status:true}},
         items:{include:{product:{select:{id:true,code:true,description:true}}}},
-        payments:{include:{method:{select:{id:true,name:true,isCash:true}}},orderBy:{paidAt:"asc"}}
+        payments:{include:{method:{select:{id:true,name:true,isCash:true}}},orderBy:{paidAt:"asc"}},
+        accounts:{orderBy:{dueDate:"asc"}}
       }
     });
     return NextResponse.json(rows);
