@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
+import { effectivePermissions } from "@/lib/permissions";
 
 type Settings=Record<string,any>;
 type User={id:string;name:string;email:string;role:string;active:boolean;lastLoginAt:string|null;permissions:Record<string,boolean>|null};
@@ -9,13 +10,7 @@ const keys=["tradeName","legalName","document","phone","whatsapp","email","stree
 const labels:Record<string,string>={tradeName:"Nome fantasia",legalName:"Razão social",document:"CNPJ/CPF",phone:"Telefone",whatsapp:"WhatsApp",email:"E-mail",street:"Rua",number:"Número",complement:"Complemento",district:"Bairro",city:"Cidade",state:"UF",postalCode:"CEP",timezone:"Fuso horário",currency:"Moeda"};
 const actions=[["Nova venda","/vendas","Abrir PDV"],["Novo cliente","/clientes","Cadastrar cliente"],["Novo pedido","/pedidos","Abrir pedido"],["Financeiro","/financeiro","Centro financeiro"],["Relatórios","/relatorios","Análises e auditoria"],["Estoque","/estoque","Controle de estoque"]];
 const permissionGroups=[{title:"Operação",items:[["dashboard","Dashboard"],["agenda","Agenda"],["clientes","Clientes"],["receitas","Receitas"],["orcamentos","Orçamentos"],["pedidos","Pedidos"],["laboratorio","Laboratório"]]},{title:"Patrimônio",items:[["produtos","Produtos"],["estoque","Estoque"],["fornecedores","Fornecedores"]]},{title:"Gestão",items:[["vendas","Vendas"],["financeiro","Financeiro"],["relatorios","Relatórios"]]},{title:"Administração",items:[["configuracoes","Configurações"],["usuarios","Usuários e perfis"],["auditoria","Auditoria"],["migracao","Migração"]]}];
-const roleDefaults:Record<string,string[]>={
- ADMIN:permissionGroups.flatMap(g=>g.items.map(i=>i[0])),
- GERENTE:["dashboard","agenda","clientes","receitas","orcamentos","pedidos","laboratorio","produtos","estoque","fornecedores","vendas","financeiro","relatorios","configuracoes","auditoria"],
- VENDEDOR:["dashboard","agenda","clientes","receitas","orcamentos","pedidos","vendas","produtos"],
- FINANCEIRO:["dashboard","vendas","financeiro","relatorios"],
- LABORATORIO:["dashboard","pedidos","laboratorio","produtos","estoque"]
-};
+
 
 export default function Page(){
  const [settings,setSettings]=useState<Settings|null>(null),[users,setUsers]=useState<User[]>([]),[message,setMessage]=useState(""),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[tab,setTab]=useState("GERAL"),[selected,setSelected]=useState<string|null>(null);
@@ -25,16 +20,17 @@ export default function Page(){
  async function save(){if(!settings)return;setBusy(true);try{const r=await fetch("/api/settings",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(settings)});const d=await r.json();setMessage(r.ok?"Configurações salvas.":d.error||"Erro ao salvar.");if(r.ok)setSettings(d.settings)}finally{setBusy(false)}}
  async function createUser(){setBusy(true);try{const r=await fetch("/api/users",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(newUser)});const d=await r.json();setMessage(r.ok?"Usuário criado.":d.error||"Erro ao criar usuário.");if(r.ok){setNewUser({name:"",email:"",password:"",role:"VENDEDOR"});await load()}}finally{setBusy(false)}}
  async function updateUser(id:string,patch:Record<string,any>){setBusy(true);try{const r=await fetch("/api/users/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(patch)});const d=await r.json();setMessage(r.ok?"Permissões do usuário atualizadas.":d.error||"Erro ao atualizar usuário.");if(r.ok)setUsers(users.map(u=>u.id===id?{...u,...d.user}:u))}finally{setBusy(false)}}
- function hasAccess(u:User,key:string){if(u.permissions&&Object.prototype.hasOwnProperty.call(u.permissions,key))return u.permissions[key]!==false;return (roleDefaults[u.role]||[]).includes(key)}
+ function hasAccess(u:User,key:string){return effectivePermissions(u.role,u.permissions)[key]!==false}
  function setPermission(u:User,key:string,allowed:boolean){updateUser(u.id,{permissions:{...(u.permissions||{}),[key]:allowed}})}
  function resetPermissions(u:User){updateUser(u.id,{permissions:{}})}
  function handleLogo(file:File|null){if(!file)return;if(!file.type.startsWith("image/")){setMessage("Selecione uma imagem PNG, JPG, WEBP ou SVG.");return}if(file.size>1000000){setMessage("A logo deve ter no máximo 1 MB.");return}const reader=new FileReader();reader.onload=()=>setSettings((s)=>s?{...s,logoData:String(reader.result)}:s);reader.readAsDataURL(file)}
  const configured=useMemo(()=>settings?keys.filter(k=>settings[k]).length:0,[settings]);
+ const systemStatus=useMemo(()=>({operational:17,configured,missing:Math.max(0,keys.length-configured)}),[configured]);
  const currentUser=users.find(u=>u.id===selected)||null;
  if(loading)return <section className="page"><div className="panel" style={{padding:20}}>Carregando centro de comando...</div></section>;
  if(!settings)return <section className="page"><div className="page-heading"><div><span className="eyebrow">ADMINISTRAÇÃO</span><h1>Centro de comando</h1></div></div><div className="panel" style={{padding:20}}><strong>Não autenticado.</strong><p style={{marginTop:6,color:"var(--muted)"}}>{message}</p><button className="secondary" style={{marginTop:12}} onClick={load}>Tentar novamente</button></div></section>;
  return <section className="page settings-page">
-  <div className="page-heading settings-heading"><div><span className="eyebrow">ADMINISTRAÇÃO</span><h1>Centro de comando</h1><p>Configuração central do MB Óptica Gestão Inteligente.</p></div><div className="settings-status"><b>● Sistema operacional</b><span>{configured}/{keys.length} parâmetros configurados</span></div></div>
+  <div className="page-heading settings-heading"><div><span className="eyebrow">ADMINISTRAÇÃO</span><h1>Centro de comando</h1><p>Configuração central do MB Óptica Gestão Inteligente.</p></div><div className="settings-status"><b>● Sistema operacional</b><span>{systemStatus.operational} módulos operacionais · {systemStatus.missing} parâmetros cadastrais pendentes</span></div></div>
   {message&&<div className="panel settings-message">{message}</div>}
   <div className="settings-actions">{actions.map(([title,href,sub])=><Link key={href} href={href} className="settings-action"><b>+ {title}</b><span>{sub}</span></Link>)}</div>
   <div className="settings-tabs">{[["GERAL","Geral"],["USUARIOS","Usuários e perfis"],["OPERACAO","Operação"],["FISCAL","Fiscal"],["FINANCEIRO","Financeiro"],["SEGURANCA","Segurança"],["SISTEMA","Sistema"]].map(([id,label])=><button key={id} className={tab===id?"active":""} onClick={()=>setTab(id)}>{label}</button>)}</div>
