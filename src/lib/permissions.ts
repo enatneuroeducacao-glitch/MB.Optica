@@ -56,7 +56,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/finance/accounts": "financeiro",
   "/api/financeiro": "financeiro",
   "/api/orders": "pedidos",
-  "/api/payment-methods": "financeiro",
+  "/api/payment-methods": "vendas",
   "/api/payments": "vendas",
   "/api/pix-keys": "vendas",
   "/api/prescriptions": "receitas",
