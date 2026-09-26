@@ -1,60 +1,32 @@
 "use client";
-
 import {useEffect,useState} from "react";
 import {StatCard} from "@/components/StatCard";
 import {money} from "@/lib/domain";
 
-type DashboardData={
-  customers:number;
-  products:number;
-  orders:number;
-  receivables:number;
-  payables:number;
-};
+type DashboardData={customers:number;products:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
+const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",RETORNO_GARANTIA:"Retorno em garantia",PRONTO:"Pronto"} as Record<string,string>)[s]||s;
 
 export default function Dashboard(){
-  const [data,setData]=useState<DashboardData|null>(null);
-  const [error,setError]=useState("");
-
-  useEffect(()=>{
-    fetch("/api/dashboard",{cache:"no-store"})
-      .then(async r=>{
-        if(!r.ok) throw new Error("Não foi possível carregar o dashboard");
-        return r.json();
-      })
-      .then(setData)
-      .catch(e=>setError(e instanceof Error?e.message:"Erro ao carregar dashboard"));
-  },[]);
-
-  return <section className="page">
-    <div className="page-heading">
-      <div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div>
-      <button className="primary">+ Nova venda</button>
-    </div>
-
-    {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
-
-    <div className="stats">
-      <StatCard label="Clientes ativos" value={data?String(data.customers):"—"} detail="cadastros ativos"/>
-      <StatCard label="Produtos ativos" value={data?String(data.products):"—"} detail="itens cadastrados"/>
-      <StatCard label="Pedidos em aberto" value={data?String(data.orders):"—"} detail="fluxo óptico"/>
-      <StatCard label="A receber" value={data?money(data.receivables):"—"} detail={data?money(data.payables)+" a pagar":"aguardando dados"}/>
-    </div>
-
-    <div className="grid-two">
-      <div className="panel">
-        <div className="panel-heading"><div><h2>Pedidos em andamento</h2><p>O próximo passo será carregar a listagem real de pedidos nesta visão.</p></div><a href="/pedidos">Ver todos</a></div>
-        <div className="table">
-          <div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span></div>
-          <div className="row"><span>—</span><span>Nenhum pedido carregado</span><span>—</span><span>—</span><strong>—</strong></div>
-        </div>
-      </div>
-      <div className="panel">
-        <div className="panel-heading"><div><h2>Fluxo do laboratório</h2><p>Contagem detalhada será conectada ao domínio de pedidos na próxima camada.</p></div></div>
-        <div className="funnel"><div><span>Pedidos abertos</span><strong>{data?.orders??"—"}</strong></div><div><span>Clientes ativos</span><strong>{data?.customers??"—"}</strong></div><div><span>Produtos ativos</span><strong>{data?.products??"—"}</strong></div></div>
-      </div>
-    </div>
-
-    <div className="panel"><div className="panel-heading"><div><h2>Integridade do sistema</h2><p>Dados estruturados, rastreabilidade e migração segura são tratados como partes do domínio.</p></div></div><div className="principles"><div><b>Dados estruturados</b><span>Receitas, pedidos, estoque e financeiro possuem entidades próprias.</span></div><div><b>Rastreabilidade</b><span>Eventos, auditoria e lotes registram operações relevantes.</span></div><div><b>Migração segura</b><span>O legado BeepStart permanece preservado e separado do modelo novo.</span></div></div></div>
-  </section>;
+ const [data,setData]=useState<DashboardData|null>(null); const [error,setError]=useState("");
+ useEffect(()=>{fetch("/api/dashboard",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("Não foi possível carregar o dashboard");return r.json()}).then(setData).catch(e=>setError(e instanceof Error?e.message:"Erro ao carregar dashboard"))},[]);
+ return <section className="page">
+  <div className="page-heading"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><button className="primary" onClick={()=>{window.location.href="/vendas"}}>+ Nova venda</button></div>
+  {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
+  <div className="stats">
+   <StatCard label="Clientes ativos" value={data?String(data.customers):"—"} detail="cadastros ativos"/>
+   <StatCard label="Vendas hoje" value={data?money(data.salesToday):"—"} detail={data?money(data.receivedToday)+" recebidos hoje":"aguardando dados"}/>
+   <StatCard label="Pedidos em aberto" value={data?String(data.orders):"—"} detail={data?String(data.appointmentsToday)+" atendimento(s) hoje":"fluxo óptico"}/>
+   <StatCard label="A receber" value={data?money(data.receivables):"—"} detail={data?money(data.payables)+" a pagar":"aguardando dados"}/>
+  </div>
+  <div className="grid-two">
+   <div className="panel"><div className="panel-heading"><div><h2>Pedidos em andamento</h2><p>Operações que ainda exigem acompanhamento.</p></div><a href="/pedidos">Ver todos</a></div><div className="table"><div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span></div>{data?.recentOrders?.length?data.recentOrders.map(o=><div className="row" key={o.id}><strong>#{o.number}</strong><span>{o.customer?.name||"—"}</span><span>{statusLabel(o.status)}</span><span>{o.dueDate?new Date(o.dueDate).toLocaleDateString("pt-BR"):"—"}</span><strong>{money(o.total)}</strong></div>):<div className="row"><span>—</span><span>Nenhum pedido em andamento</span><span>—</span><span>—</span><strong>—</strong></div>}</div></div>
+   <div className="panel"><div className="panel-heading"><div><h2>Fluxo do laboratório</h2><p>Acompanhamento da produção óptica.</p></div><a href="/laboratorio">Abrir laboratório</a></div><div className="funnel">{Object.entries(data?.laboratory||{}).map(([s,c])=><div key={s}><span>{statusLabel(s)}</span><strong>{c}</strong></div>)}{!Object.keys(data?.laboratory||{}).length&&<div><span>Nenhum pedido no laboratório</span><strong>0</strong></div>}</div></div>
+  </div>
+  <div className="grid-two">
+   <div className="panel"><div className="panel-heading"><div><h2>Agenda de hoje</h2><p>Próximos atendimentos registrados.</p></div><a href="/agenda">Ver agenda</a></div><div className="funnel">{data?.appointments?.length?data.appointments.map(a=><div key={a.id}><span><b>{new Date(a.scheduledAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b> · {a.customer?.name||"Cliente"}<small> · {a.type} · {a.professionalName}</small></span><strong>Hoje</strong></div>):<div><span>Nenhum atendimento agendado para hoje</span><strong>0</strong></div>}</div></div>
+   <div className="panel"><div className="panel-heading"><div><h2>Alertas operacionais</h2><p>Pontos que merecem atenção imediata.</p></div></div><div className="funnel"><div><span>Estoque abaixo do mínimo</span><strong>{data?.lowStock??"—"}</strong></div><div><span>Produtos sem estoque</span><strong>{data?.zeroStock??"—"}</strong></div><div><span>Contas vencidas</span><strong>{data?.overdue??"—"}</strong></div><div><span>Caixa</span><strong>{data?data.cashOpen?money(data.cashBalance):"Fechado":"—"}</strong></div></div></div>
+  </div>
+  <div className="panel"><div className="panel-heading"><div><h2>Comando rápido</h2><p>Acesso direto às operações que mais movimentam a loja.</p></div></div><div className="principles"><div><b><a href="/vendas">Nova venda</a></b><span>Registrar venda, recebimento, PIX ou carnê.</span></div><div><b><a href="/clientes">Novo cliente</a></b><span>Iniciar atendimento com cadastro completo.</span></div><div><b><a href="/pedidos">Novo pedido</a></b><span>Encaminhar receita e montagem para produção.</span></div></div></div>
+  <div className="panel"><div className="panel-heading"><div><h2>Integridade do sistema</h2><p>Dados estruturados, rastreabilidade e migração segura.</p></div></div><div className="principles"><div><b>Dados estruturados</b><span>Receitas, pedidos, estoque e financeiro possuem entidades próprias.</span></div><div><b>Rastreabilidade</b><span>Eventos, auditoria e lotes registram operações relevantes.</span></div><div><b>Migração segura</b><span>O legado BeepStart permanece preservado e separado do modelo novo.</span></div></div></div>
+ </section>;
 }
