@@ -111,7 +111,7 @@ export async function POST(req:Request){
           }
           if(remaining>0) throw new Error("Estoque insuficiente para "+product.description);
 
-          const movement=await tx.stockMovement.create({
+          await tx.stockMovement.create({
             data:{
               productId:product.id,
               type:"SAIDA",
@@ -134,10 +134,6 @@ export async function POST(req:Request){
     return NextResponse.json({error:"Não foi possível registrar a venda",detail:String(error)},{status:400});
   }
 }
-
-
-import {NextResponse} from "next/server";
-import {db} from "@/lib/db";
 
 export async function GET(){
   try{
