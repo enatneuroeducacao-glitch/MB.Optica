@@ -123,10 +123,6 @@ export async function POST(req:Request){
             await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount:entryAmount,description:"Entrada da venda #"+sale.number,referenceId:sale.id}});
           }
           entryPayment=await tx.payment.create({data:{saleId:sale.id,methodId:method.id,amount:entryAmount,reference:b.entryReference||undefined}});
-          if(createdAccounts.length){
-            const first=createdAccounts[0];
-            await tx.account.update({where:{id:first.id},data:{paidAmount:entryAmount,status:entryAmount>=Number(first.amount)?"PAGO":"PARCIAL"}});
-          }
         }
       }
 
