@@ -33,3 +33,24 @@
 .finance-center .cash-state{margin-bottom:18px}
 .finance-center .grid-two{align-items:start}
 @media(max-width:700px){.finance-center .form-grid{grid-template-columns:1fr;padding:0 14px 16px}.finance-center .form-grid label.wide{grid-column:auto}.finance-center .finance-list>div{grid-template-columns:1fr auto}.finance-center .finance-list>div button{grid-column:2;grid-row:1/3}.finance-center .page-heading .primary{width:100%}}
+
+/* Reports center */
+.reports-page .page-heading{align-items:flex-end}
+.report-actions{display:flex;gap:8px}
+.report-alert,.report-ok{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 16px;border-radius:12px;margin-bottom:16px}
+.report-alert{background:#fff7e6;border:1px solid #f0d89c;color:#7a5708}.report-alert div{display:grid;gap:3px}.report-alert span{font-size:10px;color:#8b6b25}
+.report-ok{background:#edf8f3;border:1px solid #cce9dc;color:#17634f;font-size:11px;font-weight:700}
+.report-tabs{display:flex;gap:7px;overflow:auto;margin:0 0 18px;padding-bottom:3px}
+.report-tabs button{white-space:nowrap;border:1px solid var(--line);background:#fff;color:#536176;padding:9px 12px;border-radius:9px;font-size:10px;font-weight:800;cursor:pointer}
+.report-tabs button.active{background:#173b36;color:#fff;border-color:#173b36}
+.report-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}.report-kpis.compact{grid-template-columns:repeat(4,1fr);margin:0;padding:18px}
+.report-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px;box-shadow:var(--shadow);min-width:0}.report-card span,.report-card small{display:block;color:var(--muted);font-size:9px}.report-card strong{display:block;font-size:20px;margin:6px 0}.report-card small{color:#6b8f88}
+.report-grid-2{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;align-items:start}.report-grid-2 .full{grid-column:1/-1}
+.report-table{width:100%;overflow:auto}.report-row{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:12px;align-items:center;padding:11px 20px;border-top:1px solid #eef1f5;font-size:10px;min-width:620px}.report-row.head{background:#fafbfd;border-top:0;color:#8994a5;text-transform:uppercase;font-size:8px;font-weight:800}.report-row strong{white-space:nowrap}.report-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line)}.report-metrics div{background:#fff;padding:18px}.report-metrics b,.report-metrics span{display:block}.report-metrics b{font-size:18px;margin-bottom:4px}.report-metrics span{font-size:9px;color:var(--muted)}
+.report-status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 20px 18px}.report-status-grid div{background:#f7fafb;border:1px solid #e8edf2;border-radius:9px;padding:10px}.report-status-grid span{display:block;font-size:8px;color:var(--muted)}.report-status-grid b{font-size:17px}
+.report-list{padding:0 20px 20px}.report-list p{border-top:1px solid #eef1f5;padding:12px 0;font-size:10px}.report-list b{font-size:16px;margin-right:6px}
+.report-search{width:220px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:10px;outline:none}.report-search:focus{border-color:var(--brand)}
+.bad{color:#a33!important;font-weight:800}.warn{color:#94650b!important;font-weight:800}.good{color:#19704b!important;font-weight:800}.alert-badge,.good-badge{padding:6px 9px;border-radius:999px;font-size:9px;font-weight:800}.alert-badge{background:#fff0f0;color:#a33}.good-badge{background:#e7f6ee;color:#19704b}.empty-state{padding:30px;text-align:center;color:#19704b;font-weight:700}.report-foot{font-size:9px;color:#8994a5;margin-top:16px}.alert-row{background:#fffdf8}
+@media(max-width:1000px){.report-kpis{grid-template-columns:repeat(2,1fr)}.report-grid-2{grid-template-columns:1fr}.report-grid-2 .full{grid-column:auto}.report-status-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.reports-page .page-heading{align-items:stretch}.report-actions{width:100%}.report-actions button{flex:1}.report-kpis,.report-kpis.compact{grid-template-columns:1fr 1fr}.report-alert{align-items:flex-start;flex-direction:column}.report-status-grid{grid-template-columns:1fr 1fr;padding:0 14px 14px}.report-search{width:100%}.reports-page .panel-heading{gap:10px;align-items:flex-start;flex-direction:column}.report-row{padding:11px 14px}}
+@media print{.sidebar,.topbar,.report-actions,.report-tabs{display:none!important}.main{margin:0;width:100%}.page{padding:10px}.panel{box-shadow:none}.reports-page{max-width:none}.report-alert,.report-ok{break-inside:avoid}}
