@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { db } from "@/lib/db";
+import { effectivePermissions } from "@/lib/permissions";
 
 export const AUTH_COOKIE = "mb_optica_session";
 const SESSION_HOURS = 12;
@@ -17,8 +18,9 @@ function secretKey() {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSession(user: { id: string; role: string; sessionVersion: number }) {
-  return new SignJWT({ userId: user.id, role: user.role, version: user.sessionVersion })
+export async function createSession(user: { id: string; role: string; sessionVersion: number; permissions?: unknown }) {
+  const permissions = effectivePermissions(user.role, user.permissions);
+  return new SignJWT({ userId: user.id, role: user.role, version: user.sessionVersion, permissions })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_HOURS}h`)
@@ -37,12 +39,9 @@ export async function getCurrentUser() {
   try {
     const payload = await verifySessionToken(token);
     if (!payload.userId || typeof payload.version !== "number") return null;
-    if (payload.userId === "test-admin") {
-      return { id: "test-admin", name: "Administrador de Teste", email: "admin@mb-optica.local", role: "ADMIN", active: true };
-    }
     const user = await db.user.findUnique({ where: { id: payload.userId } });
     if (!user || !user.active || user.sessionVersion !== payload.version) return null;
-    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, permissions: (user.permissions as Record<string,boolean>) ?? {} };
+    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, permissions: effectivePermissions(user.role, user.permissions) };
   } catch {
     return null;
   }
@@ -57,6 +56,12 @@ export async function requireUser() {
 export async function requireRole(roles: string[]) {
   const user = await requireUser();
   if (!roles.includes(user.role)) throw new Error("FORBIDDEN");
+  return user;
+}
+
+export async function requirePermission(permission: string) {
+  const user = await requireUser();
+  if (user.permissions?.[permission] === false) throw new Error("FORBIDDEN");
   return user;
 }
 
