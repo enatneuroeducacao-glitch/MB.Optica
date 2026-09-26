@@ -14,7 +14,7 @@ const dt=(v:any)=>v?new Date(v).toLocaleString("pt-BR"):"—";
 export default function Vendas(){
  const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
- const [form,setForm]=useState({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:""});
+ const [form,setForm]=useState({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
  const [pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""});
 
  const load=async()=>{
@@ -32,11 +32,22 @@ export default function Vendas(){
  const filtered=sales.filter(s=>{const paid=Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0);const q=(s.number+" "+(s.customer?.name||"")+" "+(s.customer?.cpfCnpj||"")).toLowerCase().includes(search.toLowerCase());const f=filter==="TODAS"||(filter==="ABERTAS"&&!s.canceled&&paid<Number(s.total))||(filter==="PAGAS"&&!s.canceled&&paid>=Number(s.total))||(filter==="CANCELADAS"&&s.canceled);return q&&f});
  const remaining=paying?Math.max(0,Number(paying.total)-Number(paying.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0)):0;
 
- const submit=async(e:React.FormEvent)=>{e.preventDefault();setMsg("");if(!user?.id){setMsg("Usuário da sessão não identificado.");return}if(!form.customerId||!form.productId){setMsg("Cliente e produto são obrigatórios.");return}
-  const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,items:[{productId:form.productId,description:product?.description||"Item",quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||product?.salePrice||0),unitCost:Number(product?.cost||0)}],stock:[{productId:form.productId,quantity:Number(form.quantity)}]})});
-  const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Venda #"+d.number+" registrada.");setOpen(false);setForm({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:""});await load();
- };
- const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:""});await load()};
+ const submit=async(e:React.FormEvent)=>{
+e.preventDefault();setMsg("");
+if(!user?.id){setMsg("Usuário da sessão não identificado.");return}
+if(!form.customerId||!form.productId){setMsg("Cliente e produto são obrigatórios.");return}
+const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
+if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
+const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:form.pixPayload||undefined,firstDueDate:form.firstDueDate,items:[{productId:form.productId,description:product?.description||"Item",quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||product?.salePrice||0),unitCost:Number(product?.cost||0)}],stock:[{productId:form.productId,quantity:Number(form.quantity)}]})});
+const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}
+if(form.paymentCondition!=="CARNÊ"&&form.paymentMethodId){
+const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:form.pixPayload||undefined})});
+const pd=await pr.json();if(!pr.ok)setMsg("Venda criada, mas o recebimento não foi registrado: "+(pd.detail||pd.error||"erro"));else setMsg("Venda #"+d.number+" registrada e recebida.");
+}else setMsg("Venda #"+d.number+" registrada.");
+setOpen(false);
+setForm({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
+await load();
+}; const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:""});await load()};
  const openCash=async()=>{const r=await fetch("/api/cash/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({openingCash:Number(opening||0)})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setOpening("");setMsg("Caixa aberto.");await load()};
  const cashMove=async(e:React.FormEvent)=>{e.preventDefault();const r=await fetch("/api/cash/movement",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(move)});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMove({kind:"SANGRIA",amount:"",description:""});setMsg("Movimentação registrada.");await load()};
  const chooseOrder=(id:string)=>{const o=orders.find(x=>x.id===id);if(!o)return;const i=o.items?.find((x:any)=>x.productId);const p=products.find(x=>x.id===i?.productId);setForm({...form,orderId:id,customerId:o.customerId,productId:i?.productId||"",quantity:String(i?.quantity||1),unitPrice:String(i?.unitPrice||p?.salePrice||"")})};
