@@ -17,7 +17,8 @@
     "db:studio": "prisma studio",
     "import:beepstart": "tsx scripts/import-beepstart.ts",
     "audit:beepstart": "tsx scripts/audit-beepstart.ts",
-    "transform:beepstart": "tsx scripts/transform-beepstart.ts"
+    "transform:beepstart": "tsx scripts/transform-beepstart.ts",
+    "security:audit": "tsx scripts/security-audit.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
