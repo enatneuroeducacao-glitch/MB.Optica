@@ -25,8 +25,6 @@ function pathAllowed(role: string, pathname: string) {
   return prefixes.some((prefix) => prefix === "*" || prefix === "/" ? prefix === "*" || pathname === "/" : pathname === prefix || pathname.startsWith(prefix + "/"));
 }
 
-function permissionAllowed(permissions: unknown, key: string) { if (!permissions || typeof permissions !== "object") return true; const value=(permissions as Record<string,unknown>)[key]; return value !== false; }
-
 function apiPathAllowed(role: string, pathname: string) {
   const prefixes = ROLE_API_PREFIXES[role] ?? [];
   return prefixes.some((prefix) => prefix === "*" || pathMatches(pathname, prefix));
