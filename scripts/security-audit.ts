@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { effectivePermissions, hasPermission, ROLE_DEFAULT_PERMISSIONS, API_PERMISSIONS, API_PUBLIC_AUTHENTICATED } from "../src/lib/permissions";
+import { effectivePermissions, hasPermission, API_PERMISSIONS, API_PUBLIC_AUTHENTICATED } from "../src/lib/permissions";
 
 const root=process.cwd();
 const assert=(condition:boolean,message:string)=>{if(!condition)throw new Error("SECURITY AUDIT FAILED: "+message)};
