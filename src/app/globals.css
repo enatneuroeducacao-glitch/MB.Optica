@@ -8,3 +8,7 @@
 .sales-pdv-modal .panel-heading{position:sticky;top:0;z-index:2;background:#fff;border-bottom:1px solid #eef1f5;padding:18px 0;margin-bottom:18px}
 .sales-pdv-modal form{padding-bottom:2px}
 @media(max-width:700px){.sales-pdv-overlay{align-items:flex-end;padding:8px}.sales-pdv-modal{width:100%;max-height:calc(100vh - 16px);border-radius:16px 16px 0 0;padding:0 14px 18px}.sales-pdv-modal .panel-heading{padding:16px 0}.sales-pdv-modal .sales-form-grid{grid-template-columns:1fr}.sales-pdv-modal .sales-total-box{min-height:64px}}
+
+.sales-payment-box{margin-top:18px;padding:18px;border:1px solid #dfe5ec;border-radius:14px;background:#f8fafc}
+.sales-payment-title{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}.sales-payment-title span{font-size:13px;color:var(--muted)}
+.sales-payment-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.sales-payment-shortcuts span{padding:6px 10px;border-radius:999px;background:#e8f5f1;color:#18705b;font-size:12px;font-weight:700}
