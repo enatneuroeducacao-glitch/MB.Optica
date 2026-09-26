@@ -14,7 +14,17 @@ const toBoolean=(value:unknown,defaultValue:boolean)=>{
 };
 
 export async function GET(){
-  const methods=await db.paymentMethod.findMany({orderBy:{name:"asc"}});
+  const defaults=[
+    {name:"PIX",isCash:false},
+    {name:"Cartão de débito",isCash:false},
+    {name:"Cartão de crédito",isCash:false},
+    {name:"Dinheiro",isCash:true},
+    {name:"Crediário / Carnê",isCash:false}
+  ];
+  for(const item of defaults){
+    await db.paymentMethod.upsert({where:{name:item.name},update:{active:true,isCash:item.isCash},create:{name:item.name,active:true,isCash:item.isCash}});
+  }
+  const methods=await db.paymentMethod.findMany({where:{active:true},orderBy:{name:"asc"}});
   return NextResponse.json(methods);
 }
 
