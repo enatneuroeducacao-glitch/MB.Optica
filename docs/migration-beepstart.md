@@ -2,89 +2,89 @@
 
 ## Fonte auditada
 
-Backup: `Backup - 2026-09-25_03h.db`
+O backup histórico analisado foi `Backup - 2026-09-25_03h.db`, tratado como **JSON estruturado** e contendo **5.785 registros em 30 coleções**.
 
-Total de registros: **5.785**.
+Contagens de referência já auditadas:
 
-O backup permanece como fonte histórica. Nenhum dado bruto do backup deve ser versionado no repositório.
+- Cliente: 470
+- Produto: 617
+- Venda: 474
+- Lote: 1.479
+- Movimentacao: 629
+- Ordem: 9
+- Total: 5.785
 
-## Volume por coleção
+## Arquitetura da Fase 2
 
-| Coleção | Registros |
-|---|---:|
-| Lote | 1.479 |
-| Movimentacao | 629 |
-| Produto | 617 |
-| EnderecoLocal | 493 |
-| Venda | 474 |
-| Caixa | 474 |
-| Cliente | 470 |
-| ContaAPagar | 335 |
-| Preco | 321 |
-| Sangria | 146 |
-| ContaAReceber | 120 |
-| Reforco | 84 |
-| Categoria | 33 |
-| Credor | 29 |
-| Fornecedor | 25 |
-| MeioPG | 13 |
-| ContaBancaria | 10 |
-| Ordem | 9 |
-| Evento | 7 |
-| Usuario | 3 |
-| CheckList | 2 |
-| Compra | 2 |
-| Etiqueta | 2 |
-| Servico | 2 |
-| Equipamento | 1 |
-| Entregador | 1 |
-| Loja | 1 |
-| Veiculo | 1 |
-| Configuracoes | 1 |
+### 1. Importador definitivo
 
-## Integridade referencial auditada
+`scripts/import-beepstart.ts`
 
-Todas as referências abaixo existentes no backup foram encontradas no conjunto de destino:
+O importador:
 
-- Venda → Cliente: 457/457
-- Venda → Usuario: 474/474
-- Venda → EnderecoLocal: 364/364
-- Produto → Categoria: 582/582
-- Produto → Fornecedor: 551/551
-- Lote → Produto: 1.467/1.467
-- Lote → Venda: 716/716
-- Ordem → Cliente: 9/9
-- Ordem → Venda: 5/5
+- calcula SHA-256 do arquivo de origem;
+- exige 5.785 registros por padrão;
+- valida referências antes de gravar;
+- rejeita chaves legadas duplicadas;
+- não sobrescreve dados atuais;
+- consolida clientes/produtos/fornecedores/categorias quando já existem;
+- cria registros legados inativos para vendedores do BeepStart quando necessário;
+- importa clientes, endereços, categorias, fornecedores, usuários legados, meios de pagamento, produtos, ordens, vendas, itens, pagamentos, contas, lotes e movimentações;
+- preserva **todas as coleções**, inclusive as que ainda não possuem modelo operacional no MB Óptica, em `LegacyRecord`.
 
-Não foram encontrados vínculos órfãos nessas relações.
+### 2. Importação transacional
 
-## Estratégia
+Toda a escrita da migração é executada em uma única transação interativa do Prisma.
 
-1. Auditoria somente leitura.
-2. Normalização para o domínio MB Óptica.
-3. Preservação do registro original em `LegacyRecord`.
-4. Validação de referências antes da gravação.
-5. Importação transacional por domínio.
-6. Relatório de erros e registros ignorados.
-7. Reconciliação de totais após a importação.
+Se qualquer etapa crítica falhar, a transação é revertida e o `MigrationRun` fica como `FAILED`. O legado não fica parcialmente gravado.
 
-## Regras
+### 3. Idempotência
 
-- Não copiar o modelo de dados do BeepStart.
-- Não gravar dados brutos diretamente nas entidades novas.
-- Não apagar registros legados.
-- Não transformar uma inconsistência silenciosamente.
-- Toda exceção de transformação deve ser registrada.
-- A importação definitiva somente deve ocorrer após a prévia de transformação ser aprovada.
+Cada registro recebe:
 
-## Comandos
+`BEEPSTART:<coleção>:<id>`
 
-Auditoria:
+e `LegacyRecord.legacyKey` é único.
 
-`npm run audit:beepstart -- ./backup.json`
+O arquivo também recebe uma impressão SHA-256. Uma execução já concluída com a mesma impressão não é executada novamente.
 
-Prévia de transformação:
+### 4. Reconciliação
 
-`npm run transform:beepstart -- ./backup.json --out=./migration-preview.json`
+`scripts/reconcile-beepstart.ts`
 
-A prévia não grava dados no banco.
+A reconciliação verifica:
+
+- total da fonte;
+- total preservado em `LegacyRecord`;
+- contagem por coleção;
+- registros sem legado;
+- chaves duplicadas;
+- registros mapeados para entidades operacionais;
+- vendas e ordens realmente encontradas no destino;
+- divergências de consolidação de clientes/produtos.
+
+Pode gerar relatório:
+
+`npm run reconcile:beepstart -- ./backup.json --out=./beepstart-reconciliation.json`
+
+### 5. Preservação do legado
+
+Nenhum registro da fonte é descartado durante a migração.
+
+Mesmo quando uma coleção ainda não possui correspondência operacional no MB Óptica, seu conteúdo fica preservado em `LegacyRecord.payload`, associado à coleção e ao identificador original.
+
+## Execução segura
+
+Primeiro:
+
+`npm run migration:beepstart -- ./backup.json --dry-run`
+
+Depois, somente após a validação:
+
+`npm run migration:beepstart -- ./backup.json`
+
+Se uma nova auditoria confirmar que o backup possui outra quantidade de registros, a proteção pode ser explicitamente liberada:
+
+`npm run migration:beepstart -- ./backup.json --allow-count-change`
+
+**A importação real não deve ser executada em produção até o relatório de divergências da prévia estar limpo.**
