@@ -22,8 +22,8 @@ export default function Vendas(){
  const [pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
-  const [s,c,p,o,m,u,cs]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session")]);
-  const [sd,cd,pd,od,md,pkd,ud,csd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),(await fetch("/api/pix-keys")).json(),u.json(),cs.json()]);
+  const [s,c,p,o,m,pk,u,cs]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session")]);
+  const [sd,cd,pd,od,md,pkd,ud,csd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),u.json(),cs.json()]);
   if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok)setCustomers(Array.isArray(cd)?cd:[]);if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
   if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);
  };
