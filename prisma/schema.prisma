@@ -407,6 +407,18 @@ isCash Boolean @default(true)
 payments Payment[]
 settlements AccountSettlement[]
 }
+
+model PixKey {
+  id String @id @default(cuid())
+  type String
+  key String @unique
+  holderName String
+  holderDocument String?
+  city String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
 model Payment {
 id String @id @default(cuid())
 saleId String
