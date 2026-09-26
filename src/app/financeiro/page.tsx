@@ -29,7 +29,7 @@ export default function Financeiro(){
  const movement=async(e:any)=>{e.preventDefault();try{await api({action:"CASH_MOVEMENT",...cashMove,amount:Number(cashMove.amount)});setMsg("Movimento lançado.");setCashMove({...cashMove,amount:"",description:""});await load()}catch(e:any){setMsg(e.message)}};
  const close=async()=>{try{const d=await api({action:"CLOSE_CASH"});setMsg("Caixa fechado. Saldo esperado: "+money(d.expected));await load()}catch(e:any){setMsg(e.message)}};
 
- return <section className="page">
+ return <section className="page finance-center">
   <div className="page-heading"><div><span className="eyebrow">CENTRO FINANCEIRO</span><h1>Financeiro</h1><p>Visão integrada de vendas, recebíveis, pagamentos e caixa da óptica.</p></div><button className="primary" onClick={()=>setTab("LANÇAR")}>+ Novo lançamento</button></div>
   {msg&&<div className="notice">{msg}</div>}
   <div className="stats"><StatCard label="A receber" value={money(summary.receivable)} detail="saldo aberto"/><StatCard label="A pagar" value={money(summary.payable)} detail="obrigações abertas"/><StatCard label="Recebido hoje" value={money(summary.todayReceived)} detail="pagamentos registrados"/><StatCard label="Saldo de caixa" value={money(summary.cashBalance)} detail={openCash?"caixa aberto":"caixa fechado"}/></div>
