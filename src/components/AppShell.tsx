@@ -9,7 +9,8 @@ type User={name:string;email:string;role:string}|null;
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);\n  useEffect(()=>{fetch("/api/settings").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.settings?.logoData||null)).catch(()=>{})},[]);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);
+  useEffect(()=>{fetch("/api/settings").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.settings?.logoData||null)).catch(()=>{})},[]);
   if(path==="/login"||path==="/setup") return <>{children}</>;
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/login");router.refresh();}finally{setBusy(false);}}
   return <div className="shell">
