@@ -312,6 +312,33 @@ async function main() {
       }
       if(lotRows.length) await tx.stockLot.createMany({data:lotRows});
 
+      const movementRows:any[]=[];
+      const movementType=(v:any):StockMovementType=>{
+        const n=norm(v);
+        if(n.includes("entrada")||n==="in"||n==="compra") return StockMovementType.ENTRADA;
+        if(n.includes("saida")||n.includes("venda")||n==="out") return StockMovementType.SAIDA;
+        if(n.includes("devol")) return StockMovementType.DEVOLUCAO;
+        if(n.includes("transf")) return StockMovementType.TRANSFERENCIA;
+        return StockMovementType.AJUSTE;
+      };
+      for(const m of all("Movimentacao")){
+        const productLegacy=first(m,["produtoID","produtoId","productId"]);
+        const pid=productLegacy?productMap.get(`code:${norm(productLegacy)}`)||productMap.get(`code:${norm(`BS-${productLegacy}`)}`):null;
+        if(!pid){ warnings.push(`Movimentação ${id(m)}: produto não mapeado; preservada somente no legado.`); continue; }
+        movementRows.push({
+          id:crypto.randomUUID(),productId:pid,
+          type:movementType(first(m,["tipo","type","natureza","operacao"])),
+          quantity:dec(Math.abs(money(first(m,["quantidade","quantity","qtd"])))),
+          unitCost:dec(first(m,["custo","unitCost","valorUnitario"])),
+          reference:text(first(m,["referencia","reference"])),
+          referenceId:text(first(m,["referenciaID","referenceId","vendaID","vendaId"])),
+          notes:text(first(m,["observacoes","notes","descricao","description"])),
+          createdAt:date(first(m,["data","createdAt","created"]))||new Date()
+        });
+        targetByKey.set(keyOf(m),{entity:"StockMovement",id:movementRows[movementRows.length-1].id});
+      }
+      if(movementRows.length) await tx.stockMovement.createMany({data:movementRows});
+
       const legacyRows=records.map(r=>{
         const t=targetByKey.get(keyOf(r));
         return {id:crypto.randomUUID(),source:"BEEPSTART",collectionKey:String(r.collection_key??"SEM_COLLECTION"),legacyId:id(r),legacyKey:keyOf(r),payload:r,customerId:t?.entity==="Customer"?t.id:null,migrationRunId:run.id,targetEntity:t?.entity||null,targetId:t?.id||null,status:t?"IMPORTED":"PRESERVED"};
