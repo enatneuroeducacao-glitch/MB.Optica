@@ -174,10 +174,10 @@ export async function POST(req:Request){
       }
 
       await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
-      return sale;
+      return {...sale,accounts:createdAccounts,entryPayment};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
-    return NextResponse.json({...result,accounts:createdAccounts,entryPayment},{status:201});
+    return NextResponse.json(result,{status:201});
   }catch(error){
     return NextResponse.json({error:"Não foi possível registrar a venda",detail:String(error)},{status:400});
   }
