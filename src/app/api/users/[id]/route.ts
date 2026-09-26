@@ -11,6 +11,7 @@ const schema = z.object({
   email: z.string().trim().email().max(160).optional(),
   role: z.enum(["ADMIN", "GERENTE", "VENDEDOR", "FINANCEIRO", "LABORATORIO"]).optional(),
   active: z.boolean().optional(),
+  permissions: z.record(z.string(), z.boolean()).optional(),
   password: z.string().min(12).max(200).optional(),
 });
 
@@ -44,6 +45,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           role: body.role,
           active: body.active,
           passwordHash,
+          permissions: body.permissions,
           ...(body.password || body.active !== undefined || body.role || body.permissions ? { sessionVersion: { increment: 1 } } : {}),
         },
         select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true },
