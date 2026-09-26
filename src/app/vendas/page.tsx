@@ -123,7 +123,7 @@ await load();
      {form.paymentCondition==="PIX"&&form.pixPayload&&<label className="sales-wide">PIX copia e cola<input value={pixKeys.some(k=>k.id===form.pixPayload)?pixPayload(pixKeys.find(k=>k.id===form.pixPayload)!,total):form.pixPayload} readOnly/></label>}
     </div>
     
-   </div><label className="sales-wide">Observações<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Entrega, garantia, atendimento..."/></label><div className="sales-actions"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary">Finalizar venda</button></div></form>
+   </div></div><label className="sales-wide">Observações<textarea rows={3} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Entrega, garantia, atendimento..."/></label><div className="sales-actions"><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary">Finalizar venda</button></div></form>
   </div></div>}
 
   <div className="toolbar sales-toolbar"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar venda, cliente ou CPF/CNPJ..."/><select value={filter} onChange={e=>setFilter(e.target.value)}><option>TODAS</option><option>ABERTAS</option><option>PAGAS</option><option>CANCELADAS</option></select></div>
