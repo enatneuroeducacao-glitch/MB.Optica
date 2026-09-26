@@ -78,6 +78,7 @@ export async function middleware(request: NextRequest) {
   
     if (pathname.startsWith("/api/")) {
       if (API_PUBLIC_AUTHENTICATED.has(pathname)) return response;
+      if (pathname === "/api/settings" && request.method === "GET") return response;
 
       if (!apiPathAllowed(role, pathname)) {
         return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403, headers: response.headers });
