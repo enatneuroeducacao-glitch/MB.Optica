@@ -76,6 +76,7 @@ export const API_PERMISSIONS: Record<string, string> = {
 export const API_PUBLIC_AUTHENTICATED = new Set([
   "/api/health",
   "/api/auth/me",
+  "/api/auth/change-password",
 ]);
 
 export const ROLE_API_PREFIXES: Record<string, string[]> = {
