@@ -2,9 +2,11 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
+import {requireRole} from "@/lib/auth";
 
 export async function POST(req:Request){
   try{
+    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const b=await req.json();
     if(!b.customerId) throw new Error("customerId é obrigatório");
     if(!b.sellerId) throw new Error("sellerId é obrigatório");
