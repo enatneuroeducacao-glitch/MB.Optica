@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
-const schema=z.object({name:z.string().trim().min(2).max(120),email:z.string().email().max(160),password:z.string().min(10).max(200),role:z.enum(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]),permissions:z.record(z.string(),z.boolean()).optional()}); 
+const schema=z.object({name:z.string().trim().min(2).max(120),email:z.string().email().max(160),password: z.string().min(8).max(200),role:z.enum(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]),permissions:z.record(z.string(),z.boolean()).optional()}); 
 
 export async function GET(){
   try{
