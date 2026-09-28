@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 const empty:any={
  code:"",barcode:"",description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",
@@ -66,6 +67,7 @@ export default function Produtos(){
   setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,20000);
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
