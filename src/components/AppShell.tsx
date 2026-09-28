@@ -10,7 +10,7 @@ const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",V
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
   const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);
-  useEffect(()=>{fetch("/api/settings").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.settings?.logoData||null)).catch(()=>{})},[]);
+  useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
   if(path==="/login"||path==="/setup") return <>{children}</>;
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/login");router.refresh();}finally{setBusy(false);}}
   return <div className="shell">
