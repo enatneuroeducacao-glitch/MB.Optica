@@ -45,10 +45,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           role: body.role,
           active: body.active,
           passwordHash,
+          mustChangePassword: body.password ? true : undefined,
           permissions: body.permissions,
           ...(body.password || body.active !== undefined || body.role || body.permissions ? { sessionVersion: { increment: 1 } } : {}),
         },
-        select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true },
+        select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true, mustChangePassword: true },
       });
 
       await tx.auditLog.create({
