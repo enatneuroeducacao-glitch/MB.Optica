@@ -91,6 +91,9 @@ export async function POST(request: Request) {
     const supplierNamesSet=new Set((groups.get("Fornecedor")??[]).map(x=>norm(first(x,["name","description"]))));
     const payableCreditorRefs=(groups.get("ContaAPagar")??[]).map(x=>String(first(x,["credor","fornecedor","supplier"])??"").trim()).filter(Boolean);
     const unresolvedPayableCreditors=payableCreditorRefs.filter(x=>!supplierNamesSet.has(norm(x))).length;
+    const customerCpfGroups=new Map<string,string[]>();
+    for(const x of groups.get("Cliente")??[]){ const cpf=norm(first(x,["cnp","cpf","cpfCnpj","document"])); if(!cpf) continue; const a=customerCpfGroups.get(cpf)??[]; a.push(String(id(x))); customerCpfGroups.set(cpf,a); }
+    const duplicateCustomerCpfGroups=[...customerCpfGroups.values()].filter(v=>v.length>1);
 
     const newCategories = (groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"]))));
     const newCategoryNames = new Set((groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"])))).map(r=>norm(first(r,["description","name"]))));
@@ -189,7 +192,8 @@ export async function POST(request: Request) {
           suppliers:{sourceIds:supplierSourceIds.size,uniqueNames:supplierNames.size,collapsedAliasGroups:supplierAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length,productsWithoutSupplier:(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length},
           preservedOnlyCollections,
           duplicateBarcodeGroups:duplicateBarcodeGroups.map(([barcode,ids])=>({barcode,productIds:ids})),
-          unresolvedPayableCreditors
+          unresolvedPayableCreditors,
+          duplicateCustomerCpfGroups:duplicateCustomerCpfGroups.length
         }
       },
       warnings,
