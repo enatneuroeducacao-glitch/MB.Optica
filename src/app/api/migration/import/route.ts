@@ -115,7 +115,7 @@ export async function POST(request:Request){
         const cpf=text(first(c,["cnp","cpf","cpfCnpj","document"])); const phone=text(first(c,["phone","telefone"]));
         const name=text(first(c,["name","nome"]))||`Cliente ${id(c)}`;
         let cid=cpf?customerMap.get(`cpf:${norm(cpf)}`):undefined; if(!cid) cid=customerMap.get(`name:${norm(name)}|phone:${norm(phone)}`);
-        if(!cid){ const row=await tx.customer.create({data:{id:crypto.randomUUID(),name,cpfCnpj:cpf||null,phone:phone||null,whatsapp:text(first(c,["whatsapp"])),email:text(first(c,["email"])),notes:"Importado do BeepStart",active:true}}); cid=row.id; if(cpf) customerMap.set(`cpf:${norm(cpf)}`,cid); customerMap.set(`name:${norm(name)}|phone:${norm(phone)}`,cid); }
+        if(!cid){ const row=await tx.customer.create({data:{id:crypto.randomUUID(),name,cpfCnpj:cpf||null,phone:phone||null,whatsapp:text(first(c,["whatsapp"])),email:text(first(c,["email"])),notes:"Importado do BeepStart",active:true}}); cid=row.id; }
         targetByKey.set(keyOf(c),{entity:"Customer",id:cid});
         const aid=first(c,["enderecoID","enderecoId","addressId"]); const a=aid?addressByLegacy.get(String(aid)):null;
         if(a) await tx.address.create({data:{id:crypto.randomUUID(),customerId:cid,label:"BeepStart",street:text(first(a,["street","rua","logradouro"])),number:text(first(a,["number","numero"])),complement:text(first(a,["complement","complemento"])),district:text(first(a,["district","bairro"])),city:text(first(a,["city","cidade"])),state:text(first(a,["state","estado","uf"])),postalCode:text(first(a,["postalCode","cep"]))}});
