@@ -111,10 +111,11 @@ export async function POST(request: Request) {
     const warnings:string[]=[];
     const productSourceIds=new Set((groups.get("Produto")??[]).map(id).filter(Boolean));
     const missingItemRefs:{source:string;recordId:string;productId:string}[]=[];
+    let itemRefsTotal=0;
     for(const source of ["Venda","Ordem"]){
       const field=source==="Venda"?"quantidadesIDs":"procedimentosIDs";
       for(const row of groups.get(source)??[]){
-        for(const productId of Object.keys(first(row,[field])||{})){
+        for(const productId of Object.keys(first(row,[field])||{})){ itemRefsTotal++;
           if(!productSourceIds.has(String(productId))) missingItemRefs.push({source,recordId:String(id(row)),productId:String(productId)});
         }
       }
@@ -174,7 +175,7 @@ export async function POST(request: Request) {
         preservedLegacyRecords:typed.length,
         mappedSourceCollectionsEstimate:mappedEstimate,
         mappingAudit:{
-          itemReferences:{totalChecked:missingItemRefs.length+((groups.get("Venda")??[]).reduce((n,r)=>n+Object.keys(first(r,["quantidadesIDs"])||{}).length,0))+((groups.get("Ordem")??[]).reduce((n,r)=>n+Object.keys(first(r,["procedimentosIDs"])||{}).length,0)),missingProductRefs:missingItemRefs.length,missingProductRefDetails:missingItemRefs},
+          itemReferences:{totalChecked:itemRefsTotal,missingProductRefs:missingItemRefs.length,missingProductRefDetails:missingItemRefs},
           categories:{sourceIds:categorySourceIds.size,uniqueNames:categoryNames.size,collapsedAliasGroups:categoryAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length,productsWithoutCategory:(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length},
           suppliers:{sourceIds:supplierSourceIds.size,uniqueNames:supplierNames.size,collapsedAliasGroups:supplierAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length,productsWithoutSupplier:(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length},
           preservedOnlyCollections
