@@ -61,7 +61,7 @@ export default function Page(){
     <div className="settings-grid">
       <div className="panel">
         <div className="panel-heading"><div><h2>1. Auditoria do backup</h2><p>Envie uma cópia do backup oficial. Esta etapa não altera o banco operacional.</p></div></div>
-        <input type="file" accept=".json,application/json" onChange={e=>{setFile(e.target.files?.[0]||null);setAudit(null)}}/>
+        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e=>{setFile(e.target.files?.[0]||null);setAudit(null)}}/>
         <button className="primary" disabled={!file||busy} onClick={auditBackup} style={{marginTop:10}}>{busy?"Auditando...":"Auditar backup"}</button>
         <div className="settings-list" style={{marginTop:14}}>
           <div><b>Fonte</b><span>BeepStart</span></div>
