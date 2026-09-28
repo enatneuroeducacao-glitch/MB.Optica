@@ -71,7 +71,9 @@ export async function POST(request:Request){
       ]);
       const all=(k:string)=>groups.get(k)??[];
       const categoryMap=new Map(cats.map(x=>[norm(x.name),x.id]));
+      const categoryLegacyMap=new Map<string,string>();
       const supplierMap=new Map(sups.map(x=>[norm(x.name),x.id]));
+      const supplierLegacyMap=new Map<string,string>();
       const methodMap=new Map(methods.map(x=>[norm(x.name),x.id]));
       const userMap=new Map(users.map(x=>[norm(x.email),x.id]));
       const customerMap=new Map<string,string>();
@@ -81,18 +83,21 @@ export async function POST(request:Request){
       const targetByKey=new Map<string,{entity:string;id:string}>();
       const warnings:string[]=[];
 
-      const newCats=all("Categoria").filter(x=>!categoryMap.has(norm(first(x,["description","name"]))));
-      const catRows=newCats.map(x=>({id:crypto.randomUUID(),name:text(first(x,["description","name"]))||`Categoria ${id(x)}`,active:true}));
-      if(catRows.length) await tx.category.createMany({data:catRows});
-      for(const x of catRows) categoryMap.set(norm(x.name),x.id);
-      for(const x of all("Categoria")) targetByKey.set(keyOf(x),{entity:"Category",id:categoryMap.get(norm(first(x,["description","name"])))!});
+      const categoryGroups=new Map<string,R[]>();
+      for(const x of all("Categoria")){ const name=text(first(x,["description","name"]))||`Categoria ${id(x)}`; const k=norm(name); const a=categoryGroups.get(k)??[]; a.push(x); categoryGroups.set(k,a); }
+      for(const [nameKey,rows] of categoryGroups){
+        let cid=categoryMap.get(nameKey);
+        if(!cid){ const row=await tx.category.create({data:{id:crypto.randomUUID(),name:text(first(rows[0],["description","name"]))||`Categoria ${id(rows[0])}`,active:true}}); cid=row.id; categoryMap.set(nameKey,cid); }
+        for(const x of rows){ const legacyId=id(x); if(legacyId) categoryLegacyMap.set(legacyId,cid); targetByKey.set(keyOf(x),{entity:"Category",id:cid}); }
+      }
 
-      const newSups=all("Fornecedor").filter(x=>!supplierMap.has(norm(first(x,["name","description"]))));
-      const supRows=newSups.map(x=>({id:crypto.randomUUID(),name:text(first(x,["name","description"]))||`Fornecedor ${id(x)}`,document:text(first(x,["cnpj","cpfCnpj","document"])),phone:text(first(x,["phone","telefone"])),email:text(first(x,["email"])),notes:"Importado do BeepStart",active:true}));
-      if(supRows.length) await tx.supplier.createMany({data:supRows});
-      for(const x of supRows) supplierMap.set(norm(x.name),x.id);
-      for(const x of all("Fornecedor")) targetByKey.set(keyOf(x),{entity:"Supplier",id:supplierMap.get(norm(first(x,["name","description"])))!});
-
+      const supplierGroups=new Map<string,R[]>();
+      for(const x of all("Fornecedor")){ const name=text(first(x,["name","description"]))||`Fornecedor ${id(x)}`; const k=norm(name); const a=supplierGroups.get(k)??[]; a.push(x); supplierGroups.set(k,a); }
+      for(const [nameKey,rows] of supplierGroups){
+        let sid=supplierMap.get(nameKey);
+        if(!sid){ const firstRow=rows[0]; const row=await tx.supplier.create({data:{id:crypto.randomUUID(),name:text(first(firstRow,["name","description"]))||`Fornecedor ${id(firstRow)}`,document:text(first(firstRow,["cnpj","cpfCnpj","document"])),phone:text(first(firstRow,["phone","telefone"])),email:text(first(firstRow,["email"])),notes:"Importado do BeepStart",active:true}}); sid=row.id; supplierMap.set(nameKey,sid); }
+        for(const x of rows){ const legacyId=id(x); if(legacyId) supplierLegacyMap.set(legacyId,sid); targetByKey.set(keyOf(x),{entity:"Supplier",id:sid}); }
+      }
       for(const u of all("Usuario")){
         const email=`beepstart-${id(u)}@legacy.invalid`; let uid=userMap.get(norm(email));
         if(!uid){ const row=await tx.user.create({data:{id:crypto.randomUUID(),name:text(first(u,["name","nome","description"]))||`Usuário legado ${id(u)}`,email,role:UserRole.VENDEDOR,active:false}}); uid=row.id; userMap.set(norm(email),uid); }
@@ -122,7 +127,7 @@ export async function POST(request:Request){
         let pid=barcode?productMap.get(`bar:${norm(barcode)}`):undefined; if(!pid) pid=productMap.get(`code:${norm(id(p))}`); if(!pid) pid=productMap.get(`desc:${norm(description)}`);
         if(!pid){
           let code=String(id(p)); if(productMap.has(`code:${norm(code)}`)) code=`BS-${code}`;
-          const row=await tx.product.create({data:{id:crypto.randomUUID(),code,barcode:barcode||null,description,unit:text(first(p,["medida","unidade"]))||"UN",cost:dec(first(p,["custo","cost"])),salePrice:dec(first(p,["venda","salePrice","preco"])),minimumStock:dec(first(p,["estoqueMinimo","minimumStock"])),categoryId:first(p,["categoriaID","categoriaId"])?categoryMap.get(norm(first(p,["categoriaID","categoriaId"])))||null:null,supplierId:first(p,["fornecedorID","fornecedorId"])?supplierMap.get(norm(first(p,["fornecedorID","fornecedorId"])))||null:null,active:true}}); pid=row.id; productMap.set(`code:${norm(code)}`,pid); if(barcode) productMap.set(`bar:${norm(barcode)}`,pid); productMap.set(`desc:${norm(description)}`,pid);
+          const row=await tx.product.create({data:{id:crypto.randomUUID(),code,barcode:barcode||null,description,unit:text(first(p,["medida","unidade"]))||"UN",cost:dec(first(p,["custo","cost"])),salePrice:dec(first(p,["venda","salePrice","preco"])),minimumStock:dec(first(p,["estoqueMinimo","minimumStock"])),categoryId:first(p,["categoriaID","categoriaId"])?categoryLegacyMap.get(String(first(p,["categoriaID","categoriaId"])))||null:null,supplierId:first(p,["fornecedorID","fornecedorId"])?supplierLegacyMap.get(String(first(p,["fornecedorID","fornecedorId"])))||null:null,active:true}}); pid=row.id; productMap.set(`code:${norm(code)}`,pid); if(barcode) productMap.set(`bar:${norm(barcode)}`,pid); productMap.set(`desc:${norm(description)}`,pid);
         }
         targetByKey.set(keyOf(p),{entity:"Product",id:pid});
       }
