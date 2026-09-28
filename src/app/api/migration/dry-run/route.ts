@@ -88,6 +88,9 @@ export async function POST(request: Request) {
     const productBarcodes=new Map<string,string[]>();
     for(const p of groups.get("Produto")??[]){ const barcode=String(first(p,["barcode","codigoBarras","ean"])??"").trim(); if(!barcode || norm(barcode)==="sem codigo") continue; const a=productBarcodes.get(norm(barcode))??[]; a.push(String(id(p))); productBarcodes.set(norm(barcode),a); }
     const duplicateBarcodeGroups=[...productBarcodes.entries()].filter(([,ids])=>ids.length>1);
+    const supplierNamesSet=new Set((groups.get("Fornecedor")??[]).map(x=>norm(first(x,["name","description"]))));
+    const payableCreditorRefs=(groups.get("ContaAPagar")??[]).map(x=>String(first(x,["credor","fornecedor","supplier"])??"").trim()).filter(Boolean);
+    const unresolvedPayableCreditors=payableCreditorRefs.filter(x=>!supplierNamesSet.has(norm(x))).length;
 
     const newCategories = (groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"]))));
     const newSuppliers = (groups.get("Fornecedor")??[]).filter(r=>!supplierMap.has(norm(first(r,["name","description"]))));
@@ -146,6 +149,7 @@ export async function POST(request: Request) {
       if (missing) warnings.push(`${source}.${field} → ${target}: ${missing} referência(s) órfã(s).`);
     if(missingItemRefs.length) warnings.push(`Itens de Venda/Ordem apontam para ${missingItemRefs.length} produto(s) legado(s) que não existem na coleção Produto; serão preservados como item legado sem vínculo ao Produto.`);
     if(duplicateBarcodeGroups.length) warnings.push(`Há ${duplicateBarcodeGroups.length} grupos de códigos de barras duplicados em Produto. O campo barcode é único no MB Óptica; a importação não deve resolver isso automaticamente.`);
+    if(unresolvedPayableCreditors) warnings.push(`Há ${unresolvedPayableCreditors} contas a pagar cujo credor é texto livre e não corresponde a um fornecedor do legado; elas serão preservadas sem vínculo operacional com Supplier.`);
     }
 
     const mappedEstimate =
@@ -183,7 +187,8 @@ export async function POST(request: Request) {
           categories:{sourceIds:categorySourceIds.size,uniqueNames:categoryNames.size,collapsedAliasGroups:categoryAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length,productsWithoutCategory:(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length},
           suppliers:{sourceIds:supplierSourceIds.size,uniqueNames:supplierNames.size,collapsedAliasGroups:supplierAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length,productsWithoutSupplier:(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length},
           preservedOnlyCollections,
-          duplicateBarcodeGroups:duplicateBarcodeGroups.map(([barcode,ids])=>({barcode,productIds:ids}))
+          duplicateBarcodeGroups:duplicateBarcodeGroups.map(([barcode,ids])=>({barcode,productIds:ids})),
+          unresolvedPayableCreditors
         }
       },
       warnings,
