@@ -182,7 +182,8 @@ export default function Page(){
         <div className="settings-list" style={{marginTop:8}}>
           <div><b>Categorias</b><span>{dryRun.mappingAudit.categories.sourceIds} IDs · {dryRun.mappingAudit.categories.uniqueNames} nomes · {dryRun.mappingAudit.categories.collapsedAliasGroups} grupos consolidados · {dryRun.mappingAudit.categories.productRefs} produtos vinculados · {dryRun.mappingAudit.categories.productsWithoutCategory} sem categoria</span></div>
           <div><b>Fornecedores</b><span>{dryRun.mappingAudit.suppliers.sourceIds} IDs · {dryRun.mappingAudit.suppliers.uniqueNames} nomes · {dryRun.mappingAudit.suppliers.collapsedAliasGroups} grupos consolidados · {dryRun.mappingAudit.suppliers.productRefs} produtos vinculados · {dryRun.mappingAudit.suppliers.productsWithoutSupplier} sem fornecedor</span></div>
-          <div><b>Itens de venda/pedido</b><span>{dryRun.mappingAudit.itemReferences.totalChecked} referências · {dryRun.mappingAudit.itemReferences.missingProductRefs} sem produto correspondente</span></div>\n          <div><b>Códigos de barras</b><span>{dryRun.mappingAudit.duplicateBarcodeGroups.length} grupos duplicados — importação bloqueada até decisão</span></div>
+          <div><b>Itens de venda/pedido</b><span>{dryRun.mappingAudit.itemReferences.totalChecked} referências · {dryRun.mappingAudit.itemReferences.missingProductRefs} sem produto correspondente</span></div>
+          <div><b>Códigos de barras</b><span>{dryRun.mappingAudit.duplicateBarcodeGroups.length} grupos duplicados — importação bloqueada até decisão</span></div>
           <div><b>Coleções preservadas somente no legado</b><span>{dryRun.mappingAudit.preservedOnlyCollections.join(", ")||"Nenhuma"}</span></div>
         </div>
       </div>}
