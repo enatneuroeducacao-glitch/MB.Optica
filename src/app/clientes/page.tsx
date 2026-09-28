@@ -25,8 +25,62 @@ export default function Clientes(){
  <div className="panel"><div className="table"><div className="row header"><span>Cliente</span><span>Documento</span><span>Telefone</span><span>Pedidos</span><span>Receitas</span><span></span></div>{filtered.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.cpfCnpj||"—"}</span><span>{c.whatsapp||c.phone||"—"}</span><span>{c._count?.orders??0}</span><span>{c._count?.prescriptions??0}</span><button className="link-button" onClick={()=>detail(c.id)}>Abrir</button></div>)}</div></div>
  {selected&&<div className="panel" style={{padding:20,marginTop:12}}><div className="panel-heading" style={{padding:0,marginBottom:15}}><div><h2>{selected.name}</h2><p style={{fontSize:10,color:"var(--muted)"}}>{selected.cpfCnpj||"Sem CPF/CNPJ"} · {selected.phone||selected.whatsapp||"Sem telefone"}</p></div><div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setOpen(true)}>Editar</button><button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div></div>
  <h3 style={{fontSize:12}}>Endereços</h3>{selected.addresses.map(a=><div key={a.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>{[a.label,a.street,a.number,a.complement,a.district,a.city,a.state,a.postalCode].filter(Boolean).join(", ")}</div>)}<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:10}}>{fields(address).map(([k,v])=><input key={k} aria-label={fieldLabels[k]||k} placeholder={fieldLabels[k]||k} value={String(v)} onChange={e=>setAddress({...address,[k]:e.target.value})} style={{padding:8,border:"1px solid var(--line)",borderRadius:7}}/>)}<button className="secondary" onClick={addAddress}>Adicionar endereço</button></div>
- <h3 style={{fontSize:12,marginTop:25}}>Receitas</h3>{(selected.prescriptions||[]).map((p:any)=><div key={p.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Data: {new Date(p.date).toLocaleDateString("pt-BR")} · Profissional: {p.professional||"—"} · OD {p.odSphere??"—"} / {p.odCylinder??"—"} · OE {p.oeSphere??"—"} / {p.oeCylinder??"—"}{p.validUntil?" · válida até "+new Date(p.validUntil).toLocaleDateString("pt-BR"):""}</div>)}
- <form onSubmit={addRx} style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:7,marginTop:10}}><input placeholder="Profissional" value={rx.professional} onChange={e=>setRx({...rx,professional:e.target.value})}/><input type="date" value={rx.validUntil} onChange={e=>setRx({...rx,validUntil:e.target.value})}/>{["odSphere","odCylinder","odAxis","odAdd","odDnp","odHeight","oeSphere","oeCylinder","oeAxis","oeAdd","oeDnp","oeHeight","pdTotal"].map(k=><input key={k} aria-label={fieldLabels[k]||k} placeholder={fieldLabels[k]||k} value={(rx as any)[k]} onChange={e=>setRx({...rx,[k]:e.target.value})}/>) }<button className="primary" type="submit">Registrar receita</button></form>
+ <h3 style={{fontSize:12,marginTop:25}}>Receitas</h3>
+ {(selected.prescriptions||[]).map((p:any)=><div key={p.id} style={{fontSize:10,padding:"10px 0",borderTop:"1px solid var(--line)"}}>
+   <div style={{fontWeight:700,marginBottom:7}}>Receita de {new Date(p.date).toLocaleDateString("pt-BR")} · {p.professional||"Profissional não informado"}</div>
+   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
+       <div style={{fontWeight:700,marginBottom:7}}>OD — Olho Direito</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+         <span>ESF: {p.odSphere??"—"}</span><span>CIL: {p.odCylinder??"—"}</span><span>AX: {p.odAxis??"—"}</span>
+         <span>ADD: {p.odAdd??"—"}</span><span>DNP: {p.odDnp??"—"}</span><span>Altura: {p.odHeight??"—"}</span>
+       </div>
+     </div>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
+       <div style={{fontWeight:700,marginBottom:7}}>OE — Olho Esquerdo</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+         <span>ESF: {p.oeSphere??"—"}</span><span>CIL: {p.oeCylinder??"—"}</span><span>AX: {p.oeAxis??"—"}</span>
+         <span>ADD: {p.oeAdd??"—"}</span><span>DNP: {p.oeDnp??"—"}</span><span>Altura: {p.oeHeight??"—"}</span>
+       </div>
+     </div>
+   </div>
+   <div style={{marginTop:7}}>DP Total: {p.pdTotal??"—"}{p.validUntil?" · Válida até "+new Date(p.validUntil).toLocaleDateString("pt-BR"):""}</div>
+ </div>)}
+ <form onSubmit={addRx} style={{marginTop:12}}>
+   <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:8,marginBottom:10}}>
+     <input placeholder="Profissional" aria-label="Profissional" value={rx.professional} onChange={e=>setRx({...rx,professional:e.target.value})}/>
+     <input type="date" aria-label="Validade da receita" value={rx.validUntil} onChange={e=>setRx({...rx,validUntil:e.target.value})}/>
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
+       <div style={{fontWeight:700,marginBottom:8}}>OD — Olho Direito</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
+         <input placeholder="ESF" aria-label="OD — Esférico (ESF)" value={rx.odSphere} onChange={e=>setRx({...rx,odSphere:e.target.value})}/>
+         <input placeholder="CIL" aria-label="OD — Cilíndrico (CIL)" value={rx.odCylinder} onChange={e=>setRx({...rx,odCylinder:e.target.value})}/>
+         <input placeholder="AX" aria-label="OD — Eixo (AX)" value={rx.odAxis} onChange={e=>setRx({...rx,odAxis:e.target.value})}/>
+         <input placeholder="ADD" aria-label="OD — Adição (ADD)" value={rx.odAdd} onChange={e=>setRx({...rx,odAdd:e.target.value})}/>
+         <input placeholder="DNP" aria-label="OD — DNP" value={rx.odDnp} onChange={e=>setRx({...rx,odDnp:e.target.value})}/>
+         <input placeholder="Altura" aria-label="OD — Altura" value={rx.odHeight} onChange={e=>setRx({...rx,odHeight:e.target.value})}/>
+       </div>
+     </div>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
+       <div style={{fontWeight:700,marginBottom:8}}>OE — Olho Esquerdo</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
+         <input placeholder="ESF" aria-label="OE — Esférico (ESF)" value={rx.oeSphere} onChange={e=>setRx({...rx,oeSphere:e.target.value})}/>
+         <input placeholder="CIL" aria-label="OE — Cilíndrico (CIL)" value={rx.oeCylinder} onChange={e=>setRx({...rx,oeCylinder:e.target.value})}/>
+         <input placeholder="AX" aria-label="OE — Eixo (AX)" value={rx.oeAxis} onChange={e=>setRx({...rx,oeAxis:e.target.value})}/>
+         <input placeholder="ADD" aria-label="OE — Adição (ADD)" value={rx.oeAdd} onChange={e=>setRx({...rx,oeAdd:e.target.value})}/>
+         <input placeholder="DNP" aria-label="OE — DNP" value={rx.oeDnp} onChange={e=>setRx({...rx,oeDnp:e.target.value})}/>
+         <input placeholder="Altura" aria-label="OE — Altura" value={rx.oeHeight} onChange={e=>setRx({...rx,oeHeight:e.target.value})}/>
+       </div>
+     </div>
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:8,marginTop:10}}>
+     <input placeholder="DP Total (Distância pupilar)" aria-label="DP Total (Distância pupilar)" value={rx.pdTotal} onChange={e=>setRx({...rx,pdTotal:e.target.value})}/>
+     <input placeholder="Observações" aria-label="Observações" value={rx.notes} onChange={e=>setRx({...rx,notes:e.target.value})}/>
+   </div>
+   <button className="primary" type="submit" style={{marginTop:10}}>Registrar receita</button>
+ </form>
  <h3 style={{fontSize:12,marginTop:25}}>Histórico comercial</h3><p style={{fontSize:10,color:"var(--muted)"}}>Pedidos: {selected.orders?.length??0} · Vendas: {selected.sales?.length??0} · Contas: {selected.accounts?.length??0}</p>
  {(selected.orders||[]).slice(0,10).map((o:any)=><div key={o.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Pedido #{o.number} · {o.status} · R$ {Number(o.total).toFixed(2)} · {new Date(o.createdAt).toLocaleDateString("pt-BR")}</div>)}
  {(selected.sales||[]).slice(0,10).map((s:any)=><div key={s.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Venda #{s.number} · R$ {Number(s.total).toFixed(2)} · {new Date(s.createdAt).toLocaleDateString("pt-BR")}</div>)}
