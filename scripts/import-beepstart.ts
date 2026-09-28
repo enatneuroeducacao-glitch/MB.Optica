@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 import { PrismaClient, Prisma, UserRole, OrderStatus, PaymentStatus, AccountType, StockMovementType } from "@prisma/client";
 
 type R = Record<string, any>;
-const EXPECTED_TOTAL = 5785;
+const EXPECTED_TOTAL = 5788;
 const input = process.argv[2] ?? process.env.BEEPSTART_BACKUP;
 const allowCountChange = process.argv.includes("--allow-count-change");
 const dryRun = process.argv.includes("--dry-run");
