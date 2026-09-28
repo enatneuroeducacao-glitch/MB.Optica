@@ -5,13 +5,14 @@ import {ReactNode,useEffect,useState} from "react";
 
 const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Receitas","/receitas"],["Orçamentos","/orcamentos"],["Pedidos","/pedidos"],["Laboratório","/laboratorio"]]},{label:"Operação",items:[["Produtos","/produtos"],["Estoque","/estoque"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Relatórios","/relatorios"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
 
-type User={name:string;email:string;role:string}|null;
+type User={name:string;email:string;role:string;mustChangePassword?:boolean}|null;
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
   const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
-  if(path==="/login"||path==="/setup") return <>{children}</>;
+  if(path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
+  if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/login");router.refresh();}finally{setBusy(false);}}
   return <div className="shell">
     {menuOpen&&<button className="mobile-menu-overlay" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}/>}
