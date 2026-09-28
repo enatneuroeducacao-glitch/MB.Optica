@@ -6,6 +6,21 @@ type Audit = {
   source:string; fingerprint:string; total:number; collections:number; collectionCounts:Record<string,number>;
   duplicateKeys:number; warnings:string[]; readyForDryRun:boolean; note:string;
 };
+type DryRunReport = {
+  mode:string; source:string; fingerprint:string; total:number; collections:number; duplicateKeys:number;
+  legacyConflicts:number; sourceCounts:Record<string,number>;
+  plan:{
+    categories:{source:number;existing:number;create:number};
+    suppliers:{source:number;existing:number;create:number};
+    users:{source:number;existing:number;create:number};
+    paymentMethods:{source:number;existing:number;create:number};
+    customers:{source:number;existing:number;create:number};
+    products:{source:number;existing:number;create:number};
+    orders:number; sales:number; receivableAccounts:number; payableAccounts:number;
+    lots:number; movements:number; preservedLegacyRecords:number; mappedSourceCollectionsEstimate:number;
+  };
+  warnings:string[]; safe:boolean; note:string;
+};
 type Run = {id:string;status:string;total:number;imported:number;mapped:number;warnings:number;errors:number;startedAt:string;completedAt:string|null;report:any};
 
 const EXPECTED_TOTAL = 5788;
@@ -13,7 +28,9 @@ const EXPECTED_COLLECTIONS = 29;
 
 export default function Page(){
   const [file,setFile]=useState<File|null>(null);
+  const [records,setRecords]=useState<any[]|null>(null);
   const [audit,setAudit]=useState<Audit|null>(null);
+  const [dryRun,setDryRun]=useState<DryRunReport|null>(null);
   const [runs,setRuns]=useState<Run[]>([]);
   const [legacyStored,setLegacyStored]=useState(0);
   const [loading,setLoading]=useState(true);
@@ -35,18 +52,33 @@ export default function Page(){
 
   async function auditBackup(){
     if(!file)return;
-    setBusy(true);setMessage("");setAudit(null);
+    setBusy(true);setMessage("");setAudit(null);setDryRun(null);
     try{
-      const text=await file.text();
-      let records:unknown;
-      try{records=JSON.parse(text)}catch{throw new Error("O arquivo não é um JSON válido.");}
-      if(!Array.isArray(records)) throw new Error("O backup precisa ser uma lista JSON.");
-      const r=await fetch("/api/migration",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records})});
+      const raw=await file.text();
+      let parsed:unknown;
+      try{parsed=JSON.parse(raw)}catch{throw new Error("O arquivo não é um JSON válido.");}
+      if(!Array.isArray(parsed)) throw new Error("O backup precisa ser uma lista JSON.");
+      const nextRecords=parsed as any[];
+      const r=await fetch("/api/migration",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records:nextRecords})});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Falha na auditoria.");
+      setRecords(nextRecords);
       setAudit(d.audit);
-      setMessage(d.audit.readyForDryRun?"Auditoria inicial aprovada para o dry-run.":"Auditoria encontrou pontos que precisam ser verificados antes do dry-run.");
+      setMessage(d.audit.readyForDryRun?"Auditoria inicial aprovada. O dry-run está liberado.":"Auditoria encontrou pontos que precisam ser verificados antes do dry-run.");
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao auditar backup.");}
+    finally{setBusy(false);}
+  }
+
+  async function executeDryRun(){
+    if(!records||!audit?.readyForDryRun)return;
+    setBusy(true);setMessage("");setDryRun(null);
+    try{
+      const r=await fetch("/api/migration/dry-run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records})});
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.error||"Falha no dry-run.");
+      setDryRun(d.report);
+      setMessage(d.report.safe?"Dry-run concluído em modo somente leitura. Nenhum dado foi alterado.":"Dry-run encontrou pontos que exigem revisão.");
+    }catch(e){setMessage(e instanceof Error?e.message:"Erro ao executar dry-run.");}
     finally{setBusy(false);}
   }
 
@@ -61,8 +93,8 @@ export default function Page(){
     <div className="settings-grid">
       <div className="panel">
         <div className="panel-heading"><div><h2>1. Auditoria do backup</h2><p>Envie uma cópia do backup oficial. Esta etapa não altera o banco operacional.</p></div></div>
-        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e=>{setFile(e.target.files?.[0]||null);setAudit(null)}}/>
-        <button className="primary" disabled={!file||busy} onClick={auditBackup} style={{marginTop:10}}>{busy?"Auditando...":"Auditar backup"}</button>
+        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e=>{setFile(e.target.files?.[0]||null);setRecords(null);setAudit(null);setDryRun(null)}}/>
+        <button className="primary" disabled={!file||busy} onClick={auditBackup} style={{marginTop:10}}>{busy?"Processando...":"Auditar backup"}</button>
         <div className="settings-list" style={{marginTop:14}}>
           <div><b>Fonte</b><span>BeepStart</span></div>
           <div><b>Referência</b><span>{EXPECTED_TOTAL.toLocaleString("pt-BR")} registros · {EXPECTED_COLLECTIONS} coleções</span></div>
@@ -95,7 +127,41 @@ export default function Page(){
         </div>
       </div>
       {audit.warnings.length>0&&<div className="panel" style={{marginTop:12,padding:12}}><b>Pontos de atenção</b>{audit.warnings.map((w,i)=><p key={i} style={{margin:"6px 0"}}>• {w}</p>)}</div>}
-      <div className="panel" style={{marginTop:12,padding:12}}><b>Próxima etapa</b><p style={{margin:"6px 0",color:"var(--muted)"}}>Após auditoria limpa, o próximo passo é executar o dry-run do importador no ambiente controlado. A importação definitiva permanece bloqueada até a reconciliação e aprovação.</p></div>
+      <div className="panel" style={{marginTop:12,padding:12}}>
+        <b>03 · Dry-run</b>
+        <p style={{margin:"6px 0",color:"var(--muted)"}}>Simulação somente leitura: verifica conflitos com o banco atual e estima o que será criado, encontrado e preservado.</p>
+        <button className="primary" disabled={!audit.readyForDryRun||!records||busy} onClick={executeDryRun}>{busy?"Executando...":"Executar dry-run"}</button>
+      </div>
+    </div>}
+
+    {dryRun&&<div className="panel">
+      <div className="panel-heading"><div><h2>Resultado do dry-run</h2><p>Fingerprint: <code>{dryRun.fingerprint}</code></p></div><b>{dryRun.safe?"✓ SOMENTE LEITURA":"⚠ REVISAR"}</b></div>
+      <div className="settings-grid">
+        <div className="settings-list">
+          <div><b>Registros</b><span>{dryRun.total.toLocaleString("pt-BR")}</span></div>
+          <div><b>Coleções</b><span>{dryRun.collections}</span></div>
+          <div><b>Conflitos com legado</b><span>{dryRun.legacyConflicts}</span></div>
+          <div><b>Registros preservados</b><span>{dryRun.plan.preservedLegacyRecords.toLocaleString("pt-BR")}</span></div>
+        </div>
+        <div className="settings-list">
+          <div><b>Categorias</b><span>{dryRun.plan.categories.existing} existentes · {dryRun.plan.categories.create} novas</span></div>
+          <div><b>Fornecedores</b><span>{dryRun.plan.suppliers.existing} existentes · {dryRun.plan.suppliers.create} novos</span></div>
+          <div><b>Usuários</b><span>{dryRun.plan.users.existing} existentes · {dryRun.plan.users.create} novos</span></div>
+          <div><b>Meios de pagamento</b><span>{dryRun.plan.paymentMethods.existing} existentes · {dryRun.plan.paymentMethods.create} novos</span></div>
+          <div><b>Clientes</b><span>{dryRun.plan.customers.existing} encontrados · {dryRun.plan.customers.create} novos</span></div>
+          <div><b>Produtos</b><span>{dryRun.plan.products.existing} encontrados · {dryRun.plan.products.create} novos</span></div>
+        </div>
+      </div>
+      <div className="settings-list" style={{marginTop:12}}>
+        <div><b>Pedidos</b><span>{dryRun.plan.orders}</span></div>
+        <div><b>Vendas</b><span>{dryRun.plan.sales}</span></div>
+        <div><b>Contas a receber</b><span>{dryRun.plan.receivableAccounts}</span></div>
+        <div><b>Contas a pagar</b><span>{dryRun.plan.payableAccounts}</span></div>
+        <div><b>Lotes</b><span>{dryRun.plan.lots}</span></div>
+        <div><b>Movimentações</b><span>{dryRun.plan.movements}</span></div>
+      </div>
+      {dryRun.warnings.length>0&&<div className="panel" style={{marginTop:12,padding:12}}><b>Pontos de atenção</b>{dryRun.warnings.map((w,i)=><p key={i} style={{margin:"6px 0"}}>• {w}</p>)}</div>}
+      <div className="panel" style={{marginTop:12,padding:12}}><b>Segurança</b><p style={{margin:"6px 0",color:"var(--muted)"}}>{dryRun.note}</p><p style={{margin:"6px 0",color:"var(--muted)"}}>A importação definitiva continua bloqueada nesta etapa.</p></div>
     </div>}
 
     <div className="panel">
