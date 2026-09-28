@@ -157,14 +157,16 @@ export async function POST(request:Request){
         const customerLegacy=first(a,["clienteID","clienteId"]); const customer=customerLegacy?all("Cliente").find(c=>String(id(c))===String(customerLegacy)):null; const cid=customer?targetByKey.get(keyOf(customer))?.id:null;
         const saleLegacy=first(a,["vendaID","vendaId"]); const sid=saleLegacy?saleTarget.get(String(saleLegacy)):null;
         const installments=Array.isArray(a.parcelas)?a.parcelas:[money(a.valor)]; const dueDates=Array.isArray(a.vencimentos)?a.vencimentos:[first(a,["vencimento","dueDate"])];
-        for(let i=0;i<Math.max(installments.length,1);i++){ const amount=money(installments[i]??a.valor); const due=date(dueDates[i]??dueDates[0])||new Date(); const paid=Array.isArray(a.pagos)&&a.pagos[i]?amount:0; await tx.account.create({data:{id:crypto.randomUUID(),type:AccountType.RECEBER,description:`${text(first(a,["descricao","description"]))||"Conta a receber"} ${installments.length>1?`-${i+1}/${installments.length}`:""}`,customerId:cid||null,saleId:sid||null,dueDate:due,amount:dec(amount),paidAmount:dec(paid),status:paid>=amount?PaymentStatus.PAGO:PaymentStatus.PENDENTE,notes:text(first(a,["observacoes","notes"]))}}); }
-        targetByKey.set(keyOf(a),{entity:"Account",id:crypto.randomUUID()});
+        let lastAccountId:string|null=null;
+        for(let i=0;i<Math.max(installments.length,1);i++){ const amount=money(installments[i]??a.valor); const due=date(dueDates[i]??dueDates[0])||new Date(); const paid=Array.isArray(a.pagos)&&a.pagos[i]?amount:0; const row=await tx.account.create({data:{id:crypto.randomUUID(),type:AccountType.RECEBER,description:`${text(first(a,["descricao","description"]))||"Conta a receber"} ${installments.length>1?`-${i+1}/${installments.length}`:""}`,customerId:cid||null,saleId:sid||null,dueDate:due,amount:dec(amount),paidAmount:dec(paid),status:paid>=amount?PaymentStatus.PAGO:PaymentStatus.PENDENTE,notes:text(first(a,["observacoes","notes"]))}}); lastAccountId=row.id; }
+        if(lastAccountId) targetByKey.set(keyOf(a),{entity:"Account",id:lastAccountId});
       }
       for(const a of all("ContaAPagar")){
         const supplierName=text(first(a,["credor","fornecedor","supplier"])); const supplierId=supplierName?supplierMap.get(norm(supplierName)):null;
         const installments=Array.isArray(a.parcelas)?a.parcelas:[money(a.valor)]; const dueDates=Array.isArray(a.vencimentos)?a.vencimentos:[first(a,["vencimento","dueDate"])];
-        for(let i=0;i<Math.max(installments.length,1);i++){ const amount=money(installments[i]??a.valor); const due=date(dueDates[i]??dueDates[0])||new Date(); const paid=Array.isArray(a.pagos)&&a.pagos[i]?amount:0; await tx.account.create({data:{id:crypto.randomUUID(),type:AccountType.PAGAR,description:`${text(first(a,["descricao","description"]))||"Conta a pagar"} ${installments.length>1?`-${i+1}/${installments.length}`:""}`,supplierId:supplierId||null,dueDate:due,amount:dec(amount),paidAmount:dec(paid),status:paid>=amount?PaymentStatus.PAGO:PaymentStatus.PENDENTE,notes:text(first(a,["observacoes","notes"]))}}); }
-        targetByKey.set(keyOf(a),{entity:"Account",id:crypto.randomUUID()});
+        let lastAccountId:string|null=null;
+        for(let i=0;i<Math.max(installments.length,1);i++){ const amount=money(installments[i]??a.valor); const due=date(dueDates[i]??dueDates[0])||new Date(); const paid=Array.isArray(a.pagos)&&a.pagos[i]?amount:0; const row=await tx.account.create({data:{id:crypto.randomUUID(),type:AccountType.PAGAR,description:`${text(first(a,["descricao","description"]))||"Conta a pagar"} ${installments.length>1?`-${i+1}/${installments.length}`:""}`,supplierId:supplierId||null,dueDate:due,amount:dec(amount),paidAmount:dec(paid),status:paid>=amount?PaymentStatus.PAGO:PaymentStatus.PENDENTE,notes:text(first(a,["observacoes","notes"]))}}); lastAccountId=row.id; }
+        if(lastAccountId) targetByKey.set(keyOf(a),{entity:"Account",id:lastAccountId});
       }
 
       for(const l of all("Lote")){
