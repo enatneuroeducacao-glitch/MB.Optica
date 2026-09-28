@@ -74,6 +74,18 @@ export async function POST(request: Request) {
     }
 
     const counts = (collection:string) => groups.get(collection)?.length ?? 0;
+    const mappedCollections=["Categoria","Fornecedor","Usuario","MeioPG","Cliente","EnderecoLocal","Produto","Ordem","Venda","ContaAReceber","ContaAPagar","Lote","Movimentacao"];
+    const preservedOnlyCollections=[...groups.keys()].filter(k=>!mappedCollections.includes(k)).sort();
+
+    const categorySourceIds=new Set((groups.get("Categoria")??[]).map(id).filter(Boolean));
+    const supplierSourceIds=new Set((groups.get("Fornecedor")??[]).map(id).filter(Boolean));
+    const categoryNames=new Map<string,string[]>();
+    for(const r of groups.get("Categoria")??[]){ const name=norm(first(r,["description","name"])); const a=categoryNames.get(name)??[]; a.push(String(id(r))); categoryNames.set(name,a); }
+    const supplierNames=new Map<string,string[]>();
+    for(const r of groups.get("Fornecedor")??[]){ const name=norm(first(r,["name","description"])); const a=supplierNames.get(name)??[]; a.push(String(id(r))); supplierNames.set(name,a); }
+    const categoryAliases=[...categoryNames.values()].filter(v=>v.length>1).length;
+    const supplierAliases=[...supplierNames.values()].filter(v=>v.length>1).length;
+
     const newCategories = (groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"]))));
     const newSuppliers = (groups.get("Fornecedor")??[]).filter(r=>!supplierMap.has(norm(first(r,["name","description"]))));
     const newMethods = (groups.get("MeioPG")??[]).filter(r=>!methodMap.has(norm(first(r,["description","name"]))));
@@ -99,10 +111,15 @@ export async function POST(request: Request) {
     const warnings:string[]=[];
     const referenceChecks: Array<{source:string;target:string;field:string;missing:number}> = [];
     const refs: [string,string,string][] = [
-      ["Venda","Cliente","clienteID"],["Venda","Usuario","usuarioID"],["Venda","EnderecoLocal","enderecoLocalID"],
+      ["Venda","Cliente","clienteID"],["Venda","Usuario","usuarioID"],["Venda","EnderecoLocal","enderecoID"],
       ["Produto","Categoria","categoriaID"],["Produto","Fornecedor","fornecedorID"],
       ["Lote","Produto","produtoID"],["Lote","Venda","vendaID"],
-      ["Ordem","Cliente","clienteID"],["Ordem","Venda","vendaID"]
+      ["Ordem","Cliente","clienteID"],["Ordem","Venda","vendaID"],
+      ["ContaAReceber","Cliente","clienteID"],["ContaAReceber","Venda","vendaID"],
+      ["Fornecedor","EnderecoLocal","enderecoID"],["Cliente","EnderecoLocal","enderecoID"],
+      ["Evento","Cliente","clienteID"],["Evento","Ordem","ordemID"],
+      ["Preco","Produto","produtoID"],["Servico","Categoria","categoriaID"],
+      ["Veiculo","Cliente","clienteID"]
     ];
     for (const [source,target,field] of refs) {
       const targetIds = new Set((groups.get(target)??[]).map(id).filter(Boolean));
@@ -143,7 +160,12 @@ export async function POST(request: Request) {
         lots:counts("Lote"),
         movements:counts("Movimentacao"),
         preservedLegacyRecords:typed.length,
-        mappedSourceCollectionsEstimate:mappedEstimate
+        mappedSourceCollectionsEstimate:mappedEstimate,
+        mappingAudit:{
+          categories:{sourceIds:categorySourceIds.size,uniqueNames:categoryNames.size,collapsedAliasGroups:categoryAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length,productsWithoutCategory:(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length},
+          suppliers:{sourceIds:supplierSourceIds.size,uniqueNames:supplierNames.size,collapsedAliasGroups:supplierAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length,productsWithoutSupplier:(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length},
+          preservedOnlyCollections
+        }
       },
       warnings,
       safe:legacyConflicts===0 && warnings.length===0,
