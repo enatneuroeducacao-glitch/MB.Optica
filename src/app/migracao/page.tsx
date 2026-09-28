@@ -73,7 +73,7 @@ export default function Page(){
     if(!records||!audit?.readyForDryRun)return;
     setBusy(true);setMessage("");setDryRun(null);
     try{
-      const r=await fetch("/api/migration/dry-run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records})});
+      const r=await fetch("/api/migration/dry-run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,fingerprint:audit.fingerprint})});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Falha no dry-run.");
       setDryRun(d.report);
