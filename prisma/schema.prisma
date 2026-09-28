@@ -120,6 +120,7 @@ active Boolean @default(true)
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 passwordHash String?
+mustChangePassword Boolean @default(false)
 sessionVersion Int @default(0)
 lastLoginAt DateTime?
 permissions Json?
