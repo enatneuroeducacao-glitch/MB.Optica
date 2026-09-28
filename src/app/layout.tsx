@@ -8,6 +8,6 @@ export const metadata={title:"MB Óptica | Gestão",description:"Sistema de gest
 export default async function RootLayout({children}:{children:React.ReactNode}){
   const pathname=(await headers()).get("x-mb-pathname") ?? "/";
   const user=await getCurrentUser();
-  const publicPage=pathname==="/login" || pathname==="/setup" || pathname==="/acesso-negado";
+  const publicPage=pathname==="/login" || pathname==="/setup" || pathname==="/acesso-negado" || pathname==="/primeiro-acesso";
   return <html lang="pt-BR"><body><AppShell user={publicPage ? user : user}>{children}</AppShell></body></html>;
 }
