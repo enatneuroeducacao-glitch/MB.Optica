@@ -139,9 +139,11 @@ export async function POST(request:Request){
         const customerLegacy=first(o,["clienteID","clienteId"]);
         const customer=customerLegacy?all("Cliente").find(c=>String(id(c))===String(customerLegacy)):null;
         const cid=customer?targetByKey.get(keyOf(customer))?.id:null; if(!cid) throw new Error(`Ordem ${id(o)} sem cliente de destino.`);
-        const row=await tx.opticalOrder.create({data:{id:crypto.randomUUID(),number:Number(first(o,["numeracao","number"]))||undefined,customerId:cid,status:OrderStatus.PEDIDO,dueDate:date(first(o,["prazo","dueDate"])),notes:text(first(o,["observacoes","notes"])),createdAt:date(first(o,["aberto","openedAt"]))||new Date(),updatedAt:new Date(),total:dec(0)}});
-        orderTarget.set(String(id(o)),row.id); targetByKey.set(keyOf(o),{entity:"OpticalOrder",id:row.id});
+        const sellerLegacy=first(o,["prestadorID","prestadorId"]); const seller=sellerLegacy?all("Usuario").find(u=>String(id(u))===String(sellerLegacy)):null; const sellerId=seller?targetByKey.get(keyOf(seller))?.id:null;
         const procedures=first(o,["procedimentosIDs","procedures"])||{}; const values=first(o,["valoresIDs","values"])||{};
+        const orderTotal=Object.keys(procedures).reduce((sum,k)=>sum+money(procedures[k])*money(values[k]),0);
+        const row=await tx.opticalOrder.create({data:{id:crypto.randomUUID(),number:Number(first(o,["numeracao","number"]))||undefined,customerId:cid,sellerId:sellerId||null,status:OrderStatus.PEDIDO,dueDate:date(first(o,["prazo","dueDate"])),notes:text(first(o,["observacoes","notes"])),createdAt:date(first(o,["aberto","openedAt"]))||new Date(),updatedAt:new Date(),total:dec(orderTotal)}});
+        orderTarget.set(String(id(o)),row.id); targetByKey.set(keyOf(o),{entity:"OpticalOrder",id:row.id});
         for(const productId of Object.keys(procedures)){ const pid=productMap.get(`code:${norm(productId)}`)||productMap.get(`code:${norm(`BS-${productId}`)}`); await tx.opticalOrderItem.create({data:{id:crypto.randomUUID(),orderId:row.id,productId:pid||null,description:pid?String(productId):`Legado ${productId}`,kind:"LEGADO",quantity:dec(procedures[productId]||1),unitPrice:dec(values[productId])}}); }
       }
 
