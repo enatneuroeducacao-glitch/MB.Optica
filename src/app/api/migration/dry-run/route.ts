@@ -97,13 +97,21 @@ export async function POST(request: Request) {
     }
 
     const warnings:string[]=[];
-    for (const o of groups.get("Ordem")??[]) {
-      const cid=first(o,["clienteID","clienteId"]);
-      if (cid && !(groups.get("Cliente")??[]).some(c=>String(id(c))===String(cid))) warnings.push(`Ordem ${id(o)}: cliente legado não encontrado.`);
-    }
-    for (const v of groups.get("Venda")??[]) {
-      const uid=first(v,["usuarioID","usuarioId"]);
-      if (uid && !(groups.get("Usuario")??[]).some(u=>String(id(u))===String(uid))) warnings.push(`Venda ${id(v)}: usuário legado não encontrado.`);
+    const referenceChecks: Array<{source:string;target:string;field:string;missing:number}> = [];
+    const refs: [string,string,string][] = [
+      ["Venda","Cliente","clienteID"],["Venda","Usuario","usuarioID"],["Venda","EnderecoLocal","enderecoLocalID"],
+      ["Produto","Categoria","categoriaID"],["Produto","Fornecedor","fornecedorID"],
+      ["Lote","Produto","produtoID"],["Lote","Venda","vendaID"],
+      ["Ordem","Cliente","clienteID"],["Ordem","Venda","vendaID"]
+    ];
+    for (const [source,target,field] of refs) {
+      const targetIds = new Set((groups.get(target)??[]).map(id).filter(Boolean));
+      const missing = (groups.get(source)??[]).filter(r => {
+        const value = first(r,[field, field.replace(/ID$/,"Id")]);
+        return value != null && value !== "" && !targetIds.has(String(value));
+      }).length;
+      referenceChecks.push({source,target,field,missing});
+      if (missing) warnings.push(`${source}.${field} → ${target}: ${missing} referência(s) órfã(s).`);
     }
 
     const mappedEstimate =
@@ -119,6 +127,7 @@ export async function POST(request: Request) {
       collections:groups.size,
       duplicateKeys:0,
       legacyConflicts,
+      references:referenceChecks,
       sourceCounts:Object.fromEntries([...groups.entries()].map(([k,v])=>[k,v.length]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))),
       plan:{
         categories:{source:counts("Categoria"),existing:counts("Categoria")-newCategories.length,create:newCategories.length},
