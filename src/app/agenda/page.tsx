@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;email?:string|null};
 type Appointment={id:string;type:string;professionalType:string;professionalName:string;scheduledAt:string;status:string;notes?:string|null;customer:Customer};
@@ -22,6 +23,7 @@ export default function Agenda(){
   if(ar.ok)setRows(ad);else setMsg(ad.error||"Erro ao carregar agenda.");
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,15000);
  const filtered=useMemo(()=>rows.filter(a=>(a.customer.name+" "+a.professionalName+" "+a.professionalType+" "+a.type).toLowerCase().includes(search.toLowerCase())),[rows,search]);
  const customerOptions=customers.filter(c=>(c.name+" "+(c.cpfCnpj||"")+" "+(c.phone||"")).toLowerCase().includes(customerSearch.toLowerCase())).slice(0,20);
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMsg("");const r=await fetch("/api/appointments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(r.status===401){window.location.href="/login";return}if(!r.ok){setMsg(d.error||"Não foi possível agendar.");return}setMsg("Agendamento realizado com sucesso.");setForm(empty);setCustomerSearch("");setOpen(false);await load()};
