@@ -19,7 +19,7 @@ export async function POST(request:Request){
     const actor=await requireRole(["ADMIN"]);
     const body=schema.parse(await request.json());
     const passwordHash=await bcrypt.hash(body.password,12);
-    const user=await db.user.create({data:{name:body.name,email:body.email.trim().toLowerCase(),passwordHash,role:body.role,permissions:body.permissions??{}}});
+    const user=await db.user.create({data:{name:body.name,email:body.email.trim().toLowerCase(),passwordHash,mustChangePassword:true,role:body.role,permissions:body.permissions??{}}});
     await db.auditLog.create({data:{action:"USER_CREATED",entity:"User",entityId:user.id,userId:actor.id,metadata:{role:user.role}}});
     return NextResponse.json({user:{id:user.id,name:user.name,email:user.email,role:user.role,active:user.active,permissions:user.permissions}},{status:201});
   }catch(error){
