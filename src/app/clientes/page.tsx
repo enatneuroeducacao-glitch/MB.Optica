@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;whatsapp?:string|null;email?:string|null;birthDate?:string|null;notes?:string|null;addresses:any[];prescriptions?:any[];orders?:any[];sales?:any[];accounts?:any[];_count:any};
 const empty={name:"",cpfCnpj:"",phone:"",whatsapp:"",email:"",birthDate:"",notes:""};
 const rxEmpty={professional:"",validUntil:"",odSphere:"",odCylinder:"",odAxis:"",odAdd:"",odDnp:"",odHeight:"",oeSphere:"",oeCylinder:"",oeAxis:"",oeAdd:"",oeDnp:"",oeHeight:"",pdTotal:"",notes:""};
@@ -7,6 +8,7 @@ export default function Clientes(){
  const [rows,setRows]=useState<Customer[]>([]),[selected,setSelected]=useState<Customer|null>(null),[form,setForm]=useState(empty),[address,setAddress]=useState({label:"",street:"",number:"",complement:"",district:"",city:"",state:"SC",postalCode:""}),[rx,setRx]=useState(rxEmpty),[search,setSearch]=useState(""),[open,setOpen]=useState(false),[msg,setMsg]=useState("");
  const load=async()=>{const r=await fetch("/api/customers",{cache:"no-store"});const d=await r.json();if(r.status===401){window.location.href="/login";return}if(r.ok)setRows(d);else setMsg(d.error||"Erro ao carregar clientes.")};
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,20000);
  const detail=async(id:string)=>{const r=await fetch("/api/customers/"+id);const d=await r.json();if(r.ok){setSelected(d);setForm({name:d.name,cpfCnpj:d.cpfCnpj||"",phone:d.phone||"",whatsapp:d.whatsapp||"",email:d.email||"",birthDate:d.birthDate?d.birthDate.slice(0,10):"",notes:d.notes||""})}else setMsg(d.error||"Erro ao abrir cliente.")};
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMsg("");const r=await fetch(selected?"/api/customers/"+selected.id:"/api/customers",{method:selected?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(r.status===401){window.location.href="/login";return}if(!r.ok){setMsg(d.error||"Erro ao salvar.");return}setOpen(false);setSelected(null);setForm(empty);await load();await detail(d.id)};
  const addAddress=async()=>{if(!selected)return;const r=await fetch("/api/customers/"+selected.id+"/addresses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(address)});if(r.ok){setAddress({label:"",street:"",number:"",complement:"",district:"",city:"",state:"SC",postalCode:""});await detail(selected.id);await load()}else setMsg((await r.json()).error||"Erro ao salvar endereço.")};
