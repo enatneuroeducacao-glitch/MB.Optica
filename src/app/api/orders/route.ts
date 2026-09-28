@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {writeAudit} from "@/lib/audit";
+import {requireRole} from "@/lib/auth";
 
 export async function GET(){
   const data=await db.opticalOrder.findMany({
@@ -18,6 +19,7 @@ export async function GET(){
 
 export async function POST(req:Request){
   try{
+    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR","LABORATORIO"]);
     const b=await req.json();
     if(!b.customerId) throw new Error("customerId é obrigatório");
 
@@ -59,7 +61,7 @@ export async function POST(req:Request){
         },
         include:{items:true,events:true}
       });
-      await writeAudit(tx,{action:"CREATE",entity:"OpticalOrder",entityId:created.id,metadata:{customerId:created.customerId,total:created.total.toString(),items:created.items.length}});
+      await writeAudit(tx,{action:"CREATE",entity:"OpticalOrder",entityId:created.id,userId:actor.id,request:req,metadata:{customerId:created.customerId,total:created.total.toString(),items:created.items.length}});
       return created;
     });
     return NextResponse.json(order,{status:201});
