@@ -1,6 +1,7 @@
 // Finance center: verified source after CI rebuild
 "use client";
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatCard} from "@/components/StatCard";
 
 type Account={id:string;type:"RECEBER"|"PAGAR";description:string;dueDate:string;amount:number|string;paidAmount:number|string;status:string;customer?:{name:string}|null;supplier?:{name:string}|null};
@@ -19,6 +20,7 @@ export default function Financeiro(){
  const [cashMove,setCashMove]=useState({kind:"ENTRADA",amount:"",description:""});
  const load=async()=>{const r=await fetch("/api/financeiro",{cache:"no-store"});const d=await r.json();if(r.ok)setData(d);else setMsg(d.error||"Erro ao carregar")};
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,15000);
  const accounts:Account[]=data?.accounts||[];
  const summary=data?.summary||{};
  const openCash:Cash=data?.openCash||null;
