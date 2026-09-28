@@ -20,6 +20,7 @@ type DryRunReport = {
     lots:number; movements:number; preservedLegacyRecords:number; mappedSourceCollectionsEstimate:number;
   };
   warnings:string[]; safe:boolean; note:string;
+  mappingAudit?:{categories:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutCategory:number};suppliers:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutSupplier:number};preservedOnlyCollections:string[];itemReferences:{totalChecked:number;missingProductRefs:number;missingProductRefDetails:{source:string;recordId:string;productId:string}[]}};
 };
 type Run = {id:string;status:string;total:number;imported:number;mapped:number;warnings:number;errors:number;startedAt:string;completedAt:string|null;report:any};
 
@@ -176,6 +177,15 @@ export default function Page(){
         <div><b>Movimentações</b><span>{dryRun.plan.movements}</span></div>
       </div>
       {dryRun.warnings.length>0&&<div className="panel" style={{marginTop:12,padding:12}}><b>Pontos de atenção</b>{dryRun.warnings.map((w,i)=><p key={i} style={{margin:"6px 0"}}>• {w}</p>)}</div>}
+      {dryRun.mappingAudit&&<div className="panel" style={{marginTop:12,padding:12}}>
+        <b>Auditoria dos mapeamentos</b>
+        <div className="settings-list" style={{marginTop:8}}>
+          <div><b>Categorias</b><span>{dryRun.mappingAudit.categories.sourceIds} IDs · {dryRun.mappingAudit.categories.uniqueNames} nomes · {dryRun.mappingAudit.categories.collapsedAliasGroups} grupos consolidados · {dryRun.mappingAudit.categories.productRefs} produtos vinculados · {dryRun.mappingAudit.categories.productsWithoutCategory} sem categoria</span></div>
+          <div><b>Fornecedores</b><span>{dryRun.mappingAudit.suppliers.sourceIds} IDs · {dryRun.mappingAudit.suppliers.uniqueNames} nomes · {dryRun.mappingAudit.suppliers.collapsedAliasGroups} grupos consolidados · {dryRun.mappingAudit.suppliers.productRefs} produtos vinculados · {dryRun.mappingAudit.suppliers.productsWithoutSupplier} sem fornecedor</span></div>
+          <div><b>Itens de venda/pedido</b><span>{dryRun.mappingAudit.itemReferences.totalChecked} referências · {dryRun.mappingAudit.itemReferences.missingProductRefs} sem produto correspondente</span></div>
+          <div><b>Coleções preservadas somente no legado</b><span>{dryRun.mappingAudit.preservedOnlyCollections.join(", ")||"Nenhuma"}</span></div>
+        </div>
+      </div>}
       <div className="panel" style={{marginTop:12,padding:12}}><b>04 · Importação definitiva</b><p style={{margin:"6px 0",color:"var(--muted)"}}>{dryRun.note}</p><p style={{margin:"6px 0",color:"var(--muted)"}}>Só é liberada quando o dry-run estiver seguro, sem conflitos com o legado e sem alertas.</p><button className="primary" disabled={!dryRun.safe||busy} onClick={executeImport} style={{marginTop:8}}>{busy?"Importando...":"Executar importação definitiva"}</button>{!dryRun.safe&&<p style={{margin:"8px 0 0",color:"var(--muted)",fontSize:12}}>Importação bloqueada até que todas as validações estejam sem alertas.</p>}</div>
     </div>}
 
