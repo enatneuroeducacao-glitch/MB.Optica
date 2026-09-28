@@ -119,7 +119,7 @@ export async function POST(request: Request) {
       collections:groups.size,
       duplicateKeys:0,
       legacyConflicts,
-      sourceCounts:Object.fromEntries([...groups.entries()].map(([k,v])=>[k,v.length]).sort((a,b)=>a[0].localeCompare(b[0]))),
+      sourceCounts:Object.fromEntries([...groups.entries()].map(([k,v])=>[k,v.length]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))),
       plan:{
         categories:{source:counts("Categoria"),existing:counts("Categoria")-newCategories.length,create:newCategories.length},
         suppliers:{source:counts("Fornecedor"),existing:counts("Fornecedor")-newSuppliers.length,create:newSuppliers.length},
