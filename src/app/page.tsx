@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatCard} from "@/components/StatCard";
 import {money} from "@/lib/domain";
 
@@ -8,7 +9,9 @@ const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório"
 
 export default function Dashboard(){
  const [data,setData]=useState<DashboardData|null>(null); const [error,setError]=useState("");
- useEffect(()=>{fetch("/api/dashboard",{cache:"no-store"}).then(async r=>{if(!r.ok)throw new Error("Não foi possível carregar o dashboard");return r.json()}).then(setData).catch(e=>setError(e instanceof Error?e.message:"Erro ao carregar dashboard"))},[]);
+ const load=async()=>{try{const r=await fetch("/api/dashboard",{cache:"no-store"});if(!r.ok)throw new Error("Não foi possível carregar o dashboard");setData(await r.json());setError("")}catch(e){setError(e instanceof Error?e.message:"Erro ao carregar dashboard")}};
+ useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,15000);
  return <section className="page">
   <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a></nav></div>
   {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
