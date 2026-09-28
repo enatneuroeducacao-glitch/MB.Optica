@@ -70,6 +70,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/suppliers": "fornecedores",
   "/api/users": "usuarios",
   "/api/settings": "configuracoes",
+  "/api/migration": "migracao",
 };
 
 export const API_PUBLIC_AUTHENTICATED = new Set([
@@ -85,7 +86,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/orders", "/api/payment-methods", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
     "/api/quotes", "/api/relatorios", "/api/audit", "/api/users", "/api/settings",
-    "/api/service-orders",
+    "/api/service-orders", "/api/migration",
   ],
   VENDEDOR: [
     "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
