@@ -3,7 +3,7 @@ import { jwtVerify } from "jose";
 import { API_PERMISSIONS, API_PUBLIC_AUTHENTICATED, PAGE_PERMISSIONS, ROLE_API_PREFIXES, ROLE_DEFAULT_PERMISSIONS, WRITE_ROLES, pathMatches } from "@/lib/permissions";
 
 const COOKIE = "mb_optica_session";
-const PUBLIC_PAGES = new Set(["/login", "/setup", "/acesso-negado"]);
+const PUBLIC_PAGES = new Set(["/login", "/setup", "/acesso-negado", "/primeiro-acesso"]);
 const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bootstrap", "/api/health", "/api/branding"]);
 
 const ROLE_PREFIXES: Record<string, string[]> = {
