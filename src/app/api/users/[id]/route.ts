@@ -12,7 +12,7 @@ const schema = z.object({
   role: z.enum(["ADMIN", "GERENTE", "VENDEDOR", "FINANCEIRO", "LABORATORIO"]).optional(),
   active: z.boolean().optional(),
   permissions: z.record(z.string(), z.boolean()).optional(),
-  password: z.string().min(12).max(200).optional(),
+  password: z.string().min(8).max(200).optional(),
 });
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
