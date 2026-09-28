@@ -91,12 +91,11 @@ export async function POST(request:Request){
         for(const x of rows){ const legacyId=id(x); if(legacyId) categoryLegacyMap.set(legacyId,cid); targetByKey.set(keyOf(x),{entity:"Category",id:cid}); }
       }
 
-      const supplierGroups=new Map<string,R[]>();
-      for(const x of all("Fornecedor")){ const name=text(first(x,["name","description"]))||`Fornecedor ${id(x)}`; const k=norm(name); const a=supplierGroups.get(k)??[]; a.push(x); supplierGroups.set(k,a); }
-      for(const [nameKey,rows] of supplierGroups){
+      for(const x of all("Fornecedor")){
+        const name=text(first(x,["name","description"]))||`Fornecedor ${id(x)}`; const nameKey=norm(name);
         let sid=supplierMap.get(nameKey);
-        if(!sid){ const firstRow=rows[0]; const row=await tx.supplier.create({data:{id:crypto.randomUUID(),name:text(first(firstRow,["name","description"]))||`Fornecedor ${id(firstRow)}`,document:text(first(firstRow,["cnpj","cpfCnpj","document"])),phone:text(first(firstRow,["phone","telefone"])),email:text(first(firstRow,["email"])),notes:"Importado do BeepStart",active:true}}); sid=row.id; supplierMap.set(nameKey,sid); }
-        for(const x of rows){ const legacyId=id(x); if(legacyId) supplierLegacyMap.set(legacyId,sid); targetByKey.set(keyOf(x),{entity:"Supplier",id:sid}); }
+        if(!sid){ const row=await tx.supplier.create({data:{id:crypto.randomUUID(),name,document:text(first(x,["cnpj","cpfCnpj","document"])),phone:text(first(x,["phone","telefone"])),email:text(first(x,["email"])),notes:"Importado do BeepStart",active:true}}); sid=row.id; }
+        const legacyId=id(x); if(legacyId) supplierLegacyMap.set(legacyId,sid); targetByKey.set(keyOf(x),{entity:"Supplier",id:sid});
       }
       for(const u of all("Usuario")){
         const email=`beepstart-${id(u)}@legacy.invalid`; let uid=userMap.get(norm(email));
