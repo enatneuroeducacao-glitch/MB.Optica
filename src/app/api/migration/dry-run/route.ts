@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     const unresolvedPayableCreditors=payableCreditorRefs.filter(x=>!supplierNamesSet.has(norm(x))).length;
 
     const newCategories = (groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"]))));
+    const newCategoryNames = new Set((groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"])))).map(r=>norm(first(r,["description","name"]))));
     const newSuppliers = (groups.get("Fornecedor")??[]).filter(r=>!supplierMap.has(norm(first(r,["name","description"]))));
     const newMethods = (groups.get("MeioPG")??[]).filter(r=>!methodMap.has(norm(first(r,["description","name"]))));
     const newUsers = (groups.get("Usuario")??[]).filter(r=>!userMap.has(`beepstart-${id(r)}@legacy.invalid`));
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
       references:referenceChecks,
       sourceCounts:Object.fromEntries([...groups.entries()].map(([k,v])=>[k,v.length]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))),
       plan:{
-        categories:{source:counts("Categoria"),existing:counts("Categoria")-newCategories.length,create:newCategories.length},
+        categories:{source:counts("Categoria"),existing:counts("Categoria")-newCategories.length,create:newCategoryNames.size},
         suppliers:{source:counts("Fornecedor"),existing:counts("Fornecedor")-newSuppliers.length,create:newSuppliers.length},
         users:{source:counts("Usuario"),existing:counts("Usuario")-newUsers.length,create:newUsers.length},
         paymentMethods:{source:counts("MeioPG"),existing:counts("MeioPG")-newMethods.length,create:newMethods.length},
