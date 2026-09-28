@@ -82,6 +82,21 @@ export default function Page(){
     finally{setBusy(false);}
   }
 
+
+  async function executeImport(){
+    if(!records||!audit?.readyForDryRun||!dryRun?.safe)return;
+    if(!window.confirm("CONFIRMAÇÃO DE MIGRAÇÃO DEFINITIVA\n\nO sistema gravará os dados do backup no MB Óptica em uma transação e preservará os 5.788 registros no LegacyRecord.\n\nDeseja continuar?"))return;
+    setBusy(true);setMessage("");
+    try{
+      const r=await fetch("/api/migration/import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,fingerprint:audit.fingerprint})});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||"Falha na importação definitiva.");
+      setMessage("Importação concluída. "+d.report.imported.toLocaleString("pt-BR")+" registros preservados, "+d.report.mapped.toLocaleString("pt-BR")+" mapeados.");
+      await load();
+    }catch(e){setMessage(e instanceof Error?e.message:"Erro ao importar backup.");}
+    finally{setBusy(false);}
+  }
+
   return <section className="page">
     <div className="page-heading">
       <div><span className="eyebrow">ADMINISTRAÇÃO</span><h1>Central de Migração</h1><p>BeepStart → MB Óptica · auditoria, dry-run, reconciliação e preservação do legado.</p></div>
@@ -161,7 +176,7 @@ export default function Page(){
         <div><b>Movimentações</b><span>{dryRun.plan.movements}</span></div>
       </div>
       {dryRun.warnings.length>0&&<div className="panel" style={{marginTop:12,padding:12}}><b>Pontos de atenção</b>{dryRun.warnings.map((w,i)=><p key={i} style={{margin:"6px 0"}}>• {w}</p>)}</div>}
-      <div className="panel" style={{marginTop:12,padding:12}}><b>Segurança</b><p style={{margin:"6px 0",color:"var(--muted)"}}>{dryRun.note}</p><p style={{margin:"6px 0",color:"var(--muted)"}}>A importação definitiva continua bloqueada nesta etapa.</p></div>
+      <div className="panel" style={{marginTop:12,padding:12}}><b>04 · Importação definitiva</b><p style={{margin:"6px 0",color:"var(--muted)"}}>{dryRun.note}</p><p style={{margin:"6px 0",color:"var(--muted)"}}>Só é liberada quando o dry-run estiver seguro, sem conflitos com o legado e sem alertas.</p><button className="primary" disabled={!dryRun.safe||busy} onClick={executeImport} style={{marginTop:8}}>{busy?"Importando...":"Executar importação definitiva"}</button>{!dryRun.safe&&<p style={{margin:"8px 0 0",color:"var(--muted)",fontSize:12}}>Importação bloqueada até que todas as validações estejam sem alertas.</p>}</div>
     </div>}
 
     <div className="panel">
