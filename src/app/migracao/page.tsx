@@ -20,7 +20,7 @@ type DryRunReport = {
     lots:number; movements:number; preservedLegacyRecords:number; mappedSourceCollectionsEstimate:number;
   };
   warnings:string[]; safe:boolean; note:string;
-  mappingAudit?:{categories:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutCategory:number};suppliers:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutSupplier:number};preservedOnlyCollections:string[];duplicateBarcodeGroups:{barcode:string;productIds:string[]}[];itemReferences:{totalChecked:number;missingProductRefs:number;missingProductRefDetails:{source:string;recordId:string;productId:string}[]}};
+  mappingAudit?:{categories:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutCategory:number};suppliers:{sourceIds:number;uniqueNames:number;collapsedAliasGroups:number;productRefs:number;productsWithoutSupplier:number};preservedOnlyCollections:string[];duplicateBarcodeGroups:{barcode:string;productIds:string[]}[];unresolvedPayableCreditors:number;itemReferences:{totalChecked:number;missingProductRefs:number;missingProductRefDetails:{source:string;recordId:string;productId:string}[]}};
 };
 type Run = {id:string;status:string;total:number;imported:number;mapped:number;warnings:number;errors:number;startedAt:string;completedAt:string|null;report:any};
 
@@ -184,6 +184,7 @@ export default function Page(){
           <div><b>Fornecedores</b><span>{dryRun.mappingAudit.suppliers.sourceIds} IDs · {dryRun.mappingAudit.suppliers.uniqueNames} nomes · {dryRun.mappingAudit.suppliers.collapsedAliasGroups} grupos consolidados · {dryRun.mappingAudit.suppliers.productRefs} produtos vinculados · {dryRun.mappingAudit.suppliers.productsWithoutSupplier} sem fornecedor</span></div>
           <div><b>Itens de venda/pedido</b><span>{dryRun.mappingAudit.itemReferences.totalChecked} referências · {dryRun.mappingAudit.itemReferences.missingProductRefs} sem produto correspondente</span></div>
           <div><b>Códigos de barras</b><span>{dryRun.mappingAudit.duplicateBarcodeGroups.length} grupos duplicados — importação bloqueada até decisão</span></div>
+          <div><b>Contas a pagar</b><span>{dryRun.mappingAudit.unresolvedPayableCreditors} credores sem vínculo com fornecedor</span></div>
           <div><b>Coleções preservadas somente no legado</b><span>{dryRun.mappingAudit.preservedOnlyCollections.join(", ")||"Nenhuma"}</span></div>
         </div>
       </div>}
