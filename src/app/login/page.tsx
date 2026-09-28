@@ -7,7 +7,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);\n  const [logo, setLogo] = useState<string | null>(null);\n  const [tradeName, setTradeName] = useState("MB Óptica");\n\n  useEffect(() => {\n    fetch("/api/branding")\n      .then((r) => (r.ok ? r.json() : null))\n      .then((d) => {\n        if (d?.branding) {\n          setLogo(d.branding.logoData || null);\n          setTradeName(d.branding.tradeName || "MB Óptica");\n        }\n      })\n      .catch(() => {});\n  }, []);
+  const [busy, setBusy] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [tradeName, setTradeName] = useState("MB Óptica");
+
+  useEffect(() => {
+    fetch("/api/branding")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.branding) {
+          setLogo(d.branding.logoData || null);
+          setTradeName(d.branding.tradeName || "MB Óptica");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
