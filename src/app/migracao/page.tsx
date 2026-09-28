@@ -248,7 +248,7 @@ export default function Page(){
       <p><strong>Conclusão técnica:</strong> {dryRun.safe?"Dry-run sem conflitos detectados nas validações executadas.":"A migração definitiva permanece bloqueada enquanto existirem alertas ou conflitos."}</p>
       </>}
       <div className="audit-report-footer">Documento gerado pela Central de Migração · MB Óptica · Auditoria de preservação do legado</div>
-    </div>
+    </div>}
 
     <div className="panel">
       <h2>Protocolo de migração</h2>
