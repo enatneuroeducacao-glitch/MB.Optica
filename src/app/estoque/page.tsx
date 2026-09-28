@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Product={id:string;code:string;barcode?:string|null;description:string;unit:string;cost:number;stock:number;minimumStock:number;lowStock?:boolean;critical?:boolean};
 type Movement=any;
@@ -25,6 +26,7 @@ export default function Estoque(){
   if(!p.ok)setMsg(pd.error||"Erro ao carregar produtos.");
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,15000);
 
  const submit=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
