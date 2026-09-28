@@ -51,27 +51,27 @@ export default function Clientes(){
      <input placeholder="Profissional" aria-label="Profissional" value={rx.professional} onChange={e=>setRx({...rx,professional:e.target.value})}/>
      <input type="date" aria-label="Validade da receita" value={rx.validUntil} onChange={e=>setRx({...rx,validUntil:e.target.value})}/>
    </div>
-   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
-       <div style={{fontWeight:700,marginBottom:8}}>OD — Olho Direito</div>
-       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-         <input placeholder="ESF" aria-label="OD — Esférico (ESF)" value={rx.odSphere} onChange={e=>setRx({...rx,odSphere:e.target.value})}/>
-         <input placeholder="CIL" aria-label="OD — Cilíndrico (CIL)" value={rx.odCylinder} onChange={e=>setRx({...rx,odCylinder:e.target.value})}/>
-         <input placeholder="AX" aria-label="OD — Eixo (AX)" value={rx.odAxis} onChange={e=>setRx({...rx,odAxis:e.target.value})}/>
-         <input placeholder="ADD" aria-label="OD — Adição (ADD)" value={rx.odAdd} onChange={e=>setRx({...rx,odAdd:e.target.value})}/>
-         <input placeholder="DNP" aria-label="OD — DNP" value={rx.odDnp} onChange={e=>setRx({...rx,odDnp:e.target.value})}/>
-         <input placeholder="Altura" aria-label="OD — Altura" value={rx.odHeight} onChange={e=>setRx({...rx,odHeight:e.target.value})}/>
+   <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:8,width:"100%",boxSizing:"border-box"}}>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:8,minWidth:0,boxSizing:"border-box",overflow:"hidden"}}>
+       <div style={{fontWeight:700,fontSize:11,marginBottom:7}}>OD — Olho Direito</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:5,minWidth:0}}>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="ESF" aria-label="OD — Esférico (ESF)" value={rx.odSphere} onChange={e=>setRx({...rx,odSphere:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="CIL" aria-label="OD — Cilíndrico (CIL)" value={rx.odCylinder} onChange={e=>setRx({...rx,odCylinder:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="AX" aria-label="OD — Eixo (AX)" value={rx.odAxis} onChange={e=>setRx({...rx,odAxis:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="ADD" aria-label="OD — Adição (ADD)" value={rx.odAdd} onChange={e=>setRx({...rx,odAdd:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="DNP" aria-label="OD — DNP" value={rx.odDnp} onChange={e=>setRx({...rx,odDnp:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="Altura" aria-label="OD — Altura" value={rx.odHeight} onChange={e=>setRx({...rx,odHeight:e.target.value})}/>
        </div>
      </div>
-     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
-       <div style={{fontWeight:700,marginBottom:8}}>OE — Olho Esquerdo</div>
-       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-         <input placeholder="ESF" aria-label="OE — Esférico (ESF)" value={rx.oeSphere} onChange={e=>setRx({...rx,oeSphere:e.target.value})}/>
-         <input placeholder="CIL" aria-label="OE — Cilíndrico (CIL)" value={rx.oeCylinder} onChange={e=>setRx({...rx,oeCylinder:e.target.value})}/>
-         <input placeholder="AX" aria-label="OE — Eixo (AX)" value={rx.oeAxis} onChange={e=>setRx({...rx,oeAxis:e.target.value})}/>
-         <input placeholder="ADD" aria-label="OE — Adição (ADD)" value={rx.oeAdd} onChange={e=>setRx({...rx,oeAdd:e.target.value})}/>
-         <input placeholder="DNP" aria-label="OE — DNP" value={rx.oeDnp} onChange={e=>setRx({...rx,oeDnp:e.target.value})}/>
-         <input placeholder="Altura" aria-label="OE — Altura" value={rx.oeHeight} onChange={e=>setRx({...rx,oeHeight:e.target.value})}/>
+     <div style={{border:"1px solid var(--line)",borderRadius:7,padding:8,minWidth:0,boxSizing:"border-box",overflow:"hidden"}}>
+       <div style={{fontWeight:700,fontSize:11,marginBottom:7}}>OE — Olho Esquerdo</div>
+       <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:5,minWidth:0}}>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="ESF" aria-label="OE — Esférico (ESF)" value={rx.oeSphere} onChange={e=>setRx({...rx,oeSphere:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="CIL" aria-label="OE — Cilíndrico (CIL)" value={rx.oeCylinder} onChange={e=>setRx({...rx,oeCylinder:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="AX" aria-label="OE — Eixo (AX)" value={rx.oeAxis} onChange={e=>setRx({...rx,oeAxis:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="ADD" aria-label="OE — Adição (ADD)" value={rx.oeAdd} onChange={e=>setRx({...rx,oeAdd:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="DNP" aria-label="OE — DNP" value={rx.oeDnp} onChange={e=>setRx({...rx,oeDnp:e.target.value})}/>
+         <input style={{width:"100%",minWidth:0,boxSizing:"border-box",padding:"6px 7px",fontSize:11}} placeholder="Altura" aria-label="OE — Altura" value={rx.oeHeight} onChange={e=>setRx({...rx,oeHeight:e.target.value})}/>
        </div>
      </div>
    </div>
