@@ -19,8 +19,12 @@ export async function POST(request: Request) {
     await requireRole(["ADMIN"]);
     const body = await request.json();
     const records = body?.records;
+    const auditedFingerprint = typeof body?.fingerprint === "string" ? body.fingerprint : "";
     if (!Array.isArray(records)) {
       return NextResponse.json({ok:false,error:"O dry-run precisa receber a lista de registros auditada."},{status:400});
+    }
+    if (!/^[a-f0-9]{64}$/i.test(auditedFingerprint)) {
+      return NextResponse.json({ok:false,error:"Fingerprint da auditoria ausente ou inválido. Execute a auditoria novamente."},{status:400});
     }
     const typed = records as R[];
     if (typed.length !== EXPECTED_TOTAL) {
@@ -110,7 +114,7 @@ export async function POST(request: Request) {
     const report = {
       mode:"DRY_RUN",
       source:"BEEPSTART",
-      fingerprint:crypto.createHash("sha256").update(JSON.stringify(typed)).digest("hex"),
+      fingerprint:auditedFingerprint,
       total:typed.length,
       collections:groups.size,
       duplicateKeys:0,
@@ -133,7 +137,7 @@ export async function POST(request: Request) {
         mappedSourceCollectionsEstimate:mappedEstimate
       },
       warnings,
-      safe:true,
+      safe:legacyConflicts===0 && warnings.length===0,
       note:"Dry-run somente leitura. Nenhuma tabela operacional ou LegacyRecord foi alterada."
     };
     return NextResponse.json({ok:true,report});
