@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, permissions: effectivePermissions(user.role, user.permissions) },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword, permissions: effectivePermissions(user.role, user.permissions) },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
