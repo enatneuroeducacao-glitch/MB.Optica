@@ -2,9 +2,11 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
+import {requireRole} from "@/lib/auth";
 
 export async function POST(req:Request){
   try{
+    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO"]);
     const b=await req.json();
     if(!b.saleId) throw new Error("saleId é obrigatório");
     const amount=Number(b.amount);
@@ -49,7 +51,7 @@ export async function POST(req:Request){
           })
         : null;
 
-      await writeAudit(tx,{action:"CREATE",entity:"Payment",entityId:payment.id,metadata:{saleId:sale.id,amount,isCash:method.isCash}});
+      await writeAudit(tx,{action:"PAYMENT",entity:"Payment",entityId:payment.id,userId:actor.id,request:req,metadata:{saleId:sale.id,amount,isCash:method.isCash}});
       return {payment,movement,remaining:remaining-amount};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
