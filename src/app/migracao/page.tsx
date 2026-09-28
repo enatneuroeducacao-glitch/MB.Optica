@@ -84,6 +84,11 @@ export default function Page(){
   }
 
 
+  function printAuditReport(){
+    if(!audit)return;
+    window.print();
+  }
+
   async function executeImport(){
     if(!records||!audit?.readyForDryRun||!dryRun?.safe)return;
     if(!window.confirm("CONFIRMAÇÃO DE MIGRAÇÃO DEFINITIVA\n\nO sistema gravará os dados do backup no MB Óptica em uma transação e preservará os 5.788 registros no LegacyRecord.\n\nDeseja continuar?"))return;
@@ -151,7 +156,7 @@ export default function Page(){
     </div>}
 
     {dryRun&&<div className="panel">
-      <div className="panel-heading"><div><h2>Resultado do dry-run</h2><p>Fingerprint: <code>{dryRun.fingerprint}</code></p></div><b>{dryRun.safe?"✓ SOMENTE LEITURA":"⚠ REVISAR"}</b></div>
+      <div className="panel-heading"><div><h2>Resultado do dry-run</h2><p>Fingerprint: <code>{dryRun.fingerprint}</code></p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><button className="secondary" onClick={printAuditReport}>Gerar relatório de auditoria</button><b>{dryRun.safe?"✓ SOMENTE LEITURA":"⚠ REVISAR"}</b></div></div>
       <div className="settings-grid">
         <div className="settings-list">
           <div><b>Registros</b><span>{dryRun.total.toLocaleString("pt-BR")}</span></div>
@@ -192,6 +197,59 @@ export default function Page(){
       <div className="panel" style={{marginTop:12,padding:12}}><b>04 · Importação definitiva</b><p style={{margin:"6px 0",color:"var(--muted)"}}>{dryRun.note}</p><p style={{margin:"6px 0",color:"var(--muted)"}}>Só é liberada quando o dry-run estiver seguro, sem conflitos com o legado e sem alertas.</p><button className="primary" disabled={!dryRun.safe||busy} onClick={executeImport} style={{marginTop:8}}>{busy?"Importando...":"Executar importação definitiva"}</button>{!dryRun.safe&&<p style={{margin:"8px 0 0",color:"var(--muted)",fontSize:12}}>Importação bloqueada até que todas as validações estejam sem alertas.</p>}</div>
     </div>}
 
+    {audit&&<div className="audit-report-print">
+      <div className="audit-report-header">
+        <h1>RELATÓRIO DE AUDITORIA DE MIGRAÇÃO</h1>
+        <h2>BeepStart → MB Óptica</h2>
+        <p>Gerado em {new Date().toLocaleString("pt-BR")}</p>
+        <p><strong>Fingerprint:</strong> {audit.fingerprint}</p>
+      </div>
+      <h3>1. Identificação do backup</h3>
+      <table><tbody>
+        <tr><td>Fonte</td><td>{audit.source}</td></tr>
+        <tr><td>Registros</td><td>{audit.total.toLocaleString("pt-BR")} / {EXPECTED_TOTAL.toLocaleString("pt-BR")}</td></tr>
+        <tr><td>Coleções</td><td>{audit.collections} / {EXPECTED_COLLECTIONS}</td></tr>
+        <tr><td>Chaves duplicadas</td><td>{audit.duplicateKeys}</td></tr>
+        <tr><td>Status da auditoria</td><td>{audit.readyForDryRun?"APTO PARA DRY-RUN":"REVISAR"}</td></tr>
+      </tbody></table>
+      <h3>2. Registros por coleção</h3>
+      <table><thead><tr><th>Coleção</th><th>Quantidade</th></tr></thead><tbody>
+        {Object.entries(audit.collectionCounts).map(([name,count])=><tr key={name}><td>{name}</td><td>{count.toLocaleString("pt-BR")}</td></tr>)}
+      </tbody></table>
+      {dryRun&&<><h3>3. Resultado do dry-run</h3>
+      <table><tbody>
+        <tr><td>Conflitos com LegacyRecord</td><td>{dryRun.legacyConflicts}</td></tr>
+        <tr><td>Registros preservados</td><td>{dryRun.plan.preservedLegacyRecords.toLocaleString("pt-BR")}</td></tr>
+        <tr><td>Categorias</td><td>{dryRun.plan.categories.existing} existentes · {dryRun.plan.categories.create} novas</td></tr>
+        <tr><td>Fornecedores</td><td>{dryRun.plan.suppliers.existing} existentes · {dryRun.plan.suppliers.create} novos</td></tr>
+        <tr><td>Clientes</td><td>{dryRun.plan.customers.existing} encontrados · {dryRun.plan.customers.create} novos</td></tr>
+        <tr><td>Produtos</td><td>{dryRun.plan.products.existing} encontrados · {dryRun.plan.products.create} novos</td></tr>
+        <tr><td>Pedidos</td><td>{dryRun.plan.orders}</td></tr>
+        <tr><td>Vendas</td><td>{dryRun.plan.sales}</td></tr>
+        <tr><td>Contas a receber</td><td>{dryRun.plan.receivableAccounts}</td></tr>
+        <tr><td>Contas a pagar</td><td>{dryRun.plan.payableAccounts}</td></tr>
+        <tr><td>Lotes</td><td>{dryRun.plan.lots}</td></tr>
+        <tr><td>Movimentações</td><td>{dryRun.plan.movements}</td></tr>
+      </tbody></table>
+      {dryRun.mappingAudit&&<><h3>4. Auditoria dos vínculos</h3>
+      <table><tbody>
+        <tr><td>Categorias</td><td>{dryRun.mappingAudit.categories.sourceIds} IDs · {dryRun.mappingAudit.categories.uniqueNames} nomes · {dryRun.mappingAudit.categories.collapsedAliasGroups} grupos consolidados</td></tr>
+        <tr><td>Produtos → Categoria</td><td>{dryRun.mappingAudit.categories.productRefs} vinculados · {dryRun.mappingAudit.categories.productsWithoutCategory} sem categoria</td></tr>
+        <tr><td>Fornecedores</td><td>{dryRun.mappingAudit.suppliers.sourceIds} IDs · {dryRun.mappingAudit.suppliers.uniqueNames} nomes · {dryRun.mappingAudit.suppliers.collapsedAliasGroups} grupos consolidados</td></tr>
+        <tr><td>Produtos → Fornecedor</td><td>{dryRun.mappingAudit.suppliers.productRefs} vinculados · {dryRun.mappingAudit.suppliers.productsWithoutSupplier} sem fornecedor</td></tr>
+        <tr><td>Itens de venda/pedido</td><td>{dryRun.mappingAudit.itemReferences.totalChecked} referências · {dryRun.mappingAudit.itemReferences.missingProductRefs} sem produto correspondente</td></tr>
+        <tr><td>Códigos de barras duplicados</td><td>{dryRun.mappingAudit.duplicateBarcodeGroups.length} grupos</td></tr>
+        <tr><td>Credores sem fornecedor</td><td>{dryRun.mappingAudit.unresolvedPayableCreditors}</td></tr>
+        <tr><td>CPFs duplicados</td><td>{dryRun.mappingAudit.duplicateCustomerCpfGroups} grupos</td></tr>
+        <tr><td>Coleções somente no legado</td><td>{dryRun.mappingAudit.preservedOnlyCollections.join(", ")||"Nenhuma"}</td></tr>
+      </tbody></table></>}
+      <h3>5. Pontos de atenção</h3>
+      {(dryRun.warnings.length?dryRun.warnings:["Nenhum alerta registrado."]).map((w,i)=><p key={i}>• {w}</p>)}
+      <p><strong>Conclusão técnica:</strong> {dryRun.safe?"Dry-run sem conflitos detectados nas validações executadas.":"A migração definitiva permanece bloqueada enquanto existirem alertas ou conflitos."}</p>
+      </>}
+      <div className="audit-report-footer">Documento gerado pela Central de Migração · MB Óptica · Auditoria de preservação do legado</div>
+    </div>
+
     <div className="panel">
       <h2>Protocolo de migração</h2>
       <div className="settings-list">
@@ -203,5 +261,21 @@ export default function Page(){
         <div><b>06 · Aprovação</b><span>Somente com divergências zero liberar a migração definitiva.</span></div>
       </div>
     </div>
+  <style jsx global>{`
+    .audit-report-print{display:none}
+    @media print{
+      body *{visibility:hidden!important}
+      .audit-report-print,.audit-report-print *{visibility:visible!important}
+      .audit-report-print{display:block!important;position:absolute;left:0;top:0;width:100%;padding:24px;background:#fff;color:#111;font-family:Arial,sans-serif}
+      .audit-report-print h1{font-size:22px;margin:0 0 6px}
+      .audit-report-print h2{font-size:16px;margin:0 0 4px}
+      .audit-report-print h3{font-size:14px;margin:22px 0 8px;border-bottom:1px solid #ccc;padding-bottom:4px}
+      .audit-report-print p{font-size:11px;line-height:1.45}
+      .audit-report-print table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:12px}
+      .audit-report-print th,.audit-report-print td{border:1px solid #ccc;padding:5px;text-align:left}
+      .audit-report-print th:last-child,.audit-report-print td:last-child{text-align:right}
+      .audit-report-footer{margin-top:28px;border-top:1px solid #ccc;padding-top:8px;font-size:9px;color:#666}
+    }
+  `}</style>
   </section>
 }
