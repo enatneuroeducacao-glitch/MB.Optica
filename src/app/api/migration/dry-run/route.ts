@@ -85,6 +85,9 @@ export async function POST(request: Request) {
     for(const r of groups.get("Fornecedor")??[]){ const name=norm(first(r,["name","description"])); const a=supplierNames.get(name)??[]; a.push(String(id(r))); supplierNames.set(name,a); }
     const categoryAliases=[...categoryNames.values()].filter(v=>v.length>1).length;
     const supplierAliases=[...supplierNames.values()].filter(v=>v.length>1).length;
+    const productBarcodes=new Map<string,string[]>();
+    for(const p of groups.get("Produto")??[]){ const barcode=String(first(p,["barcode","codigoBarras","ean"])??"").trim(); if(!barcode || norm(barcode)==="sem codigo") continue; const a=productBarcodes.get(norm(barcode))??[]; a.push(String(id(p))); productBarcodes.set(norm(barcode),a); }
+    const duplicateBarcodeGroups=[...productBarcodes.entries()].filter(([,ids])=>ids.length>1);
 
     const newCategories = (groups.get("Categoria")??[]).filter(r=>!categoryMap.has(norm(first(r,["description","name"]))));
     const newSuppliers = (groups.get("Fornecedor")??[]).filter(r=>!supplierMap.has(norm(first(r,["name","description"]))));
@@ -142,6 +145,7 @@ export async function POST(request: Request) {
       referenceChecks.push({source,target,field,missing});
       if (missing) warnings.push(`${source}.${field} → ${target}: ${missing} referência(s) órfã(s).`);
     if(missingItemRefs.length) warnings.push(`Itens de Venda/Ordem apontam para ${missingItemRefs.length} produto(s) legado(s) que não existem na coleção Produto; serão preservados como item legado sem vínculo ao Produto.`);
+    if(duplicateBarcodeGroups.length) warnings.push(`Há ${duplicateBarcodeGroups.length} grupos de códigos de barras duplicados em Produto. O campo barcode é único no MB Óptica; a importação não deve resolver isso automaticamente.`);
     }
 
     const mappedEstimate =
@@ -178,7 +182,8 @@ export async function POST(request: Request) {
           itemReferences:{totalChecked:itemRefsTotal,missingProductRefs:missingItemRefs.length,missingProductRefDetails:missingItemRefs},
           categories:{sourceIds:categorySourceIds.size,uniqueNames:categoryNames.size,collapsedAliasGroups:categoryAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length,productsWithoutCategory:(groups.get("Produto")??[]).filter(p=>!first(p,["categoriaID","categoriaId"])).length},
           suppliers:{sourceIds:supplierSourceIds.size,uniqueNames:supplierNames.size,collapsedAliasGroups:supplierAliases,productRefs:counts("Produto")-(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length,productsWithoutSupplier:(groups.get("Produto")??[]).filter(p=>!first(p,["fornecedorID","fornecedorId"])).length},
-          preservedOnlyCollections
+          preservedOnlyCollections,
+          duplicateBarcodeGroups:duplicateBarcodeGroups.map(([barcode,ids])=>({barcode,productIds:ids}))
         }
       },
       warnings,
