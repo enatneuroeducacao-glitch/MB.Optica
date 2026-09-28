@@ -124,6 +124,7 @@ export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/financeiro", ["ADMIN", "GERENTE", "FINANCEIRO"]],
   ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
   ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
+  ["/api/migration", ["ADMIN"]],
 ];
 
 export function effectivePermissions(role: string, explicit: unknown) {
