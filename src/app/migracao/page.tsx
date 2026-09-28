@@ -8,6 +8,9 @@ type Audit = {
 };
 type Run = {id:string;status:string;total:number;imported:number;mapped:number;warnings:number;errors:number;startedAt:string;completedAt:string|null;report:any};
 
+const EXPECTED_TOTAL = 5788;
+const EXPECTED_COLLECTIONS = 29;
+
 export default function Page(){
   const [file,setFile]=useState<File|null>(null);
   const [audit,setAudit]=useState<Audit|null>(null);
@@ -62,7 +65,7 @@ export default function Page(){
         <button className="primary" disabled={!file||busy} onClick={auditBackup} style={{marginTop:10}}>{busy?"Auditando...":"Auditar backup"}</button>
         <div className="settings-list" style={{marginTop:14}}>
           <div><b>Fonte</b><span>BeepStart</span></div>
-          <div><b>Referência</b><span>5.785 registros · 30 coleções</span></div>
+          <div><b>Referência</b><span>{EXPECTED_TOTAL.toLocaleString("pt-BR")} registros · {EXPECTED_COLLECTIONS} coleções</span></div>
           <div><b>Preservação</b><span>Os registros originais serão mantidos em LegacyRecord durante a migração.</span></div>
         </div>
       </div>
@@ -83,8 +86,8 @@ export default function Page(){
       <div className="panel-heading"><div><h2>Resultado da auditoria</h2><p>Fingerprint: <code>{audit.fingerprint}</code></p></div><b>{audit.readyForDryRun?"✓ APTO PARA DRY-RUN":"⚠ REVISAR"}</b></div>
       <div className="settings-grid">
         <div className="settings-list">
-          <div><b>Registros</b><span>{audit.total.toLocaleString("pt-BR")} / 5.785</span></div>
-          <div><b>Coleções</b><span>{audit.collections} / 30</span></div>
+          <div><b>Registros</b><span>{audit.total.toLocaleString("pt-BR")} / {EXPECTED_TOTAL.toLocaleString("pt-BR")}</span></div>
+          <div><b>Coleções</b><span>{audit.collections} / {EXPECTED_COLLECTIONS}</span></div>
           <div><b>Chaves duplicadas</b><span>{audit.duplicateKeys}</span></div>
         </div>
         <div className="settings-list">
