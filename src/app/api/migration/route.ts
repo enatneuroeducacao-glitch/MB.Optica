@@ -5,8 +5,8 @@ import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
 type RecordShape = Record<string, unknown>;
-const EXPECTED_TOTAL = 5785;
-const EXPECTED_COLLECTIONS = 30;
+const EXPECTED_TOTAL = 5788;
+const EXPECTED_COLLECTIONS = 29;
 
 function keyOf(r: RecordShape, index: number) {
   const collection = String(r.collection_key ?? "SEM_COLLECTION");
