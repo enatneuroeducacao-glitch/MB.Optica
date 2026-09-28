@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null};
 type Product={id:string;code:string;description:string;salePrice:number|string;cost:number|string};
@@ -28,6 +29,7 @@ export default function Vendas(){
   if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,15000);
  const product=products.find(p=>p.id===form.productId);
  const subtotal=Number(form.quantity||0)*Number(form.unitPrice||0);
  const total=Math.max(0,subtotal-Number(form.discount||0)+Number(form.surcharge||0));
