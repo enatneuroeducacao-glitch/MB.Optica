@@ -45,7 +45,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           role: body.role,
           active: body.active,
           passwordHash,
-          mustChangePassword: body.password ? true : undefined,
+          mustChangePassword: body.password && actor.id !== id ? true : undefined,
           permissions: body.permissions,
           ...(body.password || body.active !== undefined || body.role || body.permissions ? { sessionVersion: { increment: 1 } } : {}),
         },
