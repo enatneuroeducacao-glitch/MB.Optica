@@ -86,6 +86,7 @@ export default function Page(){
   const [message,setMessage]=useState("");
   const [selected,setSelected]=useState<LegacyRow|null>(null);
   const [financial,setFinancial]=useState<FinancialSummary|null>(null);
+  const [stockProducts,setStockProducts]=useState<any[]>([]),[selectedStock,setSelectedStock]=useState<string[]>([]),[stockBusy,setStockBusy]=useState(false),[stockMessage,setStockMessage]=useState("");
 
   async function load(){
     try{
@@ -177,6 +178,9 @@ export default function Page(){
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao importar cliente.");}
     finally{setBusy(false);}
   }
+
+  async function loadStockProducts(){setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível carregar os produtos com estoque.");setStockProducts(d.products||[]);setSelectedStock([]);setStockMessage((d.products||[]).length+" produto(s) com estoque disponível encontrado(s).")}catch(e){setStockMessage(e instanceof Error?e.message:"Erro ao carregar produtos com estoque.")}finally{setStockBusy(false)}}
+  async function integrateStockProducts(){if(!selectedStock.length)return;if(!window.confirm("Integrar somente os produtos selecionados que possuem estoque no BeepStart?\n\nOs produtos serão criados no MB Óptica com uma entrada de estoque vinculada ao legado. Produtos já cadastrados serão ignorados."))return;setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({legacyRecordIds:selectedStock})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Falha na integração.");setStockMessage(d.message);await loadStockProducts()}catch(e){setStockMessage(e instanceof Error?e.message:"Erro na integração dos produtos.")}finally{setStockBusy(false)}}
 
   async function searchLegacy(){
     try{
@@ -340,6 +344,16 @@ export default function Page(){
         </button>
       </div>
     </div>}
+
+    <div className="panel" style={{marginTop:16}}>
+      <div className="panel-heading"><div><span className="eyebrow">INTEGRAÇÃO SELETIVA</span><h2>Produtos com estoque</h2><p>Somente produtos do BeepStart com saldo disponível. Selecione quais serão integrados ao MB Óptica.</p></div>
+      <div style={{display:"flex",gap:8}}><button className="secondary" onClick={loadStockProducts} disabled={stockBusy}>{stockBusy?"Carregando...":"Carregar produtos em estoque"}</button><button className="primary" onClick={integrateStockProducts} disabled={stockBusy||selectedStock.length===0}>Integrar selecionados ({selectedStock.length})</button></div></div>
+      {stockMessage&&<div style={{padding:10,borderRadius:8,background:"#f7f9fb",marginBottom:10}}>{stockMessage}</div>}
+      {stockProducts.length>0&&<div className="table"><div className="row header"><span><input type="checkbox" checked={selectedStock.length===stockProducts.length} onChange={e=>setSelectedStock(e.target.checked?stockProducts.map(p=>p.id):[])}/></span><span>Código</span><span>Produto</span><span>Estoque</span><span>Preço</span><span>Origem</span></div>
+      {stockProducts.map(p=><div className="row" key={p.id}><span><input type="checkbox" checked={selectedStock.includes(p.id)} onChange={e=>setSelectedStock(x=>e.target.checked?[...x,p.id]:x.filter(id=>id!==p.id))}/></span><strong>{p.code}</strong><span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}</span><strong>{Number(p.stock||0).toLocaleString("pt-BR")}</strong><span>R$ {Number(p.salePrice||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span><small>BeepStart · ID {p.legacyId||"—"}</small></div>)}</div>}
+      {!stockProducts.length&&!stockBusy&&<p style={{color:"var(--muted)"}}>Clique em “Carregar produtos em estoque” para montar a lista.</p>}
+      <div style={{marginTop:12,padding:12,borderRadius:10,background:"#f7f9fb",fontSize:12,color:"var(--muted)"}}><b>Regra:</b> somente registros da coleção Produto com estoque maior que zero entram nesta lista. A integração cria o produto, registra o saldo como entrada de estoque e mantém o vínculo com o registro original do BeepStart. Produtos sem estoque não são integrados.</div>
+    </div>
 
     <div className="panel">
       <div className="panel-heading">
