@@ -39,10 +39,11 @@ export async function GET(request: Request) {
     const rows = await db.legacyRecord.findMany({
       where: {
         source: "BEEPSTART",
-        ...(collection ? { collectionKey: collection } : {}),
+        ...(collection ? { collectionKey: { equals: collection, mode: "insensitive" } } : {}),
       },
       orderBy: { importedAt: "desc" },
-      take: q ? 250 : take,
+      // A textual search must inspect the complete legacy index, not only the newest 250 records.
+      take: q ? 6000 : take,
       select: { id:true, collectionKey:true, legacyId:true, legacyKey:true, payload:true, status:true, importedAt:true }
     });
 
