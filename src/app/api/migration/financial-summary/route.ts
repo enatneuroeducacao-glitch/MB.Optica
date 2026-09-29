@@ -73,6 +73,7 @@ export async function GET() {
     let salesCount = 0;
     let salesToday = 0;
     let salesTodayCount = 0;
+    let receivedToday = 0;
     const today = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo", year:"numeric", month:"2-digit", day:"2-digit"}).format(new Date());
     let billing = 0;
     let received = 0;
@@ -113,6 +114,7 @@ export async function GET() {
         if (value > 0 && month !== null) {
           received += value;
           months[month].received += value;
+          if (localDate(p.data) === today) receivedToday += value;
         }
         continue;
       }
@@ -167,6 +169,7 @@ export async function GET() {
       salesCount,
       salesToday:round(salesToday),
       salesTodayCount,
+      receivedToday:round(receivedToday),
       billing:round(billing),
       received:round(received),
       receivable:round(receivable),
