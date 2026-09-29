@@ -9,7 +9,8 @@ type User={name:string;email:string;role:string;mustChangePassword?:boolean}|nul
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>("");
+  useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{})},[]);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
 
   useEffect(()=>{
@@ -22,6 +23,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
         if(!res.ok) return;
         const data=await res.json();
         const current=typeof window!=="undefined" ? sessionStorage.getItem(key) : null;
+        if(data.version) setVersion(data.version);
         if(!current){sessionStorage.setItem(key,data.version);return;}
         if(mounted && data.version && data.version!==current){
           const active=document.activeElement;
@@ -48,7 +50,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
       <div className="brand"><div className="brand-mark">{logo?<img src={logo} alt="Logo da óptica"/>:"MB"}</div><div><strong>MB Óptica</strong><small>Gestão inteligente</small></div><button className="mobile-close" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}>×</button></div>
       <nav>{groups.map(g=><div className="nav-group" key={g.label}><span>{g.label}</span>{g.items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>)}</nav>
-      <div className="sidebar-footer">Sistema atualizado automaticamente • ambiente seguro</div>
+      <div className="sidebar-footer"><div>Sistema atualizado automaticamente</div><div>Versão {version ? version.slice(0,8) : "carregando..."}</div></div>
     </aside>
     <main className="main">
       <header className="topbar">
