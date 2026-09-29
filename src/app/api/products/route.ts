@@ -17,8 +17,15 @@ export async function GET(){
   await requireRole(["ADMIN","GERENTE","VENDEDOR","LABORATORIO"]);
   const products=await db.product.findMany({where:{active:true},include:{category:true,supplier:true,lots:{where:{archived:false},orderBy:{receivedAt:"asc"}}},orderBy:{description:"asc"},take:500});
   const ids=products.map(p=>p.id);
-  const legacyLinks=ids.length?await db.legacyRecord.findMany({where:{targetEntity:"Product",targetId:{in:ids}},select:{targetId:true,status:true,legacyId:true},orderBy:{importedAt:"desc"}}):[];
-  const legacyByProduct=new Map<string,any>(); legacyLinks.forEach((x:any)=>{if(x.targetId&&!legacyByProduct.has(x.targetId))legacyByProduct.set(x.targetId,x)});
+  let legacyByProduct=new Map<string,any>();
+  if(ids.length){
+   try{
+    const legacyLinks=await db.legacyRecord.findMany({where:{targetEntity:"Product",targetId:{in:ids}},select:{targetId:true,status:true,legacyId:true},orderBy:{importedAt:"desc"}});
+    legacyLinks.forEach((x:any)=>{if(x.targetId&&!legacyByProduct.has(x.targetId))legacyByProduct.set(x.targetId,x)});
+   }catch(error){
+    console.error("Falha ao carregar vínculos BeepStart dos produtos:",error);
+   }
+  }
   return NextResponse.json(products.map(p=>({...p,stock:p.lots.reduce((sum,l)=>sum+Number(l.quantity),0),lowStock:p.lots.reduce((sum,l)=>sum+Number(l.quantity),0)<=Number(p.minimumStock),integratedFromBeepStart:legacyByProduct.has(p.id),legacyIntegration:legacyByProduct.get(p.id)||null})));
  }catch(e){return apiError(e,"Não foi possível carregar os produtos.");}
 }
