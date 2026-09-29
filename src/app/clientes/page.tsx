@@ -12,6 +12,19 @@ export default function Clientes(){
  useRealtimeRefresh(load,20000);
  const detail=async(id:string)=>{const r=await fetch("/api/customers/"+id);const d=await r.json();if(r.ok){setSelected(d);setFieldErrors({});setForm({name:d.name,cpfCnpj:d.cpfCnpj||"",phone:d.phone||"",whatsapp:d.whatsapp||"",email:d.email||"",birthDate:d.birthDate?d.birthDate.slice(0,10):"",notes:d.notes||""})}else setMsg(d.error||"Erro ao abrir cliente.")};
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMsg("");setFieldErrors({});const r=await fetch(selected?"/api/customers/"+selected.id:"/api/customers",{method:selected?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(r.status===401){window.location.href="/login";return}if(!r.ok){if(d.fields&&typeof d.fields==="object")setFieldErrors(d.fields);setMsg(d.error||"Verifique os campos destacados.");return}setOpen(false);setSelected(null);setForm(empty);await load();await detail(d.id)};
+ const deleteCustomer=async()=>{
+   if(!selected)return;
+   if(!window.confirm(`Excluir o cliente "${selected.name}"? O cadastro será retirado da lista ativa, mas o histórico será preservado.`))return;
+   const id=selected.id;
+   const r=await fetch("/api/customers/"+id,{method:"DELETE"});
+   const d=await r.json();
+   if(!r.ok){setMsg(d.error||"Não foi possível excluir o cliente.");return}
+   setMsg("Cliente excluído.");
+   setSelected(null);
+   setOpen(false);
+   setForm(empty);
+   await load();
+ };
  const addAddress=async()=>{if(!selected)return;const r=await fetch("/api/customers/"+selected.id+"/addresses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(address)});if(r.ok){setAddress({label:"",street:"",number:"",complement:"",district:"",city:"",state:"SC",postalCode:""});await detail(selected.id);await load()}else setMsg((await r.json()).error||"Erro ao salvar endereço.")};
  const addRx=async(e:React.FormEvent)=>{e.preventDefault();if(!selected)return;const r=await fetch("/api/prescriptions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...rx,customerId:selected.id})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao registrar receita.");return}setRx(rxEmpty);await detail(selected.id);setMsg("Receita registrada.")};
  const filtered=rows.filter(c=>(c.name+" "+(c.cpfCnpj||"")+" "+(c.phone||"")+" "+(c.whatsapp||"")).toLowerCase().includes(search.toLowerCase()));
@@ -85,5 +98,8 @@ export default function Clientes(){
  {(selected.orders||[]).slice(0,10).map((o:any)=><div key={o.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Pedido #{o.number} · {o.status} · R$ {Number(o.total).toFixed(2)} · {new Date(o.createdAt).toLocaleDateString("pt-BR")}</div>)}
  {(selected.sales||[]).slice(0,10).map((s:any)=><div key={s.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Venda #{s.number} · R$ {Number(s.total).toFixed(2)} · {new Date(s.createdAt).toLocaleDateString("pt-BR")}</div>)}
  {(selected.accounts||[]).slice(0,10).map((a:any)=><div key={a.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>Conta {a.type==="RECEBER"?"a receber":"a pagar"} · {a.description} · R$ {Number(a.amount-a.paidAmount).toFixed(2)} · {a.status}</div>)}
+ <div style={{marginTop:28,paddingTop:18,borderTop:"1px solid var(--line)",display:"flex",justifyContent:"flex-end"}}>
+   <button type="button" className="secondary" onClick={deleteCustomer} style={{color:"#b42318",borderColor:"#f2b8b5"}}>Excluir cliente</button>
+ </div>
  </div>}</section>
 }
