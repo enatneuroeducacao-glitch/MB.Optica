@@ -91,7 +91,7 @@ await load();
     <div className="stat-card"><span>A RECEBER · BEEPSTART</span><strong>{money(legacy.receivable)}</strong><small>saldo histórico em aberto</small></div>
     <div className="stat-card"><span>FATURAMENTO 2026 · BEEPSTART</span><strong>{money(legacy.billing)}</strong><small>{legacy.salesCount} vendas no histórico</small></div>
    </div>
-  </div>  <div className="sales-command-grid">
+  </div>}  <div className="sales-command-grid">
    <div className="panel sales-cash"><div className="panel-heading"><div><h2>Caixa operacional</h2><p>Controle rápido do caixa do PDV.</p></div><span className={cash?"sales-online":"sales-offline"}>{cash?"CAIXA ABERTO":"CAIXA FECHADO"}</span></div>
     {cash?<><div className="cash-state"><div><b>Abertura</b><small>{money(cash.openingCash)} · {dt(cash.openedAt)}</small></div><div><b>Movimentos</b><small>{cash.movements?.length||0} lançamentos</small></div></div><form onSubmit={cashMove} className="sales-cash-move"><select value={move.kind} onChange={e=>setMove({...move,kind:e.target.value})}><option value="SANGRIA">Sangria</option><option value="REFORCO">Reforço</option><option value="SAIDA">Saída</option><option value="ENTRADA">Entrada</option></select><input type="number" min="0.01" step="0.01" placeholder="Valor" value={move.amount} onChange={e=>setMove({...move,amount:e.target.value})}/><input placeholder="Descrição" value={move.description} onChange={e=>setMove({...move,description:e.target.value})}/><button className="secondary">Lançar</button></form></>:<div className="sales-cash-open"><input type="number" min="0" step="0.01" placeholder="Valor de abertura" value={opening} onChange={e=>setOpening(e.target.value)}/><button className="primary" onClick={openCash}>Abrir caixa</button></div>}
    </div>
