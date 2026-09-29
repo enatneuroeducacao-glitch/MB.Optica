@@ -17,7 +17,8 @@ export async function GET(){
       db.account.findMany({where:{type:"PAGAR",status:{in:["PENDENTE","PARCIAL"]}},select:{amount:true,paidAmount:true}}),
       db.sale.findMany({where:{canceled:false,createdAt:{gte:today,lt:tomorrow}},select:{total:true,payments:{select:{amount:true,reversedAt:true}}}}),
       db.appointment.findMany({where:{scheduledAt:{gte:today,lt:tomorrow},status:{notIn:["CANCELADO","CONCLUIDO"]}},include:{customer:{select:{name:true}}},orderBy:{scheduledAt:"asc"},take:8}),
-      db.cashSession.findMany({where:{closedAt:null},include:{movements:true},orderBy:{openedAt:"desc"},take:5}),\n      db.legacyRecord.count({where:{source:"BEEPSTART",targetEntity:"Product",status:"IMPORTED_SELECTIVELY"}})
+      db.cashSession.findMany({where:{closedAt:null},include:{movements:true},orderBy:{openedAt:"desc"},take:5}),
+      db.legacyRecord.count({where:{source:"BEEPSTART",targetEntity:"Product",status:"IMPORTED_SELECTIVELY"}})
     ]);
     const stock=products.map((p:any)=>p.movements.reduce((s:number,m:any)=>s+([ "ENTRADA","AJUSTE","DEVOLUCAO" ].includes(m.type)?num(m.quantity):-num(m.quantity)),0));
     const lowStock=stock.filter((q:number,i:number)=>q<=num(products[i].minimumStock)).length;
