@@ -53,6 +53,17 @@ export async function POST(request: Request){
       : null;
     const a=(addressLegacy?.payload||{}) as Record<string,unknown>;
 
+    const related=await db.legacyRecord.findMany({
+      where:{source:"BEEPSTART",OR:[
+        {collectionKey:{equals:"Venda",mode:"insensitive"}},
+        {collectionKey:{equals:"ContaAReceber",mode:"insensitive"}},
+        {collectionKey:{equals:"EnderecoLocal",mode:"insensitive"}}
+      ]},
+      select:{id:true,collectionKey:true,legacyId:true,payload:true,targetEntity:true,targetId:true}
+    });
+    const sales=related.filter(r=>String(r.collectionKey).toLowerCase()==="venda" && text((r.payload as Record<string,unknown>)?.clienteID)===text(legacy.legacyId));
+    const receivables=related.filter(r=>String(r.collectionKey).toLowerCase()==="contaareceber" && text((r.payload as Record<string,unknown>)?.clienteID)===text(legacy.legacyId));
+
     const created=await db.$transaction(async tx=>{
       const customer=await tx.customer.create({
         data:{
@@ -73,10 +84,55 @@ export async function POST(request: Request){
           }}} : {})
         }
       });
+
       await tx.legacyRecord.update({
         where:{id:legacy.id},
         data:{customerId:customer.id,targetEntity:"Customer",targetId:customer.id,status:"IMPORTED_SELECTIVELY"}
       });
+
+      if(addressLegacy){
+        await tx.legacyRecord.update({where:{id:addressLegacy.id},data:{customerId:customer.id,status:"LINKED_TO_CUSTOMER"}});
+      }
+      for(const sale of sales){
+        await tx.legacyRecord.update({where:{id:sale.id},data:{customerId:customer.id,status:"LINKED_TO_CUSTOMER"}});
+      }
+
+      let accountsCreated=0;
+      for(const rec of receivables){
+        const p=(rec.payload||{}) as Record<string,unknown>;
+        const value=Number(p.valor);
+        if(!Number.isFinite(value)||value<=0||p.archived===true) continue;
+        const installments=Array.isArray(p.parcelas)?(p.parcelas as unknown[]).map(v=>Number(v)).filter(Number.isFinite):[];
+        const paidCount=Array.isArray(p.pagos)?p.pagos.length:0;
+        const paid=installments.length
+          ? installments.slice(0,Math.min(paidCount,installments.length)).reduce((s,v)=>s+v,0)
+          : Math.max(0,Number(p.valorPago||p.pago||0));
+        const open=installments.length
+          ? Math.max(0,installments.slice(Math.min(paidCount,installments.length)).reduce((s,v)=>s+v,0))
+          : Math.max(0,value-paid);
+        if(open<=0) continue;
+        const marker="LEGACY_BEEPSTART:"+String(rec.legacyId||rec.id);
+        const duplicate=await tx.account.findFirst({where:{customerId:customer.id,type:"RECEBER",notes:{contains:marker}},select:{id:true}});
+        if(duplicate) continue;
+        const dueRaw=Array.isArray(p.vencimentos)&&p.vencimentos.length ? p.vencimentos[0] : (p.vencimento||p.data||Date.now());
+        const dueNumber=Number(dueRaw);
+        const dueDate=Number.isFinite(dueNumber)&&dueNumber>1000000000 ? new Date(dueNumber) : new Date();
+        await tx.account.create({
+          data:{
+            type:"RECEBER",
+            description:text(p.descricao||p.description||"Conta a receber histórica — BeepStart"),
+            customerId:customer.id,
+            dueDate,
+            amount:open,
+            paidAmount:0,
+            status:"PENDENTE",
+            notes:marker+" | Registro histórico preservado no BeepStart."
+          }
+        });
+        await tx.legacyRecord.update({where:{id:rec.id},data:{customerId:customer.id,targetEntity:"Account",status:"IMPORTED_SELECTIVELY"}});
+        accountsCreated++;
+      }
+
       await writeAudit(tx,{
         action:"LEGACY_SELECTIVE_IMPORT",
         entity:"Customer",
@@ -88,17 +144,21 @@ export async function POST(request: Request){
           legacyRecordId:legacy.id,
           legacyId:legacy.legacyId,
           legacyKey:legacy.legacyKey,
-          addressLegacyId:addressLegacy?.legacyId||null
+          addressLegacyId:addressLegacy?.legacyId||null,
+          linkedSales:sales.length,
+          importedReceivables:accountsCreated
         }
       });
-      return customer;
+      return {customer,linkedSales:sales.length,accountsCreated};
     });
 
     return NextResponse.json({
       ok:true,
       imported:true,
-      customer:created,
-      message:"Cliente enviado para o cadastro do MB Óptica com rastreabilidade do registro legado."
+      customer:created.customer,
+      linkedSales:created.linkedSales,
+      accountsCreated:created.accountsCreated,
+      message:"Cliente enviado para o cadastro com endereço, vínculo do histórico e contas a receber históricas em aberto preservadas como BeepStart."
     },{status:201});
   }catch(error){ return apiError(error,"Não foi possível importar o cliente legado para o cadastro."); }
 }
