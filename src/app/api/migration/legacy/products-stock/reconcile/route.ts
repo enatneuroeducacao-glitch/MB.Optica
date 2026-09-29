@@ -35,20 +35,24 @@ export async function POST(req:Request){
   const actor=await requireRole(["ADMIN","GERENTE"]);
   const body=await req.json().catch(()=>({}));
   const requestedIds=Array.isArray(body?.legacyRecordIds)?body.legacyRecordIds.map(String).filter(Boolean):null;
-  const allLegacy=await db.legacyRecord.findMany({
-   where:{source:"BEEPSTART",...(requestedIds?.length?{id:{in:requestedIds}}:{})},
+  const rows=await db.legacyRecord.findMany({
+   where:{
+    source:"BEEPSTART",
+    ...(requestedIds?.length
+      ? {id:{in:requestedIds}}
+      : {OR:[
+          {targetEntity:"Product"},
+          {status:"IMPORTED_SELECTIVELY"},
+          {targetId:{not:null}}
+        ]}
+    )
+   },
    select:{id:true,legacyId:true,payload:true,status:true,targetEntity:true,targetId:true,collectionKey:true},
    orderBy:{importedAt:"desc"},
-   take:20000
+   take:5000
   });
 
-  const rows=allLegacy.filter((row:any)=>{
-   if(requestedIds?.length)return true;
-   const key=text(row.collectionKey).toLowerCase();
-   return key.includes("produt")||row.targetEntity==="Product"||Boolean(row.targetId)||row.status==="IMPORTED_SELECTIVELY";
-  });
-
-  const result={alreadyConsistent:0,relinked:0,repaired:0,skippedNoStock:0,errors:[] as any[],products:[] as any[],diagnostic:{totalBeepStart:allLegacy.length,candidates:rows.length,productTargets:allLegacy.filter((r:any)=>r.targetEntity==="Product").length,withTargetId:allLegacy.filter((r:any)=>Boolean(r.targetId)).length,selectivelyImported:allLegacy.filter((r:any)=>r.status==="IMPORTED_SELECTIVELY").length,productCollections:allLegacy.filter((r:any)=>text(r.collectionKey).toLowerCase().includes("produt")).length}};
+  const result={alreadyConsistent:0,relinked:0,repaired:0,skippedNoStock:0,errors:[] as any[],products:[] as any[],diagnostic:{candidates:rows.length,productTargets:rows.filter((r:any)=>r.targetEntity==="Product").length,withTargetId:rows.filter((r:any)=>Boolean(r.targetId)).length,selectivelyImported:rows.filter((r:any)=>r.status==="IMPORTED_SELECTIVELY").length}};
 
   for(const row of rows){
    try{
@@ -151,10 +155,9 @@ export async function POST(req:Request){
    }
   }
 
-  const d=result.diagnostic;
   const message=rows.length
    ? "Reconciliação concluída: "+result.repaired+" recriado(s), "+result.relinked+" vínculo(s) corrigido(s), "+result.alreadyConsistent+" já consistente(s), "+result.skippedNoStock+" sem estoque e "+result.errors.length+" erro(s)."
-   : "Nenhum registro de produto integrado foi encontrado no banco atual. Registros BeepStart preservados: "+d.totalBeepStart+"; candidatos à reconciliação: 0.";
+   : "Nenhum produto marcado como integrado foi encontrado para reconciliar.";
   return NextResponse.json({ok:true,...result,message});
  }catch(e){
   return apiError(e,"Não foi possível reconciliar os produtos integrados do BeepStart.");
