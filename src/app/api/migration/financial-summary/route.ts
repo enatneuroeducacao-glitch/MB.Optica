@@ -23,6 +23,12 @@ function saleTotal(payload: Payload) {
   return Math.max(0, gross - numberValue(payload.desconto));
 }
 
+function localDate(timestamp: unknown) {
+  const n = numberValue(timestamp);
+  if (!n) return "";
+  return new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo", year:"numeric", month:"2-digit", day:"2-digit"}).format(new Date(n));
+}
+
 function monthOf(timestamp: unknown) {
   const n = numberValue(timestamp);
   if (!n) return null;
@@ -63,7 +69,11 @@ export async function GET() {
       payable:0,
     }));
 
+    let clientsActive = 0;
     let salesCount = 0;
+    let salesToday = 0;
+    let salesTodayCount = 0;
+    const today = new Intl.DateTimeFormat("en-CA", {timeZone:"America/Sao_Paulo", year:"numeric", month:"2-digit", day:"2-digit"}).format(new Date());
     let billing = 0;
     let received = 0;
     let receivable = 0;
@@ -76,11 +86,20 @@ export async function GET() {
       const p = (row.payload || {}) as Payload;
       const collection = String(row.collectionKey || "").toLowerCase();
 
+      if (collection === "cliente") {
+        if (p.archived !== true) clientsActive += 1;
+        continue;
+      }
+
       if (collection === "venda") {
         const month = monthOf(p.data);
         if (month !== null && p.concluido !== false) {
           const total = saleTotal(p);
           salesCount += 1;
+          if (localDate(p.data) === today) {
+            salesToday += total;
+            salesTodayCount += 1;
+          }
           billing += total;
           months[month].sales += 1;
           months[month].billing += total;
@@ -144,7 +163,10 @@ export async function GET() {
       source:"BEEPSTART",
       period:"2026",
       archivedRecords:rows.length,
+      clientsActive,
       salesCount,
+      salesToday:round(salesToday),
+      salesTodayCount,
       billing:round(billing),
       received:round(received),
       receivable:round(receivable),
