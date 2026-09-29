@@ -28,9 +28,18 @@ async function main() {
     console.log(`[prisma] production baseline already registered: ${BASELINE}`);
   }
 
-  execSync("npx prisma migrate deploy", {
-    stdio: "inherit",
-  });
+  const attempts = 3;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      console.log(`[prisma] migrate deploy attempt ${attempt}/${attempts}`);
+      execSync("npx prisma migrate deploy", { stdio: "inherit" });
+      return;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.warn("[prisma] migrate deploy could not acquire the database lock; retrying...");
+      execSync("node -e \"setTimeout(() => {}, 12000)\"");
+    }
+  }
 }
 
 main().catch((error) => {
