@@ -91,9 +91,9 @@ export async function GET() {
       if (collection === "movimentacao") {
         const value = numberValue(p.valor);
         const month = monthOf(p.data);
-        if (value > 0) {
+        if (value > 0 && month !== null) {
           received += value;
-          if (month !== null) months[month].received += value;
+          months[month].received += value;
         }
         continue;
       }
