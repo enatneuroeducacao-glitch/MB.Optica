@@ -123,6 +123,30 @@ export default function Page(){
     finally{setBusy(false);}
   }
 
+  async function importCustomer(row:LegacyRow){
+    if((row.collectionKey||"").toLowerCase()!=="cliente") return;
+    const summary=recordSummary(row);
+    if(!window.confirm(
+      "ENVIAR CLIENTE PARA O CADASTRO DO MB ÓPTICA?\\n\\n"+
+      (summary.name||"Cliente legado")+"\\n"+
+      (summary.document?"CPF/CNPJ: "+summary.document+"\\n":"")+
+      "\\nO sistema verificará se já existe cadastro com o mesmo CPF/CNPJ. "+
+      "O registro do BeepStart continuará preservado como histórico."
+    )) return;
+    setBusy(true);setMessage("");
+    try{
+      const r=await fetch("/api/migration/legacy/import-customer",{
+        method:"POST",
+        headers:{"content-type":"application/json"},
+        body:JSON.stringify({legacyRecordId:row.id})
+      });
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.error||"Não foi possível enviar o cliente ao cadastro.");
+      setMessage(d.message);
+    }catch(e){setMessage(e instanceof Error?e.message:"Erro ao importar cliente.");}
+    finally{setBusy(false);}
+  }
+
   async function searchLegacy(){
     try{
       const params=new URLSearchParams();
@@ -251,7 +275,7 @@ export default function Page(){
                   {s.email?<small style={{display:"block",color:"var(--muted)"}}>{s.email}</small>:null}
                 </span>
                 <span><code>{row.legacyId||"—"}</code></span>
-                <button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>{(row.collectionKey||"").toLowerCase()==="cliente"&&<button className="primary" disabled={busy} onClick={()=>importCustomer(row)}>Usar no cadastro</button>}</div>
               </div>;
             })}
           </div>
