@@ -9,7 +9,7 @@ type User={name:string;email:string;role:string;mustChangePassword?:boolean}|nul
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>("");
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false);
   useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{})},[]);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
 
@@ -24,6 +24,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
         const data=await res.json();
         const current=typeof window!=="undefined" ? sessionStorage.getItem(key) : null;
         if(data.version) setVersion(data.version);
+        if(current && data.version && data.version!==current) setUpdateAvailable(true);
         if(!current){sessionStorage.setItem(key,data.version);return;}
         if(mounted && data.version && data.version!==current){
           const active=document.activeElement;
@@ -55,7 +56,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     <main className="main">
       <header className="topbar">
         <div className="topbar-left"><button className="mobile-menu-button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button><div><span className="eyebrow">OPERAÇÃO</span><strong>Centro de controle</strong></div></div>
-        <div className="top-actions"><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
+        <div className="top-actions"><button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button><span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
       </header>
       {children}
     </main>
