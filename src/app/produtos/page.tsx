@@ -61,10 +61,12 @@ export default function Produtos(){
  const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState(""),[reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
-  const [p,c,s]=await Promise.all([
-   fetch("/api/products",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d?.error||"Não foi possível carregar os produtos.");return d}),fetch("/api/categories").then(r=>r.json()),fetch("/api/suppliers").then(r=>r.json())
-  ]);
-  setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
+  try{
+   const [p,c,s]=await Promise.all([
+    fetch("/api/products",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d?.error||"Não foi possível carregar os produtos.");return d}),fetch("/api/categories").then(r=>r.json()),fetch("/api/suppliers").then(r=>r.json())
+   ]);
+   setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
+  }catch(e){setRows([]);setMsg(e instanceof Error?e.message:"Não foi possível carregar os produtos.");}
  };
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,20000);
