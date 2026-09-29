@@ -18,7 +18,7 @@ function numberValue(value: unknown) {
 function saleTotal(payload: Payload) {
   const values = payload.valoresIDs;
   const gross = values && typeof values === "object"
-    ? Object.values(values as Record<string, unknown>).reduce((sum, value) => sum + numberValue(value), 0)
+    ? Object.values(values as Record<string, unknown>).reduce((sum: number, value: unknown) => sum + numberValue(value), 0)
     : numberValue(payload.valor ?? payload.total);
   return Math.max(0, gross - numberValue(payload.desconto));
 }
