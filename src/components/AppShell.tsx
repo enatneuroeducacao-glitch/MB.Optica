@@ -11,6 +11,35 @@ const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",V
 export function AppShell({children,user}:{children:ReactNode;user:User}){
   const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
+
+  useEffect(()=>{
+    if(path==="/login"||path==="/setup"||path==="/primeiro-acesso") return;
+    const key="mb-optica-version";
+    let mounted=true;
+    const check=async()=>{
+      try{
+        const res=await fetch("/api/version",{cache:"no-store"});
+        if(!res.ok) return;
+        const data=await res.json();
+        const current=typeof window!=="undefined" ? sessionStorage.getItem(key) : null;
+        if(!current){sessionStorage.setItem(key,data.version);return;}
+        if(mounted && data.version && data.version!==current){
+          const active=document.activeElement;
+          const tag=active?.tagName;
+          const editing=tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||!!document.querySelector('[contenteditable="true"]');
+          if(!editing){
+            sessionStorage.setItem(key,data.version);
+            window.location.reload();
+          }
+        }
+      }catch{}
+    };
+    const timer=window.setInterval(check,60000);
+    const onFocus=()=>check();
+    window.addEventListener("focus",onFocus);
+    check();
+    return()=>{mounted=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus)};
+  },[path]);
   if(path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
   if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/login");router.refresh();}finally{setBusy(false);}}
@@ -19,7 +48,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
       <div className="brand"><div className="brand-mark">{logo?<img src={logo} alt="Logo da óptica"/>:"MB"}</div><div><strong>MB Óptica</strong><small>Gestão inteligente</small></div><button className="mobile-close" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}>×</button></div>
       <nav>{groups.map(g=><div className="nav-group" key={g.label}><span>{g.label}</span>{g.items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>)}</nav>
-      <div className="sidebar-footer">Sistema v0.2 • ambiente seguro</div>
+      <div className="sidebar-footer">Sistema atualizado automaticamente • ambiente seguro</div>
     </aside>
     <main className="main">
       <header className="topbar">
