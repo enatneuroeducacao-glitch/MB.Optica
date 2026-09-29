@@ -79,3 +79,62 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return apiError(error, "Não foi possível atualizar o usuário.");
   }
 }
+
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const actor = await requireRole(["ADMIN"]);
+    const { id } = await params;
+
+    if (actor.id === id) {
+      return NextResponse.json({ error: "O administrador atual não pode excluir o próprio usuário." }, { status: 409 });
+    }
+
+    await db.$transaction(async (tx) => {
+      const current = await tx.user.findUnique({
+        where: { id },
+        select: { id: true, name: true, role: true, active: true },
+      });
+      if (!current) throw new Error("USER_NOT_FOUND");
+
+      if (current.role === "ADMIN") {
+        const activeAdmins = await tx.user.count({ where: { role: "ADMIN", active: true } });
+        if (activeAdmins <= 1) throw new Error("LAST_ADMIN");
+      }
+
+      const [sales, orders, quotes] = await Promise.all([
+        tx.sale.count({ where: { sellerId: id } }),
+        tx.opticalOrder.count({ where: { sellerId: id } }),
+        tx.quote.count({ where: { sellerId: id } }),
+      ]);
+
+      if (sales || orders || quotes) {
+        throw new Error("USER_HAS_TRANSACTIONS");
+      }
+
+      await tx.auditLog.updateMany({
+        where: { userId: id },
+        data: { userId: null },
+      });
+
+      await tx.user.delete({ where: { id } });
+
+      await tx.auditLog.create({
+        data: {
+          action: "USER_DELETED",
+          entity: "User",
+          entityId: id,
+          userId: actor.id,
+          metadata: { name: current.name, role: current.role },
+        },
+      });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "USER_NOT_FOUND") return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
+    if (error instanceof Error && error.message === "LAST_ADMIN") return NextResponse.json({ error: "O sistema precisa manter pelo menos um administrador ativo." }, { status: 409 });
+    if (error instanceof Error && error.message === "USER_HAS_TRANSACTIONS") return NextResponse.json({ error: "Este usuário possui vendas, pedidos ou orçamentos vinculados. Para preservar o histórico, desative o usuário em vez de excluí-lo." }, { status: 409 });
+    return apiError(error, "Não foi possível excluir o usuário.");
+  }
+}
