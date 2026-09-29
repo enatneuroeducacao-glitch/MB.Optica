@@ -107,7 +107,7 @@ export default function Produtos(){
    <div className="stat-card"><b>{rows.length}</b><span>PRODUTOS ATIVOS</span></div>
    <div className="stat-card"><b>{frames}</b><span>ARMAÇÕES / ÓCULOS</span></div>
    <div className="stat-card"><b>{low}</b><span>ESTOQUE BAIXO</span></div>
-   <div className="stat-card"><b>{rows.filter(p=>p.barcode).length}</b><span>COM CÓDIGO DE BARRAS</span></div>\n<div className="stat-card"><b>{integrated}</b><span>INTEGRADOS DO BEEPSTART</span></div>
+   <div className="stat-card"><b>{rows.filter(p=>p.barcode).length}</b><span>COM CÓDIGO DE BARRAS</span></div><div className="stat-card"><b>{integrated}</b><span>INTEGRADOS DO BEEPSTART</span></div>
   </div>
 
   <div className="toolbar" style={{display:"grid",gridTemplateColumns:"minmax(260px,2fr) 1fr 1fr auto",gap:8}}>
