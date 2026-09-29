@@ -376,10 +376,13 @@ export default function Page(){
             <div className="row header"><span style={{display:"flex",alignItems:"center",gap:8}}><input type="checkbox" aria-label="Selecionar produtos visíveis" checked={results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).length>0&&results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).every(r=>selectedLegacyProducts.includes(r.id))} onChange={e=>{const ids=results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).map(r=>r.id);setSelectedLegacyProducts(e.target.checked?ids:[])}}/><span>Selecionar / Informação encontrada</span></span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
             {results.map(row=>{
               const s=recordSummary(row);
+              const isProduct=(row.collectionKey||"").toLowerCase().includes("produt");
+              const selectedProduct=selectedLegacyProducts.includes(row.id);
               return <div className="row" key={row.id}>
-                <span>
-                  <strong>{s.name||row.collectionKey||"Registro legado"}</strong>
-                  <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code?` · Código ${s.code}`:""}</small>
+                <span style={{display:"flex",alignItems:"center",gap:10}}>
+                  {isProduct&&<input type="checkbox" aria-label={"Selecionar "+(s.name||"produto")} checked={selectedProduct} onChange={e=>setSelectedLegacyProducts(x=>e.target.checked?[...x,row.id]:x.filter(id=>id!==row.id))}/>} 
+                  <span><strong>{s.name||row.collectionKey||"Registro legado"}</strong>
+                  <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code?` · Código ${s.code}`:""}</small></span>
                 </span>
                 <span>
                   {s.document||"—"}
@@ -387,7 +390,7 @@ export default function Page(){
                   {s.email?<small style={{display:"block",color:"var(--muted)"}}>{s.email}</small>:null}
                 </span>
                 <span><code>{row.legacyId||"—"}</code></span>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>{(row.collectionKey||"").toLowerCase()==="cliente"&&<button className="primary" disabled={busy} onClick={()=>importCustomer(row)}>Usar no cadastro</button>}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>{isProduct&&<button className="primary" disabled={busy||stockBusy} onClick={()=>{setSelectedLegacyProducts([row.id]);setTimeout(()=>integrateSelectedLegacyProducts(),0)}}>Integrar produto</button>}{(row.collectionKey||"").toLowerCase()==="cliente"&&<button className="primary" disabled={busy} onClick={()=>importCustomer(row)}>Usar no cadastro</button>}</div>
               </div>;
             })}
           </div>
