@@ -14,7 +14,7 @@ const stockFromObject=(p:P):number=>{
  for(const v of Object.values(p)){if(v&&typeof v==="object"&&!Array.isArray(v)){const n=stockFromObject(v as P);if(n>0)return n}}
  return 0;
 };
-const mapProduct=(row:any)=>{
+const mapProduct=(row:any,stockOverride?:number)=>{
  const p=(row.payload||{}) as P;
  const code=text(first(p,["codigo","code","codigoProduto","referencia","ref","sku"]));
  const barcode=text(first(p,["codigoBarras","barcode","ean","ean13","gtin"]));
@@ -25,9 +25,21 @@ const mapProduct=(row:any)=>{
  const supplier=text(first(p,["fornecedor","supplier","fornecedorNome"]));
  const cost=num(first(p,["custo","cost","precoCusto","valorCusto"]));
  const salePrice=num(first(p,["precoVenda","preco","valorVenda","salePrice","preco_venda"]));
- const stock=stockFromObject(p);
+ const stock=stockOverride!==undefined?stockOverride:stockFromObject(p);
  const minimumStock=num(first(p,["estoqueMinimo","minimumStock","minimo"]));
  return {code:code||("BS-"+text(row.legacyId||row.id).slice(-20)),barcode,description,brand,model,category,supplier,cost,salePrice,stock,minimumStock};
+};
+
+const lotStockByProduct=(lots:any[])=>{
+ const totals=new Map<string,number>();
+ for(const lot of lots){
+  const p=(lot.payload||{}) as P;
+  const produtoID=text(first(p,["produtoID","productId","produtoId"]));
+  if(!produtoID||p.archived===true)continue;
+  const quantity=num(first(p,["quantidade","quantity","qtd"]));
+  totals.set(produtoID,(totals.get(produtoID)||0)+quantity);
+ }
+ return totals;
 };
 
 export async function POST(req:Request){
@@ -51,12 +63,15 @@ export async function POST(req:Request){
    orderBy:{importedAt:"desc"},
    take:5000
   });
+  const lots=await db.legacyRecord.findMany({where:{source:"BEEPSTART",collectionKey:{equals:"Lote",mode:"insensitive"}},select:{payload:true},take:100000});
+  const lotStock=lotStockByProduct(lots);
 
   const result={alreadyConsistent:0,relinked:0,repaired:0,skippedNoStock:0,errors:[] as any[],products:[] as any[],diagnostic:{candidates:rows.length,productTargets:rows.filter((r:any)=>r.targetEntity==="Product").length,withTargetId:rows.filter((r:any)=>Boolean(r.targetId)).length,selectivelyImported:rows.filter((r:any)=>r.status==="IMPORTED_SELECTIVELY").length}};
 
   for(const row of rows){
    try{
-    const p=mapProduct(row);
+    const legacyId=String(row.legacyId||"");
+    const p=mapProduct(row,lotStock.has(legacyId)?lotStock.get(legacyId):undefined);
 
     if(row.targetId){
      const target=await db.product.findUnique({where:{id:row.targetId},select:{id:true,code:true,barcode:true,active:true}});
