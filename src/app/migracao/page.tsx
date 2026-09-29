@@ -20,6 +20,24 @@ type LegacyRow = {
   status:string;
   importedAt:string;
 };
+
+function firstValue(payload:Record<string,unknown>, keys:string[]) {
+  for (const key of keys) {
+    const value=payload[key];
+    if(value!==undefined && value!==null && String(value).trim()!=="") return String(value);
+  }
+  return "";
+}
+
+function recordSummary(row:LegacyRow) {
+  const p=row.payload||{};
+  const name=firstValue(p,["nome","name","razaoSocial","razãoSocial","descricao","description"]);
+  const document=firstValue(p,["cpf","cpfCnpj","cnpj","documento"]);
+  const phone=firstValue(p,["telefone","phone","celular","whatsapp"]);
+  const email=firstValue(p,["email","eMail"]);
+  const code=firstValue(p,["codigo","code","barcode","codigoBarras","id"]);
+  return {name,document,phone,email,code};
+}
 type Run = {
   id:string;
   source:string;
@@ -217,18 +235,25 @@ export default function Page(){
       <datalist id="legacy-collections">{collections.map(c=><option key={c} value={c}/>)}</datalist>
 
       {results.length===0
-        ? <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro carregado. Pesquise para consultar o legado.</p>
+        ? <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro encontrado para os critérios informados.</p>
         : <div className="table" style={{marginTop:14}}>
-            <div className="row header"><span>Coleção</span><span>ID legado</span><span>Status</span><span>Data</span><span>Ação</span></div>
-            {results.map(row=>
-              <div className="row" key={row.id}>
-                <span>{row.collectionKey||"—"}</span>
+            <div className="row header"><span>Informação encontrada</span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
+            {results.map(row=>{
+              const s=recordSummary(row);
+              return <div className="row" key={row.id}>
+                <span>
+                  <strong>{s.name||row.collectionKey||"Registro legado"}</strong>
+                  <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code?` · Código ${s.code}`:""}</small>
+                </span>
+                <span>
+                  {s.document||"—"}
+                  {s.phone?<small style={{display:"block",color:"var(--muted)"}}>{s.phone}</small>:null}
+                  {s.email?<small style={{display:"block",color:"var(--muted)"}}>{s.email}</small>:null}
+                </span>
                 <span><code>{row.legacyId||"—"}</code></span>
-                <span>{row.status}</span>
-                <span>{new Date(row.importedAt).toLocaleString("pt-BR")}</span>
-                <button className="secondary" onClick={()=>setSelected(row)}>Visualizar</button>
-              </div>
-            )}
+                <button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>
+              </div>;
+            })}
           </div>
       }
     </div>
