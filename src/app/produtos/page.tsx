@@ -58,7 +58,7 @@ function printLabels(p:any,quantity:number){
 
 export default function Produtos(){
  const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]);
- const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState("");
+ const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState(""),[reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
   const [p,c,s]=await Promise.all([
@@ -68,6 +68,18 @@ export default function Produtos(){
  };
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,20000);
+ 
+ const reconcileBeepStart=async()=>{
+  setReconciling(true);setMsg("");
+  try{
+   const r=await fetch("/api/migration/legacy/products-stock/reconcile",{method:"POST",headers:{"content-type":"application/json"},body:"{}"});
+   const d=await r.json();
+   if(!r.ok)throw new Error(d?.error||"Não foi possível reconciliar os produtos do BeepStart.");
+   setMsg(d.message||"Reconciliação concluída.");
+   await load();
+  }catch(e){setMsg(e instanceof Error?e.message:"Não foi possível reconciliar os produtos do BeepStart.");}
+  finally{setReconciling(false);}
+ };
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
@@ -114,7 +126,7 @@ export default function Produtos(){
    <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar código, barras, marca, modelo ou descrição..." />
    <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">Todas as categorias</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
    <select value={stockFilter} onChange={e=>setStockFilter(e.target.value)}><option value="TODOS">Todos</option><option value="BAIXO">Estoque baixo</option><option value="COM_BARRAS">Com código de barras</option></select>
-   <button className="secondary" onClick={()=>{setSearch("");setCategoryFilter("");setStockFilter("TODOS")}}>Limpar</button>
+   <button className="secondary" onClick={()=>{setSearch("");setCategoryFilter("");setStockFilter("TODOS")}}>Limpar</button><button className="secondary" disabled={reconciling} onClick={reconcileBeepStart}>{reconciling?"Reconciliando...":"↻ Reconciliar BeepStart"}</button>
   </div>
 
   {open&&<div className="panel" style={{padding:20,marginTop:12,border:"1px solid var(--line)"}}>
