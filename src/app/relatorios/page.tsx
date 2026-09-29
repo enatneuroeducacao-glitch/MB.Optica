@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
-const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const n=(v:any)=>Number(v||0);
+const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
