@@ -5,7 +5,7 @@ import {StatCard} from "@/components/StatCard";
 import {money} from "@/lib/domain";
 
 type DashboardData={customers:number;products:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
-type LegacyFinancial={billing:number;received:number;receivable:number;payable:number;salesCount:number;months:{month:string;sales:number;billing:number;received:number;receivable:number}[]};
+type LegacyFinancial={billing:number;received:number;receivable:number;payable:number;salesCount:number;clientsActive:number;salesToday:number;salesTodayCount:number;months:{month:string;sales:number;billing:number;received:number;receivable:number}[]};
 const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",RETORNO_GARANTIA:"Retorno em garantia",PRONTO:"Pronto"} as Record<string,string>)[s]||s;
 
 export default function Dashboard(){
@@ -19,10 +19,10 @@ export default function Dashboard(){
   <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a></nav></div>
   {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
   <div className="stats">
-   <StatCard label="Clientes ativos" value={data?String(data.customers):"—"} detail="cadastros ativos"/>
-   <StatCard label="Vendas hoje" value={data?money(data.salesToday):"—"} detail={data?money(data.receivedToday)+" recebidos hoje":"aguardando dados"}/>
+   <StatCard label="Clientes ativos" value={legacy?String(legacy.clientsActive):"—"} detail="clientes ativos no BeepStart"/>
+   <StatCard label="Vendas hoje" value={legacy?money(legacy.salesToday):"—"} detail={legacy?legacy.salesTodayCount+" venda(s) hoje · BeepStart":"aguardando dados"}/>
    <StatCard label="Pedidos em aberto" value={data?String(data.orders):"—"} detail={data?String(data.appointmentsToday)+" atendimento(s) hoje":"fluxo óptico"}/>
-   <StatCard label="A receber" value={data?money(data.receivables):"—"} detail={data?money(data.payables)+" a pagar":"aguardando dados"}/>
+   <StatCard label="A receber" value={legacy?money(legacy.receivable):"—"} detail="saldo em aberto no BeepStart"/>
   </div>
   {legacy&&<div className="panel" style={{marginBottom:16}}>
    <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO BEEPSTART</span><h2>Resumo financeiro 2026</h2><p>Visão histórica separada dos indicadores operacionais de hoje.</p></div><a href="/migracao">Abrir migração</a></div>
