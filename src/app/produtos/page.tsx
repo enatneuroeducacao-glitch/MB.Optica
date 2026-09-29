@@ -91,7 +91,8 @@ export default function Produtos(){
 
  const filtered=useMemo(()=>rows.filter(p=>{const text=(p.code+" "+(p.barcode||"")+" "+p.description+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase();return text.includes(search.toLowerCase())&&(!categoryFilter||p.categoryId===categoryFilter)&&(stockFilter==="TODOS"||(stockFilter==="BAIXO"&&p.lowStock)||(stockFilter==="COM_BARRAS"&&!!p.barcode))}),[rows,search,categoryFilter,stockFilter]);
  const low=rows.filter(p=>p.lowStock).length;
- const frames=rows.filter(p=>/armação|oculos|óculos|frame/i.test((p.category?.name||"")+" "+(p.description||""))).length;\n const integrated=rows.filter(p=>p.integratedFromBeepStart).length;
+ const frames=rows.filter(p=>/armação|oculos|óculos|frame/i.test((p.category?.name||"")+" "+(p.description||""))).length;
+ const integrated=rows.filter(p=>p.integratedFromBeepStart).length;
  const set=(key:string,value:string)=>setForm((x:any)=>({...x,[key]:value}));
 
  return <section className="page">
