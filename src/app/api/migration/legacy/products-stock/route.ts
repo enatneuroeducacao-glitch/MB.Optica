@@ -102,9 +102,29 @@ export async function GET(){
   });
   const existingCodes=new Set(existing.map((p:any)=>p.code).filter(Boolean));
   const existingBarcodes=new Set(existing.map((p:any)=>p.barcode).filter(Boolean));
-  const enriched=products.map(p=>({...p,alreadyIntegrated:p.alreadyIntegrated||existingCodes.has(p.code)||(p.barcode?existingBarcodes.has(p.barcode):false)}));
+  const enriched=products.map(p=>{
+   const linked=Boolean(p.alreadyIntegrated);
+   const matchedByCode=existingCodes.has(p.code);
+   const matchedByBarcode=Boolean(p.barcode)&&existingBarcodes.has(p.barcode);
+   return {
+    ...p,
+    alreadyIntegrated:linked||matchedByCode||matchedByBarcode,
+    integrationReason:linked?(matchedByCode||matchedByBarcode?"VINCULO_E_IDENTIFICADOR":"VINCULO_LEGADO"):(matchedByCode?"CODIGO_EXISTENTE":(matchedByBarcode?"BARRAS_EXISTENTE":"NAO_INTEGRADO"))
+   };
+  });
+  const integrated=enriched.filter((p:any)=>p.alreadyIntegrated);
+  const audit={
+   totalWithStock:enriched.length,
+   alreadyIntegrated:integrated.length,
+   legacyLinked:enriched.filter((p:any)=>p.integrationReason==="VINCULO_LEGADO"||p.integrationReason==="VINCULO_E_IDENTIFICADOR").length,
+   matchedOnlyByCode:enriched.filter((p:any)=>p.integrationReason==="CODIGO_EXISTENTE").length,
+   matchedOnlyByBarcode:enriched.filter((p:any)=>p.integrationReason==="BARRAS_EXISTENTE").length,
+   linkedAndIdentifierMatched:enriched.filter((p:any)=>p.integrationReason==="VINCULO_E_IDENTIFICADOR").length,
+   notIntegrated:enriched.filter((p:any)=>!p.alreadyIntegrated).length,
+   note:"alreadyIntegrated inclui vínculo legado OU correspondência por código/barcode. Isso permite auditar os registros que aparecem como já integrados."
+  };
 
-  return NextResponse.json({ok:true,total:enriched.length,products:enriched});
+  return NextResponse.json({ok:true,total:enriched.length,products:enriched,audit});
  }catch(e){
   return apiError(e,"Não foi possível carregar os produtos do estoque BeepStart.");
  }
