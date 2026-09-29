@@ -87,6 +87,7 @@ export default function Page(){
   const [selected,setSelected]=useState<LegacyRow|null>(null);
   const [financial,setFinancial]=useState<FinancialSummary|null>(null);
   const [stockProducts,setStockProducts]=useState<any[]>([]),[selectedStock,setSelectedStock]=useState<string[]>([]),[stockBusy,setStockBusy]=useState(false),[stockMessage,setStockMessage]=useState("");
+  const [selectedLegacyProducts,setSelectedLegacyProducts]=useState<string[]>([]);
 
   async function load(){
     try{
@@ -180,7 +181,7 @@ export default function Page(){
   }
 
   async function loadStockProducts(){setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível carregar os produtos com estoque.");setStockProducts(d.products||[]);setSelectedStock([]);setStockMessage((d.products||[]).length+" produto(s) com estoque disponível encontrado(s).")}catch(e){setStockMessage(e instanceof Error?e.message:"Erro ao carregar produtos com estoque.")}finally{setStockBusy(false)}}
-  async function integrateStockProducts(){if(!selectedStock.length)return;if(!window.confirm("Integrar somente os produtos selecionados que possuem estoque no BeepStart?\n\nOs produtos serão criados no MB Óptica com uma entrada de estoque vinculada ao legado. Produtos já cadastrados serão ignorados."))return;setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({legacyRecordIds:selectedStock})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Falha na integração.");setStockMessage(d.message);await loadStockProducts()}catch(e){setStockMessage(e instanceof Error?e.message:"Erro na integração dos produtos.")}finally{setStockBusy(false)}}
+  async function integrateSelectedLegacyProducts(){if(!selectedLegacyProducts.length)return;if(!window.confirm("Integrar os produtos selecionados para o MB Óptica?\\n\\nSomente produtos com estoque maior que zero serão integrados. Produtos sem estoque ou já cadastrados serão ignorados. O registro do BeepStart continuará preservado."))return;setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({legacyRecordIds:selectedLegacyProducts})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Falha na integração.");setStockMessage(d.message);setSelectedLegacyProducts([]);await searchLegacy();await loadStockProducts()}catch(e){setStockMessage(e instanceof Error?e.message:"Erro na integração dos produtos.")}finally{setStockBusy(false)}}\n\n  async function integrateStockProducts(){if(!selectedStock.length)return;if(!window.confirm("Integrar somente os produtos selecionados que possuem estoque no BeepStart?\n\nOs produtos serão criados no MB Óptica com uma entrada de estoque vinculada ao legado. Produtos já cadastrados serão ignorados."))return;setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({legacyRecordIds:selectedStock})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Falha na integração.");setStockMessage(d.message);await loadStockProducts()}catch(e){setStockMessage(e instanceof Error?e.message:"Erro na integração dos produtos.")}finally{setStockBusy(false)}}
 
   async function searchLegacy(){
     try{
@@ -191,7 +192,7 @@ export default function Page(){
       const r=await fetch("/api/migration/legacy?"+params.toString(),{cache:"no-store"});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Falha na consulta.");
-      setResults(d.records||[]);
+      setResults(d.records||[]);\n      setSelectedLegacyProducts([]);
     }catch(e){setMessage(e instanceof Error?e.message:"Erro na consulta ao legado.");}
   }
 
@@ -369,7 +370,7 @@ export default function Page(){
       {results.length===0
         ? <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro encontrado para os critérios informados.</p>
         : <div className="table" style={{marginTop:14}}>
-            <div className="row header"><span>Informação encontrada</span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
+            <div className="row header"><span style={{display:"flex",alignItems:"center",gap:8}}><input type="checkbox" aria-label="Selecionar produtos visíveis" checked={results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).length>0&&results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).every(r=>selectedLegacyProducts.includes(r.id))} onChange={e=>{const ids=results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).map(r=>r.id);setSelectedLegacyProducts(e.target.checked?ids:[])}}/><span>Selecionar / Informação encontrada</span></span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
             {results.map(row=>{
               const s=recordSummary(row);
               return <div className="row" key={row.id}>
