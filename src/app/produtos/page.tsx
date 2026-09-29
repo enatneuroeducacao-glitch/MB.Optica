@@ -91,7 +91,7 @@ export default function Produtos(){
 
  const filtered=useMemo(()=>rows.filter(p=>{const text=(p.code+" "+(p.barcode||"")+" "+p.description+" "+(p.brand||"")+" "+(p.model||"")).toLowerCase();return text.includes(search.toLowerCase())&&(!categoryFilter||p.categoryId===categoryFilter)&&(stockFilter==="TODOS"||(stockFilter==="BAIXO"&&p.lowStock)||(stockFilter==="COM_BARRAS"&&!!p.barcode))}),[rows,search,categoryFilter,stockFilter]);
  const low=rows.filter(p=>p.lowStock).length;
- const frames=rows.filter(p=>/armação|oculos|óculos|frame/i.test((p.category?.name||"")+" "+(p.description||""))).length;
+ const frames=rows.filter(p=>/armação|oculos|óculos|frame/i.test((p.category?.name||"")+" "+(p.description||""))).length;\n const integrated=rows.filter(p=>p.integratedFromBeepStart).length;
  const set=(key:string,value:string)=>setForm((x:any)=>({...x,[key]:value}));
 
  return <section className="page">
@@ -106,7 +106,7 @@ export default function Produtos(){
    <div className="stat-card"><b>{rows.length}</b><span>PRODUTOS ATIVOS</span></div>
    <div className="stat-card"><b>{frames}</b><span>ARMAÇÕES / ÓCULOS</span></div>
    <div className="stat-card"><b>{low}</b><span>ESTOQUE BAIXO</span></div>
-   <div className="stat-card"><b>{rows.filter(p=>p.barcode).length}</b><span>COM CÓDIGO DE BARRAS</span></div>
+   <div className="stat-card"><b>{rows.filter(p=>p.barcode).length}</b><span>COM CÓDIGO DE BARRAS</span></div>\n   <div className="stat-card"><b>{integrated}</b><span>INTEGRADOS DO BEEPSTART</span></div>
   </div>
 
   <div className="toolbar" style={{display:"grid",gridTemplateColumns:"minmax(260px,2fr) 1fr 1fr auto",gap:8}}>
@@ -168,12 +168,12 @@ export default function Produtos(){
 
 
   <div className="panel" style={{marginTop:12}}>
-   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderBottom:"1px solid var(--line)"}}><div><b>Produtos cadastrados</b><div style={{fontSize:12,color:"var(--muted)"}}>{filtered.length} produto(s) exibido(s)</div></div><button className="secondary" onClick={()=>setOpen(true)}>+ Cadastrar produto</button></div>
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderBottom:"1px solid var(--line)"}}><div><b>Produtos cadastrados</b><div style={{fontSize:12,color:"var(--muted)"}}>{filtered.length} produto(s) exibido(s) · {integrated} integrado(s) do BeepStart</div></div><button className="secondary" onClick={()=>setOpen(true)}>+ Cadastrar produto</button></div>
    <div className="table">
     <div className="row header"><span>Código</span><span>Produto</span><span>Categoria</span><span>Fornecedor</span><span>Preço</span><span>Estoque</span><span>Ações</span></div>
     {filtered.map(p=><div className="row" key={p.id}>
      <strong>{p.code}</strong>
-     <span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}</span>
+     <span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}{p.integratedFromBeepStart&&<small style={{display:"block",color:"#147d70",fontWeight:700}}>✓ Integrado do BeepStart</small>}</span>
      <span>{p.category?.name||"—"}</span>
      <span>{p.supplier?.name||"—"}</span>
      <span>R$ {Number(p.salePrice||0).toFixed(2)}</span>
