@@ -62,7 +62,7 @@ export default function Produtos(){
 
  const load=async()=>{
   const [p,c,s]=await Promise.all([
-   fetch("/api/products").then(r=>r.json()),fetch("/api/categories").then(r=>r.json()),fetch("/api/suppliers").then(r=>r.json())
+   fetch("/api/products",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d?.error||"Não foi possível carregar os produtos.");return d}),fetch("/api/categories").then(r=>r.json()),fetch("/api/suppliers").then(r=>r.json())
   ]);
   setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
  };
