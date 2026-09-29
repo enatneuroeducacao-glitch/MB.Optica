@@ -38,6 +38,27 @@ function recordSummary(row:LegacyRow) {
   const code=firstValue(p,["codigo","code","barcode","codigoBarras","id"]);
   return {name,document,phone,email,code};
 }
+type FinancialMonth = {
+  month:string;
+  sales:number;
+  billing:number;
+  received:number;
+  receivable:number;
+  payable:number;
+};
+type FinancialSummary = {
+  archivedRecords:number;
+  salesCount:number;
+  billing:number;
+  received:number;
+  receivable:number;
+  payable:number;
+  payablePaid:number;
+  receivableAccounts:number;
+  payableAccounts:number;
+  months:FinancialMonth[];
+};
+
 type Run = {
   id:string;
   source:string;
@@ -64,6 +85,7 @@ export default function Page(){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [selected,setSelected]=useState<LegacyRow|null>(null);
+  const [financial,setFinancial]=useState<FinancialSummary|null>(null);
 
   async function load(){
     try{
@@ -75,7 +97,16 @@ export default function Page(){
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar a central.");}
   }
 
-  useEffect(()=>{load();},[]);
+  async function loadFinancialSummary(){
+    try{
+      const r=await fetch("/api/migration/financial-summary",{cache:"no-store"});
+      const d=await r.json();
+      if(!r.ok) throw new Error(d.error||"Não foi possível calcular o resumo financeiro.");
+      setFinancial(d);
+    }catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar o resumo financeiro.");}
+  }
+
+  useEffect(()=>{load();loadFinancialSummary();},[]);
 
   async function auditBackup(){
     if(!file)return;
@@ -173,6 +204,69 @@ export default function Page(){
     </div>
 
     {message&&<div className="panel settings-message">{message}</div>}
+    <div className="panel" style={{marginBottom:16}}>
+      <div className="panel-heading">
+        <div>
+          <span className="eyebrow">FINANCEIRO DO LEGADO</span>
+          <h2>Resumo financeiro BeepStart — 2026</h2>
+          <p>Visão gerencial separada da pesquisa textual. Os valores são calculados a partir das coleções financeiras preservadas no legado.</p>
+        </div>
+        <button className="secondary" onClick={loadFinancialSummary}>Atualizar financeiro</button>
+      </div>
+
+      {!financial ? <p style={{color:"var(--muted)"}}>Carregando dados financeiros...</p> :
+      <>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:10}}>
+          {[
+            ["Faturamento de vendas",financial.billing,"primary"],
+            ["Vendas realizadas",financial.salesCount,"neutral"],
+            ["Recebido",financial.received,"positive"],
+            ["Contas a receber",financial.receivable,"warning"],
+            ["Contas a pagar",financial.payable,"danger"],
+          ].map(([label,value,tone])=>
+            <div key={String(label)} style={{border:"1px solid var(--line)",borderRadius:12,padding:14,background:"#fff"}}>
+              <small style={{display:"block",color:"var(--muted)",marginBottom:7}}>{String(label)}</small>
+              <strong style={{fontSize:21,color:tone==="positive"?"#087f73":tone==="warning"?"#9a6500":tone==="danger"?"#a13b3b":"#17324d"}}>
+                {label==="Vendas realizadas"?Number(value).toLocaleString("pt-BR"):"R$ "+Number(value).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}
+              </strong>
+            </div>
+          )}
+        </div>
+
+        <div style={{marginTop:18,overflowX:"auto"}}>
+          <div className="table">
+            <div className="row header"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span><span>A receber</span></div>
+            {financial.months.map((m)=>
+              <div className="row" key={m.month}>
+                <strong>{m.month}</strong>
+                <span>{m.sales.toLocaleString("pt-BR")}</span>
+                <span>R$ {m.billing.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                <span>R$ {m.received.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+                <span>R$ {m.receivable.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span>
+              </div>
+            )}
+            <div className="row" style={{fontWeight:800,borderTop:"2px solid var(--line)"}}>
+              <strong>TOTAL / POSIÇÃO</strong>
+              <strong>{financial.salesCount.toLocaleString("pt-BR")}</strong>
+              <strong>R$ {financial.billing.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+              <strong>R$ {financial.received.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+              <strong>R$ {financial.receivable.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:10,marginTop:14}}>
+          <div className="settings-list"><div><b>Contas a receber em aberto</b><span>{financial.receivableAccounts}</span></div></div>
+          <div className="settings-list"><div><b>Contas a pagar em aberto</b><span>{financial.payableAccounts}</span></div></div>
+          <div className="settings-list"><div><b>Registros financeiros analisados</b><span>{financial.archivedRecords.toLocaleString("pt-BR")}</span></div></div>
+        </div>
+
+        <div style={{marginTop:12,padding:12,borderRadius:10,background:"#f7f9fb",fontSize:12,color:"var(--muted)"}}>
+          <b>Como o resumo é calculado:</b> faturamento vem de <code>Venda</code> (itens menos desconto); recebido vem das entradas positivas de <code>Movimentacao</code>; contas a receber e a pagar usam o saldo estimado das parcelas ainda não quitadas. A pesquisa abaixo continua sendo apenas consulta do legado.
+        </div>
+      </>}
+    </div>
+
 
     <div className="settings-grid">
       <div className="panel">
