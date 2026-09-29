@@ -192,7 +192,8 @@ export default function Page(){
       const r=await fetch("/api/migration/legacy?"+params.toString(),{cache:"no-store"});
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Falha na consulta.");
-      setResults(d.records||[]);\n      setSelectedLegacyProducts([]);
+      setResults(d.records||[]);
+      setSelectedLegacyProducts([]);
     }catch(e){setMessage(e instanceof Error?e.message:"Erro na consulta ao legado.");}
   }
 
