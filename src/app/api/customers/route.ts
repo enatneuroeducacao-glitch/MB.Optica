@@ -7,12 +7,14 @@ import {requireRole} from "@/lib/auth";
 import {writeAudit} from "@/lib/audit";
 import {apiError} from "@/lib/api-error";
 
+const optionalText=(max:number)=>z.preprocess((v)=>v===""?null:v,z.string().trim().max(max).nullable().optional());
+const optionalEmail=z.preprocess((v)=>v===""?null:v,z.string().trim().email().max(160).nullable().optional());
 const schema=z.object({
   name:z.string().trim().min(2).max(160),
-  cpfCnpj:z.string().trim().max(30).nullable().optional(),
-  phone:z.string().trim().max(30).nullable().optional(),
-  whatsapp:z.string().trim().max(30).nullable().optional(),
-  email:z.string().trim().email().max(160).nullable().optional(),
+  cpfCnpj:optionalText(30),
+  phone:optionalText(30),
+  whatsapp:optionalText(30),
+  email:optionalEmail,
   birthDate:z.string().nullable().optional(),
   notes:z.string().max(1000).nullable().optional()
 });
@@ -46,7 +48,7 @@ export async function POST(req:Request){
     });
     return NextResponse.json(data,{status:201});
   }catch(error){
-    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados do cliente inválidos."},{status:422});
+    if(error instanceof z.ZodError){const fields=Object.fromEntries(error.issues.map(issue=>[String(issue.path[0]??"form"),issue.message]));return NextResponse.json({error:"Corrija os campos destacados.",fields},{status:422});}
     return apiError(error,"Não foi possível criar o cliente.");
   }
 }
