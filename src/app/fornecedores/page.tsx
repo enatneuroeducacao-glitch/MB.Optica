@@ -36,8 +36,16 @@ export default function Fornecedores(){
    });
    const d=await r.json();
    if(!r.ok){setMsg(d.error||"Erro ao salvar fornecedor.");return}
-   setMsg(selected?"Fornecedor atualizado com sucesso.":"Fornecedor cadastrado com sucesso.");
-   setSelected(null);setForm(empty);await load();
+   if(selected){
+    setSelected((prev:any)=>prev?{...prev,...d}:d);
+    setRows(prev=>prev.map(row=>row.id===d.id?{...row,...d}:row));
+    setForm({name:d.name||"",document:d.document||"",phone:d.phone||"",email:d.email||"",notes:d.notes||""});
+    setMsg("Fornecedor atualizado com sucesso.");
+   }else{
+    setMsg("Fornecedor cadastrado com sucesso.");
+    setForm(empty);
+   }
+   await load();
   }finally{setLoading(false)}
  };
 
