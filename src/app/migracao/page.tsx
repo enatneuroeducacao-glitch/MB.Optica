@@ -353,15 +353,17 @@ export default function Page(){
       </div>
       <datalist id="legacy-collections">{collections.map(c=><option key={c} value={c}/>)}</datalist>
 
-      {results.length===0
-        ? <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro encontrado para os critérios informados.</p>
-        : <div className="table" style={{marginTop:14}}>
-            <div className="row header"><span>Informação encontrada</span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
-            {results.map(row=>{
-              const s=recordSummary(row);
-              const isCustomer=(row.collectionKey||"").toLowerCase()==="cliente";
-              const matched=(row as any).matchedCustomer;
-              return <div className="row" key={row.id}>
+      {results.length===0 ? (
+        <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro encontrado para os critérios informados.</p>
+      ) : (
+        <div className="table" style={{marginTop:14}}>
+          <div className="row header"><span>Informação encontrada</span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
+          {results.map((row)=>{
+            const s=recordSummary(row);
+            const isCustomer=(row.collectionKey||"").toLowerCase()==="cliente";
+            const matched=(row as any).matchedCustomer;
+            return (
+              <div className="row" key={row.id}>
                 <span>
                   <strong>{s.name||row.collectionKey||"Registro legado"}</strong>
                   <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code ? " · Código "+s.code : ""}</small>
@@ -377,8 +379,11 @@ export default function Page(){
                   <button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>
                   {isCustomer&&<button className="primary" disabled={busy||!!matched} onClick={()=>importCustomer(row)}>{matched?"Já cadastrado":"Usar no cadastro"}</button>}
                 </div>
-              </div>;
-            })}      }
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
 
     {selected&&<div className="panel">
