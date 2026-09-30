@@ -10,7 +10,7 @@ type Result = {
   productSource:number;
   productCreated:number;
   productMatched:number;
-  legacyCreated:number;
+  legacyCreated:number;\n  warnings?:string[];
   fingerprint:string;
 };
 
@@ -128,7 +128,7 @@ export default function Page(){
             <div><b>Registros analisados</b><span>{result.totalRecords.toLocaleString("pt-BR")}</span></div>
             <div><b>Clientes no backup</b><span>{result.customerSource.toLocaleString("pt-BR")}</span></div>
             <div><b>Produtos no backup</b><span>{result.productSource.toLocaleString("pt-BR")}</span></div>
-            <div><b>Registros históricos preservados</b><span>{result.legacyCreated.toLocaleString("pt-BR")}</span></div>
+            <div><b>Registros históricos preservados</b><span>{result.legacyCreated.toLocaleString("pt-BR")}</span></div>\n            <div><b>Alertas de validação</b><span>{(result.warnings?.length ?? 0).toLocaleString("pt-BR")}</span></div>
             <div><b>Fingerprint</b><code>{result.fingerprint}</code></div>
           </div>
 
