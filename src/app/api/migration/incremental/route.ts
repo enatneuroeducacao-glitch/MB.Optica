@@ -31,14 +31,23 @@ export async function POST(request: Request) {
   try {
     await requireRole(["ADMIN"]);
     const body = await request.json();
-    const records = body?.records;
+    const allRecords = body?.records;
+    const selectedKeys = Array.isArray(body?.selectedKeys) ? body.selectedKeys.map(String) : [];
 
-    if (!Array.isArray(records)) {
+    if (!Array.isArray(allRecords)) {
       return NextResponse.json({ ok: false, error: "O backup precisa ser uma lista JSON." }, { status: 400 });
     }
 
-    const rawText = JSON.stringify(records);
-    const fingerprint = crypto.createHash("sha256").update(rawText).digest("hex");
+    const rawText = JSON.stringify(allRecords);
+    const backupFingerprint = crypto.createHash("sha256").update(rawText).digest("hex");
+    if (selectedKeys.length === 0) return NextResponse.json({ ok: false, error: "Nenhum registro foi selecionado para reconciliação." }, { status: 400 });
+    const uniqueSelectedKeys = [...new Set(selectedKeys)].sort();
+    const selectionFingerprint = crypto.createHash("sha256").update(JSON.stringify(uniqueSelectedKeys)).digest("hex");
+    const fingerprint = "BEEPSTART_SELECTED:" + backupFingerprint + ":" + selectionFingerprint;
+
+    const selectedSet = new Set(uniqueSelectedKeys);
+    const records = (allRecords as R[]).filter((r) => selectedSet.has(legacyKey(r, backupFingerprint)));
+    if (records.length !== uniqueSelectedKeys.length) return NextResponse.json({ ok: false, error: "A seleção contém registros que não pertencem ao backup informado." }, { status: 400 });
 
     const existingRun = await db.migrationRun.findUnique({ where: { sourceFingerprint: fingerprint } });
     if (existingRun?.status === "COMPLETED") {
@@ -51,7 +60,12 @@ export async function POST(request: Request) {
     }
 
     const byCollection = new Map<string, R[]>();
+    const selectedCustomerKeys = new Set<string>();
+    const selectedProductKeys = new Set<string>();
     for (const r of records as R[]) {
+      const key = String(r.collection_key ?? "SEM_COLLECTION");
+      if (key === "Cliente") selectedCustomerKeys.add(legacyKey(r, backupFingerprint));
+      if (key === "Produto") selectedProductKeys.add(legacyKey(r, backupFingerprint));
       const key = String(r.collection_key ?? "SEM_COLLECTION");
       const list = byCollection.get(key) ?? [];
       list.push(r);
@@ -60,6 +74,17 @@ export async function POST(request: Request) {
 
     const customers = byCollection.get("Cliente") ?? [];
     const products = byCollection.get("Produto") ?? [];
+
+    const customerIdentity = new Set<string>();
+    const productIdentity = new Set<string>();
+    for (const c of customers) {
+      const cpf = text(first(c, ["cpf", "cnp", "cpfCnpj", "document"]));
+      if (cpf) { const k = "CPF:" + norm(cpf); if (customerIdentity.has(k)) return NextResponse.json({ ok:false, error:"Há dois clientes selecionados com o mesmo CPF/CNPJ. Selecione apenas um para evitar duplicidade." }, { status:400 }); customerIdentity.add(k); }
+    }
+    for (const p of products) {
+      const barcode = text(first(p, ["barcode", "codigoBarras", "ean"]));
+      if (barcode) { const k = "BARCODE:" + norm(barcode); if (productIdentity.has(k)) return NextResponse.json({ ok:false, error:"Há dois produtos selecionados com o mesmo código de barras. Selecione apenas um." }, { status:400 }); productIdentity.add(k); }
+    }
 
     const result = await db.$transaction(async tx => {
       const run = await tx.migrationRun.create({
@@ -105,7 +130,7 @@ export async function POST(request: Request) {
 
       const newCustomers: any[] = [];
       for (const c of customers) {
-        const legacy = legacyKey(c, fingerprint);
+        const legacy = legacyKey(c, backupFingerprint);
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Customer", id: cpfMap.get(norm(first(c, ["cpf", "cnp", "cpfCnpj", "document"]))) ?? "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
@@ -144,7 +169,7 @@ export async function POST(request: Request) {
       if (newCustomers.length) await tx.customer.createMany({ data: newCustomers });
 
       for (const p of products) {
-        const legacy = legacyKey(p, fingerprint);
+        const legacy = legacyKey(p, backupFingerprint);
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Product", id: "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
@@ -196,10 +221,10 @@ export async function POST(request: Request) {
       }
 
       const legacyRows = (records as R[]).filter(r => {
-        const k = legacyKey(r, fingerprint);
+        const k = legacyKey(r, backupFingerprint);
         return !existingLegacySet.has(k);
       }).map(r => {
-        const t = target.get(legacyKey(r, fingerprint));
+        const t = target.get(legacyKey(r, backupFingerprint));
         return {
           id: crypto.randomUUID(),
           source: "BEEPSTART",
@@ -223,6 +248,9 @@ export async function POST(request: Request) {
       const report = {
         mode: "INCREMENTAL_SAFE",
         source: "BEEPSTART",
+        backupFingerprint,
+        selectionFingerprint,
+        selectedKeys: uniqueSelectedKeys,
         fingerprint,
         totalRecords: records.length,
         customerSource: customers.length,
