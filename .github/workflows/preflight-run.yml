@@ -1,4 +1,5 @@
 name: Operational DB Preflight Run
+# Triggered after operational database secret validation.
 
 on:
   push:
