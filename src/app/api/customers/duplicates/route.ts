@@ -16,7 +16,8 @@ export async function GET(){
       const keys:[string,string|null][]=[
         ["CPF/CNPJ",normalize(c.cpfCnpj)],
         ["Telefone",normalize(c.phone)],
-        ["WhatsApp",normalize(c.whatsapp)]
+        ["WhatsApp",normalize(c.whatsapp)],
+        ["E-mail",c.email?c.email.trim().toLowerCase():null]
       ];
       for(const [field,value] of keys){
         if(value && value.length>=8){
