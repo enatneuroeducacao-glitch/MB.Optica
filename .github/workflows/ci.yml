@@ -5,19 +5,51 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mb_optica
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d mb_optica"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+
       - run: npm install --no-audit --no-fund
-      - run: npm run db:validate
-      - run: npm run typecheck
-      - run: npm run security:audit
-      - run: npm run build
+
+      - name: Validate Prisma schema
+        run: npm run db:validate
+
+      - name: Apply Prisma migrations in CI
+        run: npx prisma migrate deploy
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Security audit
+        run: npm run security:audit
+
+      - name: Production build
+        run: npm run build
