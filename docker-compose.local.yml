@@ -20,6 +20,7 @@ services:
   migrate:
     build:
       context: .
+      target: migrator
     container_name: mb-optica-migrate-local
     depends_on:
       db:
