@@ -22,3 +22,25 @@ npx prisma generate
 npm run dev
 ```
 Configure `DATABASE_URL` em `.env.local`.
+
+## Execução independente do Vercel
+
+O MB Óptica pode ser executado em Docker com PostgreSQL sem depender do Vercel.
+
+### Ambiente local completo
+
+1. Copie `.env.docker.example` para um arquivo de ambiente local e troque os segredos.
+2. Suba a stack:
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+A stack sobe PostgreSQL 16, aplica as migrations Prisma e somente então inicia o MB Óptica em `http://localhost:3000`.
+
+### Banco PostgreSQL externo
+
+Para um servidor próprio ou PostgreSQL gerenciado, mantenha o aplicativo em Docker e forneça `DATABASE_URL`, `AUTH_SECRET` e `BOOTSTRAP_TOKEN` como variáveis de ambiente. As migrations devem ser aplicadas com a imagem `migrator` antes de iniciar o aplicativo.
+
+O Vercel é, portanto, uma opção de hospedagem, não um requisito da aplicação.
+
