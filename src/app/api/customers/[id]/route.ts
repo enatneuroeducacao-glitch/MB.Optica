@@ -48,12 +48,13 @@ export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
     const result=await db.$transaction(async tx=>{
       const current=await tx.customer.findUnique({where:{id}});
       if(!current)throw new Error("Cliente não encontrado");
-      const [orderCount,saleCount,accountCount]=await Promise.all([
+      const [orderCount,saleCount,accountCount,quoteCount]=await Promise.all([
         tx.opticalOrder.count({where:{customerId:id}}),
         tx.sale.count({where:{customerId:id}}),
-        tx.account.count({where:{customerId:id}})
+        tx.account.count({where:{customerId:id}}),
+        tx.quote.count({where:{customerId:id}})
       ]);
-      const hasCommercialHistory=orderCount>0||saleCount>0||accountCount>0;
+      const hasCommercialHistory=orderCount>0||saleCount>0||accountCount>0||quoteCount>0;
       let deletedPrescriptions=0;
 
       if(!hasCommercialHistory){
@@ -64,7 +65,7 @@ export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
       const updated=await tx.customer.update({where:{id},data:{active:false}});
       await writeAudit(tx,{action:"ARCHIVE",entity:"Customer",entityId:id,userId:actor.id,metadata:{
         name:current.name,
-        commercialHistory:{orders:orderCount,sales:saleCount,accounts:accountCount},
+        commercialHistory:{orders:orderCount,sales:saleCount,accounts:accountCount,quotes:quoteCount},
         deletedTestPrescriptions:deletedPrescriptions,
         historyPreserved:hasCommercialHistory
       }});
