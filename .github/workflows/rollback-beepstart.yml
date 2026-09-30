@@ -1,0 +1,46 @@
+name: Rollback Accidental BeepStart Import
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "PREVIEW apenas consulta; APPLY desfaz a última execução BEEPSTART concluída"
+        required: true
+        type: choice
+        options:
+          - preview
+          - apply
+        default: preview
+      confirm:
+        description: "Somente para APPLY: DELETE_LATEST_BEEPSTART_MIGRATION"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.MB_OPTICA_DATABASE_URL }}
+      ROLLBACK_MODE: ${{ inputs.mode }}
+      ROLLBACK_CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Normalize database URL
+        shell: bash
+        run: |
+          raw="$DATABASE_URL"
+          raw="$(printf '%s' "$raw" | sed -e "s/^['\"]//" -e "s/['\"]$//" | xargs)"
+          if [[ "$raw" != postgresql://* && "$raw" != postgres://* ]]; then exit 1; fi
+          printf 'DATABASE_URL=%s\n' "$raw" >> "$GITHUB_ENV"
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npm run db:validate
+      - name: Preview or rollback accidental import
+        run: npm run rollback:beepstart
