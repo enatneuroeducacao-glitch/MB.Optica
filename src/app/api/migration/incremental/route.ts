@@ -86,11 +86,14 @@ export async function POST(request: Request) {
 
       const codeMap = new Map<string, string>();
       const barcodeMap = new Map<string, string>();
-      const productIdentityMap = new Map<string, string>();\n      const productIdentityAmbiguous = new Set<string>();
+      const productIdentityMap = new Map<string, string>();
+      const productIdentityAmbiguous = new Set<string>();
       for (const p of existingProducts) {
         if (p.code) codeMap.set(norm(p.code), p.id);
         if (p.barcode) barcodeMap.set(norm(p.barcode), p.id);
-        const identityKey = `${norm(p.description)}|${norm(p.brand)}|${norm(p.model)}`;\n        if (productIdentityMap.has(identityKey)) productIdentityAmbiguous.add(identityKey);\n        else productIdentityMap.set(identityKey, p.id);
+        const identityKey = `${norm(p.description)}|${norm(p.brand)}|${norm(p.model)}`;
+        if (productIdentityMap.has(identityKey)) productIdentityAmbiguous.add(identityKey);
+        else productIdentityMap.set(identityKey, p.id);
       }
 
       const existingLegacySet = new Set(existingLegacy.map(x => x.legacyKey));
@@ -198,7 +201,9 @@ export async function POST(request: Request) {
         await tx.product.create({ data: row });
         codeMap.set(norm(finalCode), pid);
         if (barcode) barcodeMap.set(norm(barcode), pid);
-        const newIdentityKey = `${norm(description)}|${norm(brand)}|${norm(model)}`;\n        if (productIdentityMap.has(newIdentityKey)) productIdentityAmbiguous.add(newIdentityKey);\n        else productIdentityMap.set(newIdentityKey, pid);
+        const newIdentityKey = `${norm(description)}|${norm(brand)}|${norm(model)}`;
+        if (productIdentityMap.has(newIdentityKey)) productIdentityAmbiguous.add(newIdentityKey);
+        else productIdentityMap.set(newIdentityKey, pid);
         target.set(legacy, { entity: "Product", id: pid, status: "CREATED" });
         productCreated++;
       }
