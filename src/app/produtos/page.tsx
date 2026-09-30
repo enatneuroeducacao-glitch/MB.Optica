@@ -192,7 +192,7 @@ export default function Produtos(){
      <span>{p.category?.name||"—"}</span>
      <span>{p.supplier?.name||"—"}</span>
      <span>R$ {Number(p.salePrice||0).toFixed(2)}</span>
-     <span style={{fontWeight:600,color:p.lowStock?"#a33":"inherit"}}>{Number(p.stock||0).toFixed(3)} {p.unit} {p.lowStock?"· baixo":""}</span>
+     <span style={{fontWeight:600,color:p.stockControlled===false?"#147d70":p.lowStock?"#a33":"inherit"}}>{p.stockControlled===false?"Não gera estoque":<>{Number(p.stock||0).toFixed(3)} {p.unit} {p.lowStock?"· baixo":""}</>}</span>
      <span style={{display:"flex",gap:7,flexWrap:"wrap"}}><button className="link-button" onClick={()=>edit(p)}>Editar</button><button className="link-button" onClick={()=>{setLabelProduct(p);setLabelQty(1)}}>🏷 Etiqueta</button></span>
     </div>)}
     {!filtered.length&&<div style={{padding:22,textAlign:"center",color:"var(--muted)"}}>Nenhum produto encontrado.</div>}
