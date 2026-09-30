@@ -1,12 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
 
-type Candidate={legacyKey:string;legacyId:string|null;name?:string;document?:string;phone?:string;description?:string;brand?:string;model?:string;code?:string;barcode?:string;status:"MATCHED"|"NEW"|"REVIEW";method:string;reason:string;matchedName?:string|null};
+type Candidate={legacyKey:string;legacyId:string|null;name?:string;document?:string;phone?:string;description?:string;brand?:string;model?:string;code?:string;barcode?:string;status:"MATCHED"|"NEW"|"REVIEW"|"RECONCILED";method:string;reason:string;matchedName?:string|null};
 type Preview={fingerprint:string;totalRecords:number;customerSource:number;productSource:number;otherRecords:number;customers:Candidate[];products:Candidate[];customerCounts:Record<string,number>;productCounts:Record<string,number>};
 type Result={fingerprint:string;backupFingerprint?:string;selectionFingerprint?:string;totalRecords:number;customerSource:number;customerCreated:number;customerMatched:number;productSource:number;productCreated:number;productMatched:number;legacyCreated:number};
 
-const statusLabel=(s:string)=>s==="MATCHED"?"Correspondência segura":s==="REVIEW"?"Revisar":"Sem correspondência";
-const statusTone=(s:string)=>s==="MATCHED"?"#087f73":s==="REVIEW"?"#9a6500":"#17324d";
+const statusLabel=(s:string)=>s==="RECONCILED"?"✓ Produto já reconciliado":s==="MATCHED"?"Correspondência segura":s==="REVIEW"?"Revisar":"Sem correspondência";
+const statusTone=(s:string)=>s==="RECONCILED"?"#0b6b57":s==="MATCHED"?"#087f73":s==="REVIEW"?"#9a6500":"#17324d";
 
 export default function Page(){
   const [file,setFile]=useState<File|null>(null);
@@ -18,7 +18,7 @@ export default function Page(){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [kind,setKind]=useState<"Cliente"|"Produto">("Cliente");
-  const [status,setStatus]=useState<"ALL"|"NEW"|"REVIEW"|"MATCHED">("NEW");
+  const [status,setStatus]=useState<"ALL"|"NEW"|"REVIEW"|"MATCHED"|"RECONCILED">("NEW");
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(1);
 
@@ -93,7 +93,7 @@ export default function Page(){
     </div>
 
     {preview&&<div className="panel" style={{marginTop:16}}>
-      <div className="panel-heading"><div><span className="eyebrow">ETAPA 2 · PESQUISA CONCLUÍDA</span><h2>O que realmente precisa ser reconciliado</h2><p>Correspondências seguras não precisam ser importadas. Novos registros e casos ambíguos podem ser selecionados individualmente.</p></div></div>
+      <div className="panel-heading"><div><span className="eyebrow">ETAPA 2 · PESQUISA CONCLUÍDA</span><h2>O que realmente precisa ser reconciliado</h2><p>Correspondências seguras não precisam ser importadas. Registros já reconciliados ficam identificados e bloqueados para evitar nova inclusão. Novos registros e casos ambíguos podem ser selecionados individualmente.</p></div></div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
         {[["Clientes",preview.customerSource,preview.customerCounts.NEW,preview.customerCounts.REVIEW],["Produtos",preview.productSource,preview.productCounts.NEW,preview.productCounts.REVIEW]].map(([label,total,news,reviews])=><div key={String(label)} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>{label}</small><strong style={{fontSize:25,display:"block"}}>{Number(total).toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>novos: {Number(news).toLocaleString("pt-BR")} · revisar: {Number(reviews).toLocaleString("pt-BR")}</span></div>)}
         <div style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>Registros do backup</small><strong style={{fontSize:25,display:"block"}}>{preview.totalRecords.toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>demais coleções: {preview.otherRecords.toLocaleString("pt-BR")}</span></div>
@@ -106,6 +106,7 @@ export default function Page(){
         <button className={status==="NEW"?"primary":"secondary"} onClick={()=>{setStatus("NEW");setPage(1);}}>Novos ({(kind==="Cliente"?preview.customerCounts.NEW:preview.productCounts.NEW)})</button>
         <button className={status==="REVIEW"?"primary":"secondary"} onClick={()=>{setStatus("REVIEW");setPage(1);}}>Revisar ({(kind==="Cliente"?preview.customerCounts.REVIEW:preview.productCounts.REVIEW)})</button>
         <button className={status==="MATCHED"?"primary":"secondary"} onClick={()=>{setStatus("MATCHED");setPage(1);}}>Já encontrados ({(kind==="Cliente"?preview.customerCounts.MATCHED:preview.productCounts.MATCHED)})</button>
+        <button className={status==="RECONCILED"?"primary":"secondary"} onClick={()=>{setStatus("RECONCILED");setPage(1);}}>Já reconciliados ({(kind==="Cliente"?preview.customerCounts.RECONCILED??0:preview.productCounts.RECONCILED??0)})</button>
         <button className="secondary" onClick={()=>setStatus("ALL")}>Todos</button>
         <button className="secondary" onClick={()=>selectStatus("NEW")}>Selecionar todos os novos</button>
         <button className="secondary" onClick={()=>selectStatus("REVIEW")}>Selecionar revisões</button>
@@ -117,7 +118,7 @@ export default function Page(){
       <div className="table" style={{marginTop:14}}>
         <div className="row header"><span>Selecionar</span><span>Registro</span><span>{kind==="Produto"?"Lente / estoque":"Correspondência"}</span><span>Critério</span></div>
         {visible.map(item=><div className="row" key={item.legacyKey}>
-          <span>{item.status==="MATCHED"&&kind==="Cliente"?<small style={{color:"#087f73"}}>✓ Já cadastrado</small>:<input type="checkbox" checked={selected.has(item.legacyKey)} onChange={()=>toggle(item.legacyKey)}/>}</span>
+          <span>{item.status==="RECONCILED"?<small style={{color:"#0b6b57",fontWeight:700}}>✓ Já reconciliado</small>:item.status==="MATCHED"&&kind==="Cliente"?<small style={{color:"#087f73"}}>✓ Já cadastrado</small>:<input type="checkbox" checked={selected.has(item.legacyKey)} onChange={()=>toggle(item.legacyKey)}/>}</span>
           <span><strong>{kind==="Cliente"?item.name:item.description}</strong><small style={{display:"block",color:"var(--muted)"}}>{kind==="Cliente"?(item.document||"sem CPF/CNPJ")+" · "+(item.phone||"sem telefone"):[item.brand,item.model,item.code].filter(Boolean).join(" · ")||"sem identificação completa"}</small></span>
           <span style={{color:statusTone(item.status)}}>{kind==="Produto"&&<label style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,cursor:"pointer"}}><input type="checkbox" checked={nonStockProducts.has(item.legacyKey)} onChange={()=>toggleNonStock(item.legacyKey)}/><b>Lente · não controla estoque</b></label>}<b>{statusLabel(item.status)}</b><small style={{display:"block",color:"var(--muted)"}}>{item.matchedName||"Nenhum cadastro atual localizado"}</small></span>
           <span><b>{item.method||"—"}</b><small style={{display:"block",color:"var(--muted)"}}>{item.reason}</small></span>
