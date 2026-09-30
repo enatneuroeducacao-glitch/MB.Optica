@@ -51,7 +51,24 @@ export async function GET(request: Request) {
       ? rows.filter(row => JSON.stringify(row.payload).toLowerCase().includes(q)).slice(0, take)
       : rows;
 
-    return NextResponse.json({ ok:true, total:filtered.length, records:filtered });
+    const customerRows=filtered.filter(row=>String(row.collectionKey||"").toLowerCase()==="cliente");
+    const customerDocs=[...new Set(customerRows.map(row=>{
+      const p=(row.payload||{}) as Record<string,unknown>;
+      return String(p.cnp||p.cpf||p.cpfCnpj||p.cnpj||p.documento||"").replace(/\D/g,"");
+    }).filter(Boolean))];
+
+    const customers=customerDocs.length
+      ? await db.customer.findMany({select:{id:true,name:true,cpfCnpj:true},where:{cpfCnpj:{not:null}}})
+      : [];
+    const byDoc=new Map(customers.map(c=>[String(c.cpfCnpj||"").replace(/\D/g,""),{id:c.id,name:c.name,cpfCnpj:c.cpfCnpj}]));
+    const enriched=filtered.map(row=>{
+      if(String(row.collectionKey||"").toLowerCase()!=="cliente") return row;
+      const p=(row.payload||{}) as Record<string,unknown>;
+      const doc=String(p.cnp||p.cpf||p.cpfCnpj||p.cnpj||p.documento||"").replace(/\D/g,"");
+      return {...row,matchedCustomer:doc?(byDoc.get(doc)||null):null};
+    });
+
+    return NextResponse.json({ ok:true, total:enriched.length, records:enriched });
   } catch (error) {
     return apiError(error, "Não foi possível consultar o legado BeepStart.");
   }
