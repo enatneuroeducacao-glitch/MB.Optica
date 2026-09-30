@@ -7,25 +7,46 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mb_optica
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mb_optica"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
     ports:
       - "5433:5432"
     volumes:
       - mb_optica_pgdata:/var/lib/postgresql/data
 
+  migrate:
+    build:
+      context: .
+    container_name: mb-optica-migrate-local
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/mb_optica?schema=public
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+
   app:
     build:
       context: .
-      args:
-        DATABASE_URL: postgresql://postgres:postgres@db:5432/mb_optica?schema=public
     container_name: mb-optica-app-local
     restart: unless-stopped
     depends_on:
-      - db
+      migrate:
+        condition: service_completed_successfully
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@db:5432/mb_optica?schema=public
       AUTH_SECRET: change-this-local-secret-before-login
       BOOTSTRAP_TOKEN: change-this-local-bootstrap-token
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "3000:3000"
 
