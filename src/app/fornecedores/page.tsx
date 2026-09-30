@@ -14,6 +14,8 @@ export default function Fornecedores(){
  const [search,setSearch]=useState("");
  const [msg,setMsg]=useState("");
  const [loading,setLoading]=useState(false);
+ const [backupInfo,setBackupInfo]=useState<{records:any[];total:number;active:number;archived:number;fileName:string}|null>(null);
+ const [reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
   const r=await fetch("/api/suppliers");
@@ -58,6 +60,35 @@ export default function Fornecedores(){
   setMsg("Fornecedor arquivado com sucesso.");setSelected(null);setForm(empty);await load();
  };
 
+ const chooseBackup=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+  const file=e.target.files?.[0]; e.target.value="";
+  if(!file)return;
+  try{
+   const text=await file.text();
+   const data=JSON.parse(text);
+   if(!Array.isArray(data))throw new Error("O backup precisa ser uma lista JSON.");
+   const suppliers=data.filter((r:any)=>String(r.collection_key??"")==="Fornecedor");
+   if(!suppliers.length)throw new Error("Nenhum fornecedor foi encontrado neste backup.");
+   const active=suppliers.filter((r:any)=>!Boolean(r.archived)).length;
+   const archived=suppliers.length-active;
+   setBackupInfo({records:suppliers,total:suppliers.length,active,archived,fileName:file.name});
+   setMsg(`Backup carregado: ${suppliers.length} fornecedores (${active} ativos e ${archived} arquivados). Revise e confirme a reconciliação.`);
+  }catch(err){setBackupInfo(null);setMsg(err instanceof Error?err.message:"Não foi possível ler o backup.");}
+ };
+ const reconcileBackup=async()=>{
+  if(!backupInfo)return;
+  if(!window.confirm(`Reconciliar ${backupInfo.active} fornecedores ativos deste backup? Fornecedores arquivados serão preservados apenas como histórico. Nenhum fornecedor atual será excluído.`))return;
+  setReconciling(true);setMsg("");
+  try{
+   const r=await fetch("/api/migration/legacy/suppliers/reconcile",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({records:backupInfo.records})});
+   const d=await r.json();
+   if(!r.ok)throw new Error(d?.error||"Não foi possível reconciliar os fornecedores.");
+   const x=d.result||{};
+   setMsg(d.alreadyProcessed?"Este backup de fornecedores já foi reconciliado anteriormente.":`Reconciliação concluída: ${x.created||0} novos, ${x.matched||0} já existentes e ${x.preserved||0} arquivados preservados como histórico.`);
+   setBackupInfo(null);await load();
+  }catch(err){setMsg(err instanceof Error?err.message:"Não foi possível reconciliar os fornecedores.");}
+  finally{setReconciling(false);}
+ };
  const filtered=useMemo(()=>{
   const q=search.toLowerCase().trim();
   if(!q)return rows;
@@ -70,10 +101,20 @@ export default function Fornecedores(){
  return <section className="page">
   <div className="page-heading">
    <div><span className="eyebrow">CADASTRO</span><h1>Fornecedores</h1><p>Cadastre fornecedores, contatos, produtos vinculados e contas a pagar.</p></div>
+   <div style={{display:"flex",gap:8}}>
+   <label className="secondary" style={{display:"inline-flex",alignItems:"center",cursor:"pointer"}}>↻ Carregar backup de fornecedores<input type="file" accept=".json,.txt,application/json,text/plain" onChange={chooseBackup} style={{display:"none"}}/></label>
    <button className="primary" onClick={()=>{setSelected(null);setForm(empty);setMsg("");window.scrollTo({top:0,behavior:"smooth"})}}>+ Novo fornecedor</button>
   </div>
+  </div>
 
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
+  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>  {backupInfo&&<div className="panel" style={{padding:16,marginBottom:12,border:"1px solid var(--line)"}}>
+   <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}>
+    <div><span className="eyebrow">RECONCILIAÇÃO</span><h3 style={{margin:"3px 0"}}>Backup pronto para reconciliação</h3><div style={{fontSize:12,color:"var(--muted)"}}>{backupInfo.fileName} · {backupInfo.total} fornecedores · {backupInfo.active} ativos · {backupInfo.archived} arquivados</div></div>
+    <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setBackupInfo(null)} disabled={reconciling}>Cancelar</button><button className="primary" onClick={reconcileBackup} disabled={reconciling}>{reconciling?"Reconciliando...":"Confirmar reconciliação"}</button></div>
+   </div>
+   <p style={{margin:"10px 0 0",fontSize:12,color:"var(--muted)"}}>A reconciliação compara documento, nome + telefone e nome. Não exclui fornecedores atuais. Os registros arquivados do backup ficam preservados no histórico.</p>
+  </div>}
+}
 
   <div className="stats" style={{marginBottom:12}}>
    <div className="stat-card"><b>{rows.length}</b><span>FORNECEDORES ATIVOS</span></div>
