@@ -19,7 +19,7 @@ const schema=z.object({
   notes:z.string().max(1000).nullable().optional()
 });
 
-export async function GET(){
+export async function GET(req:Request){
   try{
     await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const data=await db.customer.findMany({
