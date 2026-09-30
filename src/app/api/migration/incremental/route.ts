@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     await requireRole(["ADMIN"]);
     const body = await request.json();
     const allRecords = body?.records;
-    const selectedKeys = Array.isArray(body?.selectedKeys) ? body.selectedKeys.map(String) : [];
+    const selectedKeys: string[] = Array.isArray(body?.selectedKeys) ? body.selectedKeys.map((value: unknown) => String(value)) : [];
 
     if (!Array.isArray(allRecords)) {
       return NextResponse.json({ ok: false, error: "O backup precisa ser uma lista JSON." }, { status: 400 });
@@ -61,7 +61,6 @@ export async function POST(request: Request) {
 
     const byCollection = new Map<string, R[]>();
     for (const r of records as R[]) {
-      const key = String(r.collection_key ?? "SEM_COLLECTION");
       const key = String(r.collection_key ?? "SEM_COLLECTION");
       const list = byCollection.get(key) ?? [];
       list.push(r);
