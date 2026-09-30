@@ -22,7 +22,8 @@ export async function GET(req:Request){
  try{
   await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
   const customerId=new URL(req.url).searchParams.get("customerId")||undefined;
-  return NextResponse.json(await db.prescription.findMany({where:customerId?{customerId}:{},orderBy:{date:"desc"},take:100}));
+  const where=customerId?{customerId,customer:{active:true}}:{customer:{active:true}};
+  return NextResponse.json(await db.prescription.findMany({where,orderBy:{date:"desc"},take:100}));
  }catch(error){
   return apiError(error,"Não foi possível carregar as receitas.");
  }
