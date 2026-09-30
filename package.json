@@ -20,7 +20,8 @@
     "transform:beepstart": "tsx scripts/transform-beepstart.ts",
     "security:audit": "tsx scripts/security-audit.ts",
     "reconcile:beepstart": "tsx scripts/reconcile-beepstart.ts",
-    "migration:beepstart": "tsx scripts/import-beepstart.ts"
+    "migration:beepstart": "tsx scripts/import-beepstart.ts",
+    "backup:operational": "tsx scripts/backup-operational-data.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
