@@ -1,4 +1,4 @@
-import {NextResponse} from "next";
+import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {requireRole} from "@/lib/auth";
 import {apiError} from "@/lib/api-error";
