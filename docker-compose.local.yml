@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    container_name: mb-optica-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mb_optica
+    ports:
+      - "5433:5432"
+    volumes:
+      - mb_optica_pgdata:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: .
+      args:
+        DATABASE_URL: postgresql://postgres:postgres@db:5432/mb_optica?schema=public
+    container_name: mb-optica-app-local
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/mb_optica?schema=public
+      AUTH_SECRET: change-this-local-secret-before-login
+      BOOTSTRAP_TOKEN: change-this-local-bootstrap-token
+    ports:
+      - "3000:3000"
+
+volumes:
+  mb_optica_pgdata:
