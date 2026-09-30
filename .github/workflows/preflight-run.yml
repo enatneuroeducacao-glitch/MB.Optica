@@ -1,0 +1,25 @@
+name: Operational DB Preflight Run
+
+on:
+  push:
+    branches: ["github-first"]
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.MB_OPTICA_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npm run db:validate
+      - name: Read-only database preflight
+        run: npx tsx scripts/preflight-operational-db.ts
