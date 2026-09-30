@@ -19,7 +19,7 @@ export async function GET(_:Request,{params}:{params:Promise<{id:string}>}){
       where:{id},include:{products:{orderBy:{description:"asc"}},accounts:{orderBy:{dueDate:"asc"}},}
     });
     if(!supplier)return NextResponse.json({error:"Fornecedor não encontrado."},{status:404});
-    return NextResponse.json(supplier);
+    return NextResponse.json(supplier,{headers:{"Cache-Control":"no-store"}});
   }catch(error){return apiError(error,"Não foi possível carregar o fornecedor.");}
 }
 
@@ -34,7 +34,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       await writeAudit(tx,{action:"UPDATE",entity:"Supplier",entityId:id,userId:actor.id,metadata:{before:{name:current.name,document:current.document},after:{name:updated.name,document:updated.document},fields:Object.keys(b)}});
       return updated;
     });
-    return NextResponse.json(result);
+    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
   }catch(error){
     if(error instanceof z.ZodError)return NextResponse.json({error:"Dados do fornecedor inválidos."},{status:422});
     if(error instanceof Error&&error.message==="SUPPLIER_NOT_FOUND")return NextResponse.json({error:"Fornecedor não encontrado."},{status:404});
