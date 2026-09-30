@@ -11,10 +11,26 @@ async function main() {
   const run = await db.migrationRun.findFirst({
     where: { source: "BEEPSTART", status: "COMPLETED" },
     orderBy: { startedAt: "desc" },
-    select: { id: true, total: true, imported: true, mapped: true, startedAt: true, completedAt: true },
+    select: { id: true, source: true, status: true, total: true, imported: true, mapped: true, startedAt: true, completedAt: true },
   });
 
-  if (!run) throw new Error("Nenhuma execução BEEPSTART concluída foi encontrada.");
+  if (!run) {
+    const recentRuns = await db.migrationRun.findMany({
+      orderBy: { startedAt: "desc" },
+      take: 20,
+      select: { id: true, source: true, status: true, total: true, imported: true, mapped: true, startedAt: true, completedAt: true },
+    });
+    const legacyCount = await db.legacyRecord.count();
+    console.log(JSON.stringify({
+      mode: apply ? "APPLY" : "PREVIEW",
+      foundBeepStartCompleted: false,
+      legacyRecordCount: legacyCount,
+      recentMigrationRuns: recentRuns,
+      message: "Nenhuma execução BEEPSTART concluída foi encontrada no banco apontado por MB_OPTICA_DATABASE_URL. Nenhum dado foi alterado.",
+    }, null, 2));
+    if (apply) throw new Error("Rollback não executado: não foi encontrada uma execução BEEPSTART concluída.");
+    return;
+  }
 
   const legacyRows = await db.legacyRecord.findMany({
     where: { migrationRunId: run.id },
