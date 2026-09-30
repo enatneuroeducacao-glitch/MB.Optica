@@ -19,6 +19,17 @@ jobs:
           node-version: 22
       - name: Install
         run: npm install --no-audit --no-fund
+      - name: Normalize database URL
+        shell: bash
+        run: |
+          raw="$DATABASE_URL"
+          raw="$(printf '%s' "$raw" | sed -e "s/^['\"]//" -e "s/['\"]$//" | xargs)"
+          if [[ "$raw" != postgresql://* && "$raw" != postgres://* ]]; then
+            echo "MB_OPTICA_DATABASE_URL não contém uma URL PostgreSQL válida."
+            echo "O segredo deve ser a DATABASE_URL do banco operacional, iniciando com postgresql:// ou postgres://."
+            exit 1
+          fi
+          printf 'DATABASE_URL=%s\n' "$raw" >> "$GITHUB_ENV"
       - name: Validate Prisma schema
         run: npm run db:validate
       - name: Read-only database preflight
