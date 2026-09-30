@@ -37,10 +37,16 @@ export default function Fornecedores(){
    const d=await r.json();
    if(!r.ok){setMsg(d.error||"Erro ao salvar fornecedor.");return}
    if(selected){
-    setSelected((prev:any)=>prev?{...prev,...d}:d);
-    setRows(prev=>prev.map(row=>row.id===d.id?{...row,...d}:row));
-    setForm({name:d.name||"",document:d.document||"",phone:d.phone||"",email:d.email||"",notes:d.notes||""});
-    setMsg("Fornecedor atualizado com sucesso.");
+    const verify=await fetch("/api/suppliers/"+d.id,{cache:"no-store"});
+    const verified=await verify.json();
+    if(!verify.ok || verified.name!==d.name){
+      setMsg("O servidor não confirmou a alteração do fornecedor. Nenhuma confirmação será exibida.");
+      return;
+    }
+    setSelected((prev:any)=>prev?{...prev,...verified}:verified);
+    setRows(prev=>prev.map(row=>row.id===verified.id?{...row,...verified}:row));
+    setForm({name:verified.name||"",document:verified.document||"",phone:verified.phone||"",email:verified.email||"",notes:verified.notes||""});
+    setMsg("Alteração confirmada no banco.");
    }else{
     setMsg("Fornecedor cadastrado com sucesso.");
     setForm(empty);
