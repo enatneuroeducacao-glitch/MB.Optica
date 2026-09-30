@@ -20,6 +20,7 @@ export default function Page(){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [result,setResult]=useState<Result|null>(null);
+  const [ready,setReady]=useState(false);
 
   async function processBackup(){
     if(!file)return;
@@ -29,7 +30,9 @@ export default function Page(){
       const parsed=JSON.parse(raw);
       if(!Array.isArray(parsed)) throw new Error("O backup precisa ser uma lista JSON.");
       setRecords(parsed);
-      setMessage("Backup carregado. A reconciliação segura está sendo executada.");
+      setReady(true);
+      setMessage("Backup carregado. Revise a quantidade de registros e confirme a reconciliação.");
+      if(!ready) return;
       const r=await fetch("/api/migration/incremental",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -69,10 +72,13 @@ export default function Page(){
           </div>
         </div>
         <input type="file" accept=".json,.txt,application/json,text/plain"
-          onChange={e=>{setFile(e.target.files?.[0]||null);setResult(null);setMessage("");}}/>
+          onChange={e=>{setFile(e.target.files?.[0]||null);setRecords(null);setResult(null);setReady(false);setMessage("");}}/>
         <button className="primary" disabled={!file||busy} onClick={processBackup} style={{marginTop:10}}>
-          {busy?"Processando...":"Reconciliar backup com o MB"}
+          {busy?"Processando...":ready?"Confirmar reconciliação com o MB":"Preparar backup para reconciliação"}
         </button>
+        {ready&&records&&<div style={{marginTop:12,padding:12,borderRadius:10,background:"#fff8e6",color:"var(--muted)",fontSize:13}}>
+          <b>Confirmação necessária:</b> o primeiro clique não altera o banco. Ao clicar novamente, a reconciliação será executada e somente registros não encontrados serão acrescentados.
+        </div>}
       </div>
 
       <div className="panel">
@@ -96,13 +102,13 @@ export default function Page(){
     {records&&<div className="panel">
       <div className="panel-heading">
         <div>
-          <h2>Resultado da reconciliação</h2>
-          <p>O backup não substitui os dados atuais; ele apenas acrescenta o que não foi localizado.</p>
+          <h2>{result?"Resultado da reconciliação":"Backup preparado"}</h2>
+          <p>{result?"O backup não substitui os dados atuais; ele apenas acrescenta o que não foi localizado.":"Nenhuma alteração foi feita no banco. Confira o total e confirme acima para executar."}</p>
         </div>
       </div>
 
       {!result
-        ? <p>Processando...</p>
+        ? <div className="settings-list"><div><b>Registros carregados</b><span>{records?.length.toLocaleString("pt-BR")}</span></div><div><b>Status</b><span>Nenhuma alteração realizada</span></div></div>
         : <>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
             {[
