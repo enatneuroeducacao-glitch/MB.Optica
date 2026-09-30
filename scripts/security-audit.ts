@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { effectivePermissions, hasPermission, API_PERMISSIONS, API_PUBLIC_AUTHENTICATED } from "../src/lib/permissions";
+import { effectivePermissions, hasPermission, API_PERMISSIONS, API_PUBLIC, API_PUBLIC_AUTHENTICATED } from "../src/lib/permissions";
 
 const root=process.cwd();
 const assert=(condition:boolean,message:string)=>{if(!condition)throw new Error("SECURITY AUDIT FAILED: "+message)};
@@ -33,7 +33,7 @@ const apiRoot=path.join(root,"src/app/api");
 const unmapped=walk(apiRoot).map(file=>{
   const rel=path.relative(apiRoot,path.dirname(file)).split(path.sep).filter(Boolean);
   return "/api/"+rel.join("/");
-}).filter(route=>!API_PUBLIC_AUTHENTICATED.has(route)&&!["/api/auth/login","/api/auth/logout","/api/auth/bootstrap","/api/health"].includes(route)&&!Object.keys(API_PERMISSIONS).some(prefix=>route===prefix||route.startsWith(prefix+"/")));
+}).filter(route=>!API_PUBLIC.has(route)&&!API_PUBLIC_AUTHENTICATED.has(route)&&!Object.keys(API_PERMISSIONS).some(prefix=>route===prefix||route.startsWith(prefix+"/")));
 assert(unmapped.length===0, "unmapped API routes: "+unmapped.join(", "));
 
 const schema=fs.readFileSync(path.join(root,"prisma/schema.prisma"),"utf8");
