@@ -21,9 +21,10 @@ const schema=z.object({
 
 export async function GET(req:Request){
   try{
+    const includeArchived=new URL(req.url).searchParams.get("includeArchived")==="1";
     await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const data=await db.customer.findMany({
-      where:{active:true},
+      where:includeArchived?{}:{active:true},
       orderBy:{name:"asc"},
       take:500,
       include:{addresses:true,_count:{select:{orders:true,sales:true,prescriptions:true,accounts:true}}}
