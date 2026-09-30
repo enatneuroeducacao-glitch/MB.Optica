@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const allRecords = body?.records;
     const selectedKeys: string[] = Array.isArray(body?.selectedKeys) ? body.selectedKeys.map((value: unknown) => String(value)) : [];
+    const nonStockProductKeys: string[] = Array.isArray(body?.nonStockProductKeys) ? body.nonStockProductKeys.map((value: unknown) => String(value)) : [];
 
     if (!Array.isArray(allRecords)) {
       return NextResponse.json({ ok: false, error: "O backup precisa ser uma lista JSON." }, { status: 400 });
@@ -42,10 +43,14 @@ export async function POST(request: Request) {
     const backupFingerprint = crypto.createHash("sha256").update(rawText).digest("hex");
     if (selectedKeys.length === 0) return NextResponse.json({ ok: false, error: "Nenhum registro foi selecionado para reconciliação." }, { status: 400 });
     const uniqueSelectedKeys = [...new Set(selectedKeys)].sort();
-    const selectionFingerprint = crypto.createHash("sha256").update(JSON.stringify(uniqueSelectedKeys)).digest("hex");
+    const uniqueNonStockProductKeys = [...new Set(nonStockProductKeys)].sort();
+    const invalidNonStockKeys = uniqueNonStockProductKeys.filter((key) => !uniqueSelectedKeys.includes(key));
+    if (invalidNonStockKeys.length) return NextResponse.json({ ok: false, error: "Há lentes marcadas como sem estoque que não estão na seleção de produtos." }, { status: 400 });
+    const selectionFingerprint = crypto.createHash("sha256").update(JSON.stringify({ selectedKeys: uniqueSelectedKeys, nonStockProductKeys: uniqueNonStockProductKeys })).digest("hex");
     const fingerprint = "BEEPSTART_SELECTED:" + backupFingerprint + ":" + selectionFingerprint;
 
     const selectedSet = new Set(uniqueSelectedKeys);
+    const nonStockProductSet = new Set(uniqueNonStockProductKeys);
     const records = (allRecords as R[]).filter((r) => selectedSet.has(legacyKey(r, backupFingerprint)));
     if (records.length !== uniqueSelectedKeys.length) return NextResponse.json({ ok: false, error: "A seleção contém registros que não pertencem ao backup informado." }, { status: 400 });
 
@@ -93,7 +98,7 @@ export async function POST(request: Request) {
 
       const [existingCustomers, existingProducts, existingLegacy] = await Promise.all([
         tx.customer.findMany({ select: { id: true, name: true, cpfCnpj: true, phone: true } }),
-        tx.product.findMany({ select: { id: true, code: true, barcode: true, description: true, brand: true, model: true } }),
+        tx.product.findMany({ select: { id: true, code: true, barcode: true, description: true, brand: true, model: true, stockControlled: true } }),
         tx.legacyRecord.findMany({ select: { legacyKey: true } })
       ]);
 
@@ -182,6 +187,9 @@ export async function POST(request: Request) {
           productIdentityMap.get(`${norm(description)}|${norm(brand)}|${norm(model)}`);
 
         if (matchedId) {
+          if (nonStockProductSet.has(legacy)) {
+            await tx.product.update({ where: { id: matchedId }, data: { stockControlled: false } });
+          }
           target.set(legacy, { entity: "Product", id: matchedId, status: "MATCHED" });
           productMatched++;
           continue;
@@ -205,6 +213,7 @@ export async function POST(request: Request) {
           cost: dec(first(p, ["custo", "cost", "precoCusto"])),
           salePrice: dec(first(p, ["venda", "salePrice", "preco", "precoVenda"])),
           minimumStock: dec(first(p, ["estoqueMinimo", "minimumStock"])),
+          stockControlled: !nonStockProductSet.has(legacy),
           active: true
         };
         await tx.product.create({ data: row });
@@ -246,6 +255,7 @@ export async function POST(request: Request) {
         backupFingerprint,
         selectionFingerprint,
         selectedKeys: uniqueSelectedKeys,
+        nonStockProductKeys: uniqueNonStockProductKeys,
         fingerprint,
         totalRecords: records.length,
         customerSource: customers.length,
