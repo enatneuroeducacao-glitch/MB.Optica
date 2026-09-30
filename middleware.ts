@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-import { API_PERMISSIONS, API_PUBLIC_AUTHENTICATED, PAGE_PERMISSIONS, ROLE_API_PREFIXES, ROLE_DEFAULT_PERMISSIONS, WRITE_ROLES, pathMatches } from "@/lib/permissions";
+import { API_PERMISSIONS, API_PUBLIC, API_PUBLIC_AUTHENTICATED, PAGE_PERMISSIONS, ROLE_API_PREFIXES, ROLE_DEFAULT_PERMISSIONS, WRITE_ROLES, pathMatches } from "@/lib/permissions";
 
 const COOKIE = "mb_optica_session";
 const PUBLIC_PAGES = new Set(["/login", "/setup", "/acesso-negado", "/primeiro-acesso"]);
-const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bootstrap", "/api/health", "/api/branding"]);
+
 
 const ROLE_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.headers.set("X-DNS-Prefetch-Control", "off");
 
-  if (PUBLIC_PAGES.has(pathname) || PUBLIC_API.has(pathname)) return response;
+  if (PUBLIC_PAGES.has(pathname) || API_PUBLIC.has(pathname)) return response;
 
   const token = request.cookies.get(COOKIE)?.value;
   const key = secretKey();
