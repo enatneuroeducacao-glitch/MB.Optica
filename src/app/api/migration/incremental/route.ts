@@ -156,10 +156,18 @@ export async function POST(request: Request) {
         const brand = text(first(p, ["brand", "marca"]));
         const model = text(first(p, ["model", "modelo"]));
 
+        const barcodeMatch = barcode ? barcodeMap.get(norm(barcode)) : undefined;
+        const codeMatch = code ? codeMap.get(norm(code)) : undefined;
+        const identityKey = `${norm(description)}|${norm(brand)}|${norm(model)}`;
+        const identityMatch = productIdentityMap.get(identityKey);
         const matchedId =
-          (barcode ? barcodeMap.get(norm(barcode)) : undefined) ??
-          (code ? codeMap.get(norm(code)) : undefined) ??
-          productIdentityMap.get(`${norm(description)}|${norm(brand)}|${norm(model)}`);
+          barcodeMatch ??
+          codeMatch ??
+          (identityMatch && !productIdentityAmbiguous.has(identityKey) ? identityMatch : undefined);
+
+        if (!barcodeMatch && !codeMatch && productIdentityAmbiguous.has(identityKey)) {
+          warnings.push(`Produto ${idOf(p) ?? "sem id"} exige validação manual: identidade descrição+marca+modelo ambígua.`);
+        }
 
         if (matchedId) {
           target.set(legacy, { entity: "Product", id: matchedId, status: "MATCHED" });
