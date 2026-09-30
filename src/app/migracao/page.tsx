@@ -188,7 +188,6 @@ export default function Page(){
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Falha na consulta.");
       setResults(d.records||[]);
-      setSelectedLegacyProducts([]);
     }catch(e){setMessage(e instanceof Error?e.message:"Erro na consulta ao legado.");}
   }
 
@@ -378,7 +377,8 @@ export default function Page(){
                   {isCustomer&&<button className="primary" disabled={busy||!!matched} onClick={()=>importCustomer(row)}>{matched?"Já cadastrado":"Usar no cadastro"}</button>}
                 </div>
               </div>;
-            })}      }
+            })}
+          </div>}
     </div>
 
     {selected&&<div className="panel">
