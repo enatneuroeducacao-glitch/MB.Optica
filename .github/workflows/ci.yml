@@ -52,3 +52,42 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: verify
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mb_optica
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d mb_optica"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build migrator
+        run: docker build --target migrator -t mb-optica-migrator .
+      - name: Run migrations
+        run: docker run --rm --network host -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public mb-optica-migrator
+      - name: Build application
+        run: docker build --target runner -t mb-optica-app .
+      - name: Start application
+        run: |
+          docker run -d --name mb-optica-app --network host -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public -e AUTH_SECRET=local-development-secret-change-me-32-characters -e BOOTSTRAP_TOKEN=local-bootstrap-token-change-me-32-characters mb-optica-app
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker logs mb-optica-app
+          exit 1
+      - name: Stop application
+        if: always()
+        run: docker rm -f mb-optica-app 2>/dev/null || true
