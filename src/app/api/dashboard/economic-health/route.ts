@@ -86,6 +86,7 @@ export async function GET(){
 
     const positives:string[]=[];
     const attention:string[]=[];
+    const alerts:{severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";title:string;detail:string}[]=[];
 
     if(receivable>payable) positives.push("O saldo operacional a receber é superior ao saldo operacional a pagar.");
     if(cashSessions.length>0 && cashBalance>0) positives.push("Há caixa operacional aberto com saldo positivo no momento da análise.");
@@ -103,6 +104,18 @@ export async function GET(){
     if(collectionRate!==null && collectionRate<50) attention.push(`Os recebimentos representam ${collectionRate.toFixed(1).replace(".",",")}% do faturamento histórico de 2026; vale acompanhar prazo e inadimplência.`);
     if(top3Share>70 && activeMonths.length>=4) attention.push(`Os 3 maiores meses concentram ${top3Share.toFixed(1).replace(".",",")}% do faturamento histórico de 2026; acompanhe a concentração mensal.`);
     if(!attention.length) attention.push("Nenhum ponto de atenção relevante foi identificado pelos indicadores disponíveis.");
+
+    if(overdue>0) alerts.push({severity:"CRITICO",title:"Contas vencidas",detail:`${overdue} conta(s) operacional(is) estão vencidas e precisam de acompanhamento.`});
+    if(payable>receivable && payable>0) alerts.push({severity:"CRITICO",title:"Pressão de capital de giro",detail:`O contas a pagar operacional (${formatMoney(payable)}) supera o contas a receber (${formatMoney(receivable)}).`});
+    if(zeroStock>0) alerts.push({severity:"CRITICO",title:"Produtos sem estoque",detail:`${zeroStock} produto(s) ativo(s) estão sem estoque.`});
+    if(lowStock>0 && zeroStock===0) alerts.push({severity:"ATENCAO",title:"Estoque no limite",detail:`${lowStock} produto(s) estão no nível mínimo ou abaixo dele.`});
+    if(receivable>0) alerts.push({severity:"ATENCAO",title:"Valores a receber",detail:`Há ${formatMoney(receivable)} em contas a receber operacionais em aberto.`});
+    if(payable>0) alerts.push({severity:"ATENCAO",title:"Compromissos a pagar",detail:`Há ${formatMoney(payable)} em contas a pagar operacionais em aberto.`});
+    if(!cashSessions.length) alerts.push({severity:"ATENCAO",title:"Caixa operacional fechado",detail:"Não há sessão de caixa aberta no momento da análise."});
+    if(collectionRate!==null && collectionRate<50) alerts.push({severity:"ATENCAO",title:"Recebimentos abaixo do faturamento",detail:`Os recebimentos representam ${collectionRate.toFixed(1).replace(".",",")}% do faturamento histórico de 2026.`});
+    if(top3Share>70 && activeMonths.length>=4) alerts.push({severity:"INFORMATIVO",title:"Concentração de faturamento",detail:`Os 3 maiores meses concentram ${top3Share.toFixed(1).replace(".",",")}% do faturamento histórico de 2026.`});
+    if(todaySales===0) alerts.push({severity:"INFORMATIVO",title:"Faturamento de hoje",detail:"Não há vendas registradas hoje até o momento da análise."});
+    if(!alerts.length) alerts.push({severity:"INFORMATIVO",title:"Sem alertas relevantes",detail:"Nenhum alerta foi acionado pelos indicadores disponíveis."});
 
     return NextResponse.json({
       ok:true,
@@ -135,6 +148,7 @@ export async function GET(){
       },
       positives,
       attention,
+      alerts,
       methodology:[
         "O relatório combina indicadores operacionais atuais do MB Óptica com o histórico financeiro BeepStart de 2026.",
         "Fluxo de caixa, contas a receber, contas a pagar, estoque e faturamento são analisados separadamente.",
