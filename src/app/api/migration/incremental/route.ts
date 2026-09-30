@@ -60,12 +60,8 @@ export async function POST(request: Request) {
     }
 
     const byCollection = new Map<string, R[]>();
-    const selectedCustomerKeys = new Set<string>();
-    const selectedProductKeys = new Set<string>();
     for (const r of records as R[]) {
       const key = String(r.collection_key ?? "SEM_COLLECTION");
-      if (key === "Cliente") selectedCustomerKeys.add(legacyKey(r, backupFingerprint));
-      if (key === "Produto") selectedProductKeys.add(legacyKey(r, backupFingerprint));
       const key = String(r.collection_key ?? "SEM_COLLECTION");
       const list = byCollection.get(key) ?? [];
       list.push(r);
