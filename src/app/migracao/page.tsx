@@ -269,7 +269,7 @@ export default function Page(){
     </div>
 
 
-    <div className="settings-grid">
+    <div className="panel" style={{marginBottom:16}}><div className="panel-heading"><div><span className="eyebrow">NOVO BACKUP</span><h2>Reconciliação incremental segura</h2><p>Preserva clientes e produtos atuais e insere apenas o que ainda não existe no MB Óptica.</p></div><a className="primary" href="/migracao/segura">Abrir Central Segura</a></div></div>\n\n    <div className="settings-grid">
       <div className="panel">
         <div className="panel-heading">
           <div><h2>Arquivo legado</h2><p>Carregue o backup oficial para auditoria e arquivamento.</p></div>
