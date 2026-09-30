@@ -8,8 +8,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  docker-build:
+  docker-runtime:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mb_optica
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mb_optica"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mb_optica?schema=public
+      AUTH_SECRET: ci-local-secret-change-me-please-32-chars
+      BOOTSTRAP_TOKEN: ci-local-bootstrap-token-change-me-32
 
     steps:
       - name: Checkout
@@ -17,3 +36,26 @@ jobs:
 
       - name: Build application image
         run: docker build -t mb-optica:ci .
+
+      - name: Apply database migrations
+        run: docker run --rm --network host -e DATABASE_URL="$DATABASE_URL" mb-optica:ci npx prisma migrate deploy
+
+      - name: Start application container
+        run: |
+          docker run -d --name mb-optica-ci --network host             -e NODE_ENV=production             -e DATABASE_URL="$DATABASE_URL"             -e AUTH_SECRET="$AUTH_SECRET"             -e BOOTSTRAP_TOKEN="$BOOTSTRAP_TOKEN"             mb-optica:ci
+
+      - name: Wait for application
+        run: |
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs mb-optica-ci
+          exit 1
+
+      - name: Stop application container
+        if: always()
+        run: docker rm -f mb-optica-ci || true
