@@ -6,17 +6,27 @@ import {money} from "@/lib/domain";
 
 type DashboardData={customers:number;products:number;integratedProducts:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
 type LegacyFinancial={billing:number;received:number;receivable:number;payable:number;salesCount:number;clientsActive:number;salesToday:number;salesTodayCount:number;months:{month:string;sales:number;billing:number;received:number;receivable:number}[]};
+type EconomicHealth={
+ operational:{cashBalance:number;cashOpen:boolean;receivable:number;payable:number;netWorkingCapital:number;overdue:number;todaySales:number;activeProducts:number;lowStock:number;zeroStock:number};
+ historical:{billing:number;received:number;receivable:number;payable:number;netWorkingCapital:number;salesCount:number;activeMonths:number;averageMonthlyBilling:number;collectionRate:number|null;top3Share:number;months:{month:number;sales:number;billing:number;received:number}[]};
+ positives:string[];
+ attention:string[];
+ methodology:string[];
+ generatedAt:string;
+};
 const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",RETORNO_GARANTIA:"Retorno em garantia",PRONTO:"Pronto"} as Record<string,string>)[s]||s;
 
 export default function Dashboard(){
- const [data,setData]=useState<DashboardData|null>(null); const [legacy,setLegacy]=useState<LegacyFinancial|null>(null); const [error,setError]=useState("");
+ const [data,setData]=useState<DashboardData|null>(null); const [legacy,setLegacy]=useState<LegacyFinancial|null>(null); const [error,setError]=useState(""); const [health,setHealth]=useState<EconomicHealth|null>(null); const [healthLoading,setHealthLoading]=useState(false);
  const load=async()=>{try{const r=await fetch("/api/dashboard",{cache:"no-store"});if(!r.ok)throw new Error("Não foi possível carregar o dashboard");setData(await r.json());setError("")}catch(e){setError(e instanceof Error?e.message:"Erro ao carregar dashboard")}};
  const loadLegacy=async()=>{try{const r=await fetch("/api/migration/financial-summary",{cache:"no-store"});if(r.ok)setLegacy(await r.json())}catch{}};
+ const generateEconomicHealth=async()=>{setHealthLoading(true);try{const r=await fetch("/api/dashboard/economic-health",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível gerar o relatório.");setHealth(d)}catch(e){setError(e instanceof Error?e.message:"Erro ao gerar relatório.")}finally{setHealthLoading(false)}};
+
 
  useEffect(()=>{load();loadLegacy()},[]);
  useRealtimeRefresh(load,15000);
  return <section className="page">
-  <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a></nav></div>
+  <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a><button className="secondary" onClick={generateEconomicHealth} disabled={healthLoading}>{healthLoading?"Gerando...":"Saúde econômica"}</button></nav></div>
   {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
   <div className="stats">
    <StatCard label="Clientes ativos" value={legacy?String(legacy.clientsActive):"—"} detail="clientes ativos no BeepStart"/>
@@ -33,6 +43,26 @@ export default function Dashboard(){
     <StatCard label="A pagar" value={money(legacy.payable)} detail="saldo histórico estimado"/>
    </div>
    <div className="table" style={{marginTop:14}}><div className="row header"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span><span>A receber</span></div>{legacy.months.map(m=><div className="row" key={m.month}><strong>{m.month}</strong><span>{m.sales}</span><span>{money(m.billing)}</span><span>{money(m.received)}</span><span>{money(m.receivable)}</span></div>)}</div>
+  </div>}
+  {health&&<div className="panel" style={{marginBottom:16}} id="relatorio-saude-economica">
+   <div className="panel-heading"><div><span className="eyebrow">RELATÓRIO GERENCIAL</span><h2>Saúde econômica do negócio</h2><p>Leitura automática dos dados disponíveis, sem substituir uma análise contábil.</p></div><div style={{display:"flex",gap:8}}><button className="secondary" onClick={generateEconomicHealth}>Atualizar relatório</button><button className="secondary" onClick={()=>window.print()}>Imprimir</button></div></div>
+   <div className="stats">
+    <StatCard label="Caixa operacional" value={health.operational.cashOpen?money(health.operational.cashBalance):"Fechado"} detail={health.operational.cashOpen?"saldo das sessões abertas":"nenhuma sessão aberta"}/>
+    <StatCard label="Capital de giro operacional" value={money(health.operational.netWorkingCapital)} detail="a receber menos a pagar"/>
+    <StatCard label="Recebimentos 2026" value={money(health.historical.received)} detail={health.historical.collectionRate===null?"sem base de faturamento":health.historical.collectionRate.toLocaleString("pt-BR",{maximumFractionDigits:1})+"% do faturamento histórico"}/>
+    <StatCard label="Atenção em estoque" value={String(health.operational.lowStock)} detail={health.operational.zeroStock+" produto(s) sem estoque"}/>
+   </div>
+   <div className="grid-two" style={{marginTop:14}}>
+    <div className="panel" style={{margin:0,border:"1px solid #d9eee8"}}><div className="panel-heading"><div><h3>Pontos favoráveis observados</h3><p>Fatos derivados dos dados disponíveis.</p></div></div><div className="funnel">{health.positives.map((item,i)=><div key={i}><span>✓ {item}</span></div>)}</div></div>
+    <div className="panel" style={{margin:0,border:"1px solid #f0dfc7"}}><div className="panel-heading"><div><h3>Pontos de atenção</h3><p>Itens que merecem acompanhamento gerencial.</p></div></div><div className="funnel">{health.attention.map((item,i)=><div key={i}><span>• {item}</span></div>)}</div></div>
+   </div>
+   <div className="table" style={{marginTop:14}}><div className="row header"><span>Indicador</span><span>Operacional atual</span><span>Histórico 2026</span><span>Leitura</span></div>
+    <div className="row"><strong>A receber</strong><span>{money(health.operational.receivable)}</span><span>{money(health.historical.receivable)}</span><span>Valores em aberto</span></div>
+    <div className="row"><strong>A pagar</strong><span>{money(health.operational.payable)}</span><span>{money(health.historical.payable)}</span><span>Compromissos em aberto</span></div>
+    <div className="row"><strong>Faturamento</strong><span>{money(health.operational.todaySales)} hoje</span><span>{money(health.historical.billing)}</span><span>{health.historical.salesCount.toLocaleString("pt-BR")} vendas históricas</span></div>
+    <div className="row"><strong>Concentração</strong><span>—</span><span>{health.historical.top3Share.toLocaleString("pt-BR",{maximumFractionDigits:1})}% nos 3 maiores meses</span><span>Acompanhar sazonalidade</span></div>
+   </div>
+   <div style={{marginTop:12,padding:12,borderRadius:10,background:"#f7f9fb",fontSize:12,color:"var(--muted)"}}><b>Metodologia:</b> {health.methodology.join(" ")}</div>
   </div>}
   <div className="grid-two">
    <div className="panel"><div className="panel-heading"><div><h2>Pedidos em andamento</h2><p>Operações que ainda exigem acompanhamento.</p></div><a href="/pedidos">Ver todos</a></div><div className="table"><div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span></div>{data?.recentOrders?.length?data.recentOrders.map(o=><div className="row" key={o.id}><strong>#{o.number}</strong><span>{o.customer?.name||"—"}</span><span>{statusLabel(o.status)}</span><span>{o.dueDate?new Date(o.dueDate).toLocaleDateString("pt-BR"):"—"}</span><strong>{money(o.total)}</strong></div>):<div className="row"><span>—</span><span>Nenhum pedido em andamento</span><span>—</span><span>—</span><strong>—</strong></div>}</div></div>
