@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       const [existingCustomers, existingProducts, existingLegacy] = await Promise.all([
         tx.customer.findMany({ select: { id: true, name: true, cpfCnpj: true, phone: true } }),
         tx.product.findMany({ select: { id: true, code: true, barcode: true, description: true, brand: true, model: true, stockControlled: true } }),
-        tx.legacyRecord.findMany({ select: { legacyKey: true } })
+        tx.legacyRecord.findMany({ select: { legacyKey: true, collectionKey: true, legacyId: true, targetEntity: true, targetId: true, status: true } })
       ]);
 
       const cpfMap = new Map<string, string>();
@@ -119,6 +119,10 @@ export async function POST(request: Request) {
       }
 
       const existingLegacySet = new Set(existingLegacy.map(x => x.legacyKey));
+      const existingLegacyIdentity = new Map<string, { entity: string | null; id: string | null; status: string }>();
+      for (const x of existingLegacy) {
+        if (x.collectionKey && x.legacyId) existingLegacyIdentity.set(String(x.collectionKey) + ":" + String(x.legacyId), { entity: x.targetEntity, id: x.targetId, status: x.status });
+      }
       const target = new Map<string, { entity: string; id: string; status: string }>();
       const warnings: string[] = [];
 
@@ -131,6 +135,11 @@ export async function POST(request: Request) {
       const newCustomers: any[] = [];
       for (const c of customers) {
         const legacy = legacyKey(c, backupFingerprint);
+        const alreadyReconciled = existingLegacyIdentity.get("Cliente:" + (idOf(c) ?? ""));
+        if (alreadyReconciled) {
+          target.set(legacy, { entity: alreadyReconciled.entity ?? "Customer", id: alreadyReconciled.id ?? "", status: "RECONCILED" });
+          continue;
+        }
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Customer", id: cpfMap.get(norm(first(c, ["cpf", "cnp", "cpfCnpj", "document"]))) ?? "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
@@ -170,6 +179,11 @@ export async function POST(request: Request) {
 
       for (const p of products) {
         const legacy = legacyKey(p, backupFingerprint);
+        const alreadyReconciled = existingLegacyIdentity.get("Produto:" + (idOf(p) ?? ""));
+        if (alreadyReconciled) {
+          target.set(legacy, { entity: alreadyReconciled.entity ?? "Product", id: alreadyReconciled.id ?? "", status: "RECONCILED" });
+          continue;
+        }
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Product", id: "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
