@@ -18,6 +18,7 @@ export async function POST(req:Request){
   const result=await db.$transaction(async tx=>{
    const product=await tx.product.findUnique({where:{id:b.productId}});
    if(!product||!product.active)throw new Error("Produto não encontrado ou inativo");
+   if(!product.stockControlled)throw new Error("Este produto não controla estoque e não pode receber entrada.");
    const unitCost=cost??Number(product.cost);
    const lot=await tx.stockLot.create({data:{productId:product.id,code:b.code?String(b.code).trim():undefined,description:b.description?String(b.description).trim():product.description,quantity,cost:unitCost,receivedAt:entryDate,expiresAt}});
    const movement=await tx.stockMovement.create({data:{productId:product.id,type:"ENTRADA",quantity,unitCost,reference:"LOTE",referenceId:lot.id,notes:b.reason?String(b.reason).trim():"Entrada de estoque"}});
