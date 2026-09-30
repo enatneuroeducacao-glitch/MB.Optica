@@ -37,8 +37,11 @@ jobs:
       - name: Build application image
         run: docker build -t mb-optica:ci .
 
+      - name: Build migration image
+        run: docker build --target migrator -t mb-optica:migrator .
+
       - name: Apply database migrations
-        run: docker run --rm --network host -e DATABASE_URL="$DATABASE_URL" mb-optica:ci npx prisma migrate deploy
+        run: docker run --rm --network host -e DATABASE_URL="$DATABASE_URL" mb-optica:migrator
 
       - name: Start application container
         run: |
