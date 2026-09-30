@@ -4,6 +4,11 @@ COPY package.json ./
 COPY prisma ./prisma
 RUN npm install --no-audit --no-fund
 
+FROM deps AS migrator
+WORKDIR /app
+COPY . .
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
