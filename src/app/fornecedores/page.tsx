@@ -115,7 +115,6 @@ export default function Fornecedores(){
    </div>
    <p style={{margin:"10px 0 0",fontSize:12,color:"var(--muted)"}}>A reconciliação compara documento, nome + telefone e nome. Não exclui fornecedores atuais. Os registros arquivados do backup ficam preservados no histórico.</p>
   </div>}
-}
 
   <div className="stats" style={{marginBottom:12}}>
    <div className="stat-card"><b>{rows.length}</b><span>FORNECEDORES ATIVOS</span></div>
