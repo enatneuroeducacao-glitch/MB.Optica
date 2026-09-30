@@ -13,7 +13,16 @@ export default function Clientes(){
  useRealtimeRefresh(load,20000);
  const detail=async(id:string)=>{const r=await fetch("/api/customers/"+id);const d=await r.json();if(r.ok){setSelected(d);setLegacy(null);fetch("/api/customers/"+id+"/legacy-history",{cache:"no-store"}).then(x=>x.ok?x.json():null).then(x=>setLegacy(x)).catch(()=>{});setFieldErrors({});setForm({name:d.name,cpfCnpj:d.cpfCnpj||"",phone:d.phone||"",whatsapp:d.whatsapp||"",email:d.email||"",birthDate:d.birthDate?d.birthDate.slice(0,10):"",notes:d.notes||""})}else setMsg(d.error||"Erro ao abrir cliente.")};
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMsg("");setFieldErrors({});const r=await fetch(selected?"/api/customers/"+selected.id:"/api/customers",{method:selected?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(r.status===401){window.location.href="/login";return}if(!r.ok){if(d.fields&&typeof d.fields==="object")setFieldErrors(d.fields);setMsg(d.error||"Verifique os campos destacados.");return}setOpen(false);setSelected(null);setForm(empty);await load();await detail(d.id)};
- const restoreCustomer=async()=>{\n   if(!selected)return;\n   const r=await fetch("/api/customers/"+selected.id,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({active:true})});\n   const d=await r.json();\n   if(!r.ok){setMsg(d.error||"Não foi possível reativar o cliente.");return}\n   setMsg("Cliente reativado.");\n   setSelected(null);\n   await load();\n };\n const deleteCustomer=async()=>{
+ const restoreCustomer=async()=>{
+   if(!selected)return;
+   const r=await fetch("/api/customers/"+selected.id,{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({active:true})});
+   const d=await r.json();
+   if(!r.ok){setMsg(d.error||"Não foi possível reativar o cliente.");return}
+   setMsg("Cliente reativado.");
+   setSelected(null);
+   await load();
+ };
+ const deleteCustomer=async()=>{
    if(!selected)return;
    if(!window.confirm(`Excluir o cliente "${selected.name}"? O cadastro será retirado da lista ativa, mas o histórico será preservado.`))return;
    const id=selected.id;
