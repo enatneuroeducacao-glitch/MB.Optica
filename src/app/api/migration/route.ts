@@ -5,8 +5,6 @@ import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
 type RecordShape = Record<string, unknown>;
-const EXPECTED_TOTAL = 5788;
-const EXPECTED_COLLECTIONS = 29;
 
 function keyOf(r: RecordShape, index: number) {
   const collection = String(r.collection_key ?? "SEM_COLLECTION");
@@ -24,7 +22,18 @@ export async function GET() {
       }),
       db.legacyRecord.count(),
     ]);
-    return NextResponse.json({ok:true,expected:{source:"BEEPSTART",total:EXPECTED_TOTAL,collections:EXPECTED_COLLECTIONS},legacyStored,runs});
+    const [customers, activeCustomers, products, activeProducts] = await Promise.all([
+      db.customer.count(),
+      db.customer.count({ where: { active: true } }),
+      db.product.count(),
+      db.product.count({ where: { active: true } })
+    ]);
+    return NextResponse.json({
+      ok:true,
+      current:{customers,activeCustomers,products,activeProducts},
+      legacyStored,
+      runs
+    });
   } catch (error) {
     return apiError(error, "Não foi possível carregar a central de migração.");
   }
@@ -53,8 +62,6 @@ export async function POST(request: Request) {
     const fingerprint = crypto.createHash("sha256").update(canonical).digest("hex");
     const collectionCounts = Object.fromEntries([...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0])));
     const warnings:string[]=[];
-    if(typed.length !== EXPECTED_TOTAL) warnings.push(`Contagem encontrada: ${typed.length}. Esperado: ${EXPECTED_TOTAL}.`);
-    if(groups.size !== EXPECTED_COLLECTIONS) warnings.push(`Coleções encontradas: ${groups.size}. Esperado: ${EXPECTED_COLLECTIONS}.`);
     if(duplicates.size) warnings.push(`Chaves duplicadas encontradas: ${duplicates.size}.`);
 
     return NextResponse.json({
