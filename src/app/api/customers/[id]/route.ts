@@ -23,6 +23,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
     const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const {id}=await params; const b=await req.json();
     const name=b.name!==undefined?String(b.name).trim():undefined;
+    const active=b.active!==undefined?Boolean(b.active):undefined;
     if(name!==undefined&&name.length<2)throw new Error("Nome inválido");
     const email=b.email!==undefined?(b.email?String(b.email).trim().toLowerCase():null):undefined;
     if(email&&(!email.includes("@")||email.length>160))throw new Error("E-mail inválido");
@@ -30,7 +31,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       const current=await tx.customer.findUnique({where:{id}});
       if(!current)throw new Error("Cliente não encontrado");
       const updated=await tx.customer.update({where:{id},data:{
-        name,cpfCnpj:b.cpfCnpj!==undefined?(b.cpfCnpj?String(b.cpfCnpj).trim():null):undefined,
+        name,active,cpfCnpj:b.cpfCnpj!==undefined?(b.cpfCnpj?String(b.cpfCnpj).trim():null):undefined,
         phone:b.phone!==undefined?(b.phone?String(b.phone).trim():null):undefined,
         whatsapp:b.whatsapp!==undefined?(b.whatsapp?String(b.whatsapp).trim():null):undefined,
         email,notes:b.notes!==undefined?(b.notes?String(b.notes).trim():null):undefined,
