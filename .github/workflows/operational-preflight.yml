@@ -1,0 +1,28 @@
+name: Operational DB Preflight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.MB_OPTICA_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm install
+
+      - name: Validate Prisma
+        run: npm run db:validate
+
+      - name: Preflight database
+        run: npx tsx scripts/preflight-operational-db.ts
