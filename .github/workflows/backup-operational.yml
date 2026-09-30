@@ -1,0 +1,52 @@
+name: Operational Customers and Products Backup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.MB_OPTICA_DATABASE_URL }}
+      ALLOW_OPERATIONAL_BACKUP: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Normalize database URL
+        shell: bash
+        run: |
+          raw="$DATABASE_URL"
+          raw="$(printf '%s' "$raw" | sed -e "s/^['\"]//" -e "s/['\"]$//" | xargs)"
+          if [[ "$raw" != postgresql://* && "$raw" != postgres://* ]]; then
+            echo "MB_OPTICA_DATABASE_URL não contém uma URL PostgreSQL válida."
+            echo "O segredo deve ser a DATABASE_URL do banco operacional, iniciando com postgresql:// ou postgres://."
+            exit 1
+          fi
+          printf 'DATABASE_URL=%s\n' "$raw" >> "$GITHUB_ENV"
+
+      - name: Install
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Prisma schema
+        run: npm run db:validate
+
+      - name: Create protected operational backup
+        run: npm run backup:operational
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mb-optica-operational-backup
+          path: backups/operational-*.json
+          if-no-files-found: error
+          retention-days: 7
