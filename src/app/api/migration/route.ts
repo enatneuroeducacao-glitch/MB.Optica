@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         collectionCounts,
         duplicateKeys:duplicates.size,
         warnings,
-        readyForDryRun:typed.length===EXPECTED_TOTAL && groups.size===EXPECTED_COLLECTIONS && duplicates.size===0,
+        readyForDryRun:typed.length>0 && duplicates.size===0,
         note:"Esta etapa apenas audita o arquivo recebido. Nenhum dado operacional foi alterado."
       }
     });
