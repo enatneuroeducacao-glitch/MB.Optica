@@ -20,7 +20,7 @@ export async function GET(){
       where:{active:true},orderBy:{name:"asc"},take:500,
       include:{products:{where:{active:true},select:{id:true,code:true,description:true,cost:true,salePrice:true}},_count:{select:{products:true,accounts:true}}}
     });
-    return NextResponse.json(data);
+    return NextResponse.json(data,{headers:{"Cache-Control":"no-store"}});
   }catch(error){return apiError(error,"Não foi possível carregar os fornecedores.");}
 }
 
