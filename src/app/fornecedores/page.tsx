@@ -107,7 +107,8 @@ export default function Fornecedores(){
   </div>
   </div>
 
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>  {backupInfo&&<div className="panel" style={{padding:16,marginBottom:12,border:"1px solid var(--line)"}}>
+  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
+  {backupInfo&&<div className="panel" style={{padding:16,marginBottom:12,border:"1px solid var(--line)"}}>
    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}>
     <div><span className="eyebrow">RECONCILIAÇÃO</span><h3 style={{margin:"3px 0"}}>Backup pronto para reconciliação</h3><div style={{fontSize:12,color:"var(--muted)"}}>{backupInfo.fileName} · {backupInfo.total} fornecedores · {backupInfo.active} ativos · {backupInfo.archived} arquivados</div></div>
     <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setBackupInfo(null)} disabled={reconciling}>Cancelar</button><button className="primary" onClick={reconcileBackup} disabled={reconciling}>{reconciling?"Reconciliando...":"Confirmar reconciliação"}</button></div>
