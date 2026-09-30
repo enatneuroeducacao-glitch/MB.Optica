@@ -1,0 +1,1 @@
+ALTER TABLE "Product" ADD COLUMN "stockControlled" BOOLEAN NOT NULL DEFAULT true;
