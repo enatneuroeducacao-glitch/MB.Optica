@@ -86,8 +86,6 @@ export default function Page(){
   const [message,setMessage]=useState("");
   const [selected,setSelected]=useState<LegacyRow|null>(null);
   const [financial,setFinancial]=useState<FinancialSummary|null>(null);
-  const [stockProducts,setStockProducts]=useState<any[]>([]),[selectedStock,setSelectedStock]=useState<string[]>([]),[stockBusy,setStockBusy]=useState(false),[stockMessage,setStockMessage]=useState("");
-  const [selectedLegacyProducts,setSelectedLegacyProducts]=useState<string[]>([]);
 
   async function load(){
     try{
@@ -108,7 +106,7 @@ export default function Page(){
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar o resumo financeiro.");}
   }
 
-  useEffect(()=>{load();loadFinancialSummary();loadStockProducts();},[]);
+  useEffect(()=>{load();loadFinancialSummary();searchLegacy();},[]);
 
   async function auditBackup(){
     if(!file)return;
@@ -178,26 +176,6 @@ export default function Page(){
       setMessage(d.message);
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao importar cliente.");}
     finally{setBusy(false);}
-  }
-
-  async function loadStockProducts(){setStockBusy(true);setStockMessage("");try{const r=await fetch("/api/migration/legacy/products-stock",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível carregar os produtos com estoque.");setStockProducts(d.products||[]);setSelectedStock([]);const a=d.audit;const total=(d.products||[]).length;let msg="";if(a){msg=total+" produtos com estoque disponível. "+a.legacyLinked+" possuem vínculo com o MB Óptica e "+a.matchedOnlyByBarcode+" possuem correspondência por código de barras. "+a.notIntegrated+" ainda não possuem correspondência."}else{const already=(d.products||[]).filter((p:any)=>p.alreadyIntegrated).length;msg=total+" produtos com estoque disponível encontrado(s)."+(already?" "+already+" já integrado(s) e serão ignorados.":"")}setStockMessage(msg)}catch(e){setStockMessage(e instanceof Error?e.message:"Erro ao carregar produtos com estoque.")}finally{setStockBusy(false)}}
-  async function integrateStockProducts(idsOverride?:string[]){
-    const ids=[...new Set((idsOverride||[...selectedLegacyProducts,...selectedStock]).map(String).filter(Boolean))];
-    if(!ids.length)return;
-    if(!window.confirm("Integrar os produtos selecionados para o MB Óptica?\\n\\nSomente produtos com estoque maior que zero serão integrados. Produtos já cadastrados serão ignorados. O registro do BeepStart continuará preservado."))return;
-    setStockBusy(true);setStockMessage("");
-    try{
-      const r=await fetch("/api/migration/legacy/products-stock",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({legacyRecordIds:ids})});
-      const d=await r.json();
-      if(!r.ok)throw new Error(d.error||"Falha na integração.");
-      setStockMessage(d.message);
-      setSelectedLegacyProducts([]);setSelectedStock([]);
-      await searchLegacy();await loadStockProducts();
-    }catch(e){setStockMessage(e instanceof Error?e.message:"Erro na integração dos produtos.")}finally{setStockBusy(false)}
-  }
-
-  async function integrateSelectedLegacyProducts(){
-    await integrateStockProducts(selectedLegacyProducts);
   }
 
   async function searchLegacy(){
@@ -364,19 +342,9 @@ export default function Page(){
       </div>
     </div>}
 
-    <div className="panel" style={{marginTop:16}}>
-      <div className="panel-heading"><div><span className="eyebrow">INTEGRAÇÃO SELETIVA</span><h2>Produtos com estoque</h2><p>Somente produtos do BeepStart com saldo disponível. Selecione quais serão integrados ao MB Óptica.</p></div>
-      <div style={{display:"flex",gap:8}}><button className="secondary" onClick={loadStockProducts} disabled={stockBusy}>{stockBusy?"Carregando...":"Carregar produtos em estoque"}</button><button className="primary" onClick={()=>integrateStockProducts()} disabled={stockBusy||(!selectedLegacyProducts.length&&!selectedStock.length)}>Integrar selecionados ({new Set([...selectedLegacyProducts,...selectedStock]).size})</button></div></div>
-      {stockMessage&&<div style={{padding:10,borderRadius:8,background:"#f7f9fb",marginBottom:10}}>{stockMessage}</div>}
-      {stockProducts.length>0&&<div className="table"><div className="row header"><span><input type="checkbox" aria-label="Selecionar todos" checked={stockProducts.length>0&&selectedStock.length===stockProducts.length} onChange={e=>setSelectedStock(e.target.checked?stockProducts.map(p=>p.id):[])}/></span><span>Código</span><span>Produto</span><span>Estoque</span><span>Preço</span><span>Origem</span></div>
-      {stockProducts.map(p=><div className="row" key={p.id}><span><input type="checkbox" disabled={p.alreadyIntegrated} checked={selectedStock.includes(p.id)} onChange={e=>setSelectedStock(x=>e.target.checked?[...x,p.id]:x.filter(id=>id!==p.id))}/></span><strong>{p.code}</strong><span><b>{p.brand||""}</b>{p.brand?" · ":""}{p.model||p.description}{p.alreadyIntegrated&&<small style={{display:"block",color:"#9a6500",fontWeight:700}}>⚠ Produto já integrado no MB Óptica — não será duplicado</small>}</span><strong>{Number(p.stock||0).toLocaleString("pt-BR")}</strong><span>R$ {Number(p.salePrice||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}</span><small>BeepStart · ID {p.legacyId||"—"}</small></div>)}</div>}
-      {!stockProducts.length&&!stockBusy&&<p style={{color:"var(--muted)"}}>Clique em “Carregar produtos em estoque” para montar a lista.</p>}
-      <div style={{marginTop:12,padding:12,borderRadius:10,background:"#f7f9fb",fontSize:12,color:"var(--muted)"}}><b>Regra:</b> somente registros da coleção Produto com estoque maior que zero entram nesta lista. A integração cria o produto, registra o saldo como entrada de estoque e mantém o vínculo com o registro original do BeepStart. Produtos sem estoque não são integrados.</div>
-    </div>
-
     <div className="panel">
       <div className="panel-heading">
-        <div><h2>Consulta do legado</h2><p>Pesquise os registros arquivados sem alterar o histórico.</p></div>
+        <div><span className="eyebrow">PESQUISA HISTÓRICA</span><h2>Consulta do legado</h2><p>Pesquise os registros arquivados sem alterar o histórico. Para clientes, uma correspondência positiva por CPF/CNPJ é destacada.</p></div>
         <button className="secondary" onClick={searchLegacy}>Pesquisar</button>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10}}>
@@ -388,16 +356,16 @@ export default function Page(){
       {results.length===0
         ? <p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro encontrado para os critérios informados.</p>
         : <div className="table" style={{marginTop:14}}>
-            <div className="row header"><span style={{display:"flex",alignItems:"center",gap:8}}><input type="checkbox" aria-label="Selecionar produtos visíveis" checked={results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).length>0&&results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).every(r=>selectedLegacyProducts.includes(r.id))} onChange={e=>{const ids=results.filter(r=>(r.collectionKey||"").toLowerCase().includes("produt")).map(r=>r.id);setSelectedLegacyProducts(e.target.checked?ids:[])}}/><span>Selecionar / Informação encontrada</span></span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
+            <div className="row header"><span>Informação encontrada</span><span>Documento / contato</span><span>ID legado</span><span>Ação</span></div>
             {results.map(row=>{
               const s=recordSummary(row);
-              const isProduct=(row.collectionKey||"").toLowerCase().includes("produt");
-              const selectedProduct=selectedLegacyProducts.includes(row.id);
+              const isCustomer=(row.collectionKey||"").toLowerCase()==="cliente";
+              const matched=(row as any).matchedCustomer;
               return <div className="row" key={row.id}>
-                <span style={{display:"flex",alignItems:"center",gap:10}}>
-                  {isProduct&&<input type="checkbox" aria-label={"Selecionar "+(s.name||"produto")} checked={selectedProduct} onChange={e=>setSelectedLegacyProducts(x=>e.target.checked?[...x,row.id]:x.filter(id=>id!==row.id))}/>} 
-                  <span><strong>{s.name||row.collectionKey||"Registro legado"}</strong>
-                  <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code?` · Código ${s.code}`:""}</small></span>
+                <span>
+                  <strong>{s.name||row.collectionKey||"Registro legado"}</strong>
+                  <small style={{display:"block",color:"var(--muted)"}}>{row.collectionKey||"—"}{s.code ? " · Código "+s.code : ""}</small>
+                  {isCustomer&&matched&&<small style={{display:"block",color:"#087f73",fontWeight:700}}>✓ Já localizado no cadastro MB Óptica · {matched.name}</small>}
                 </span>
                 <span>
                   {s.document||"—"}
@@ -405,11 +373,12 @@ export default function Page(){
                   {s.email?<small style={{display:"block",color:"var(--muted)"}}>{s.email}</small>:null}
                 </span>
                 <span><code>{row.legacyId||"—"}</code></span>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>{isProduct&&<button className="primary" disabled={busy||stockBusy||row.status==="IMPORTED_SELECTIVELY"} onClick={()=>{setSelectedLegacyProducts([row.id]);setTimeout(()=>integrateSelectedLegacyProducts(),0)}}>{row.status==="IMPORTED_SELECTIVELY"?"Já integrado":"Integrar produto"}</button>}{(row.collectionKey||"").toLowerCase()==="cliente"&&<button className="primary" disabled={busy} onClick={()=>importCustomer(row)}>Usar no cadastro</button>}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <button className="secondary" onClick={()=>setSelected(row)}>Ver detalhes</button>
+                  {isCustomer&&<button className="primary" disabled={busy||!!matched} onClick={()=>importCustomer(row)}>{matched?"Já cadastrado":"Usar no cadastro"}</button>}
+                </div>
               </div>;
-            })}
-          </div>
-      }
+            })}      }
     </div>
 
     {selected&&<div className="panel">
