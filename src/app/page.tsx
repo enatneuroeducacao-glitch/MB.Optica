@@ -6,7 +6,9 @@ import {money} from "@/lib/domain";
 
 type DashboardData={customers:number;products:number;integratedProducts:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
 type LegacyFinancial={billing:number;received:number;receivable:number;payable:number;salesCount:number;clientsActive:number;salesToday:number;salesTodayCount:number;months:{month:string;sales:number;billing:number;received:number;receivable:number}[]};
+type EconomicAlert={severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";title:string;detail:string};
 type EconomicHealth={
+ alerts:EconomicAlert[];
  operational:{cashBalance:number;cashOpen:boolean;receivable:number;payable:number;netWorkingCapital:number;overdue:number;todaySales:number;activeProducts:number;lowStock:number;zeroStock:number};
  historical:{billing:number;received:number;receivable:number;payable:number;netWorkingCapital:number;salesCount:number;activeMonths:number;averageMonthlyBilling:number;collectionRate:number|null;top3Share:number;months:{month:number;sales:number;billing:number;received:number}[]};
  positives:string[];
@@ -56,6 +58,7 @@ export default function Dashboard(){
     <div className="panel" style={{margin:0,border:"1px solid #d9eee8"}}><div className="panel-heading"><div><h3>Pontos favoráveis observados</h3><p>Fatos derivados dos dados disponíveis.</p></div></div><div className="funnel">{health.positives.map((item,i)=><div key={i}><span>✓ {item}</span></div>)}</div></div>
     <div className="panel" style={{margin:0,border:"1px solid #f0dfc7"}}><div className="panel-heading"><div><h3>Pontos de atenção</h3><p>Itens que merecem acompanhamento gerencial.</p></div></div><div className="funnel">{health.attention.map((item,i)=><div key={i}><span>• {item}</span></div>)}</div></div>
    </div>
+   <div className="panel" style={{marginTop:14,margin:0}}><div className="panel-heading"><div><h3>Alertas necessários</h3><p>Prioridades gerenciais geradas automaticamente pelos indicadores disponíveis.</p></div></div><div className="funnel">{health.alerts.map((alert,i)=><div key={i}><span><b>{alert.severity==="CRITICO"?"CRÍTICO":alert.severity==="ATENCAO"?"ATENÇÃO":"INFORMATIVO"}</b> · {alert.title}<small> · {alert.detail}</small></span></div>)}</div></div>
    <div className="table" style={{marginTop:14}}><div className="row header"><span>Indicador</span><span>Operacional atual</span><span>Histórico 2026</span><span>Leitura</span></div>
     <div className="row"><strong>A receber</strong><span>{money(health.operational.receivable)}</span><span>{money(health.historical.receivable)}</span><span>Valores em aberto</span></div>
     <div className="row"><strong>A pagar</strong><span>{money(health.operational.payable)}</span><span>{money(health.historical.payable)}</span><span>Compromissos em aberto</span></div>
