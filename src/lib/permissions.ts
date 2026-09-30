@@ -73,6 +73,15 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/migration": "migracao",
 };
 
+export const API_PUBLIC = new Set([
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/auth/bootstrap",
+  "/api/health",
+  "/api/branding",
+  "/api/version",
+]);
+
 export const API_PUBLIC_AUTHENTICATED = new Set([
   "/api/health",
   "/api/auth/me",
