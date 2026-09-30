@@ -14,6 +14,7 @@ export async function POST(req:Request){
   const result=await db.$transaction(async tx=>{
    const product=await tx.product.findUnique({where:{id:String(b.productId)}});
    if(!product||!product.active)throw new Error("Produto não encontrado ou inativo");
+   if(!product.stockControlled)throw new Error("Este produto não controla estoque e não pode ter saída.");
 
    const lots=await tx.stockLot.findMany({
     where:{productId:b.productId,archived:false,quantity:{gt:0}},
