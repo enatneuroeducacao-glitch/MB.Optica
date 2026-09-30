@@ -40,6 +40,12 @@ jobs:
       - name: Validate Prisma schema
         run: npm run db:validate
 
+      - name: Operational database preflight
+        run: npm run db:preflight
+
+      - name: Check migration status
+        run: npx prisma migrate status
+
       - name: Create protected operational backup
         run: npm run backup:operational
 
