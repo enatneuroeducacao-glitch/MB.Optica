@@ -18,7 +18,7 @@ export default function Fornecedores(){
  const [reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
-  const r=await fetch("/api/suppliers");
+  const r=await fetch("/api/suppliers",{cache:"no-store"});
   const d=await r.json();
   if(r.ok)setRows(Array.isArray(d)?d:[]);
   else setMsg(d.error||"Erro ao carregar fornecedores.");
@@ -43,7 +43,7 @@ export default function Fornecedores(){
 
  const edit=async(s:Supplier)=>{
   setMsg("");
-  const r=await fetch("/api/suppliers/"+s.id);
+  const r=await fetch("/api/suppliers/"+s.id,{cache:"no-store"});
   const d=await r.json();
   if(!r.ok){setMsg(d.error||"Não foi possível abrir o fornecedor.");return}
   setSelected(d);
