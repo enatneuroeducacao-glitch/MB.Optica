@@ -217,19 +217,23 @@ export default function Produtos(){
    </div>}
   </div>}
 
-  {labelProduct&&<div className="panel" style={{padding:18,marginTop:12}}>
-   <div className="panel-heading" style={{padding:0,marginBottom:12}}><div><span className="eyebrow">ETIQUETA</span><h2>{labelProduct.brand||"MB ÓPTICA"} · {labelProduct.model||labelProduct.description}</h2><p>Modelo estreito para haste. Referência: 95 × 12 mm.</p></div><button className="secondary" onClick={()=>setLabelProduct(null)}>Fechar</button></div>
-   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,alignItems:"center"}}>
-    <div className="panel" style={{padding:14}}>
-     <b>Conteúdo</b>
-     <div style={{marginTop:8,fontSize:13,lineHeight:1.7}}>Marca: {labelProduct.brand||"—"}<br/>Modelo: {labelProduct.model||labelProduct.description}<br/>Código: {labelProduct.barcode||labelProduct.code}<br/>Preço: R$ {Number(labelProduct.salePrice||0).toFixed(2)}<br/>Tamanho: {labelProduct.frameSize||"—"}</div>
+  {labelProduct&&<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,23,42,.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+   <div className="panel" style={{width:"min(760px,100%)",maxHeight:"90vh",overflowY:"auto",padding:18,boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+    <div className="panel-heading" style={{padding:0,marginBottom:12}}>
+     <div><span className="eyebrow">ETIQUETA</span><h2>{labelProduct.brand||"MB ÓPTICA"} · {labelProduct.model||labelProduct.description}</h2><p>Impressão da etiqueta do produto selecionado.</p></div>
+     <button className="secondary" onClick={()=>setLabelProduct(null)}>Fechar</button>
     </div>
-    <div className="panel" style={{padding:14}}>
-     <label style={{display:"block"}}>Quantidade<input type="number" min={1} max={100} value={labelQty} onChange={e=>setLabelQty(Number(e.target.value)||1)} style={{marginTop:6}}/></label>
-     <button className="primary" style={{marginTop:10,width:"100%"}} onClick={()=>printLabels(labelProduct,labelQty)}>🖨 Imprimir etiquetas 95 × 12 mm</button>
-     <small style={{display:"block",marginTop:8,color:"var(--muted)"}}>O sistema gera uma etiqueta por página no tamanho 95 × 12 mm, adequada para mídia estreita de óculos. O ajuste final de escala depende da impressora e do driver.</small>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,alignItems:"center"}}>
+     <div className="panel" style={{padding:14}}>
+      <b>Conteúdo</b>
+      <div style={{marginTop:8,fontSize:13,lineHeight:1.7}}>Marca: {labelProduct.brand||"—"}<br/>Modelo: {labelProduct.model||labelProduct.description}<br/>Código: {labelProduct.barcode||labelProduct.code}<br/>Preço: R$ {Number(labelProduct.salePrice||0).toFixed(2)}<br/>Tamanho: {labelProduct.frameSize||"—"}</div>
+     </div>
+     <div className="panel" style={{padding:14}}>
+      <label style={{display:"block"}}>Quantidade<input type="number" min={1} max={100} value={labelQty} onChange={e=>setLabelQty(Number(e.target.value)||1)} style={{marginTop:6}}/></label>
+      <button className="primary" style={{marginTop:10,width:"100%"}} onClick={()=>printLabels(labelProduct,labelQty)}>🖨 Imprimir etiquetas 95 × 12 mm</button>
+      <small style={{display:"block",marginTop:8,color:"var(--muted)"}}>A etiqueta é gerada para o produto selecionado. O ajuste final de escala depende da impressora e do driver.</small>
+     </div>
     </div>
    </div>
-  </div>}
- </section>;
+  </div>} </section>;
 }
