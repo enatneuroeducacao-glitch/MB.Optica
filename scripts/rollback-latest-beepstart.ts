@@ -9,7 +9,7 @@ async function main() {
   const confirmed = process.env.ROLLBACK_CONFIRM === CONFIRM_TOKEN;
 
   const run = await db.migrationRun.findFirst({
-    where: { source: "BEEPSTART", status: "COMPLETED" },
+    where: { source: "BEEPSTART_INCREMENTAL", status: "COMPLETED" },
     orderBy: { startedAt: "desc" },
     select: { id: true, source: true, status: true, total: true, imported: true, mapped: true, startedAt: true, completedAt: true },
   });
@@ -23,10 +23,10 @@ async function main() {
     const legacyCount = await db.legacyRecord.count();
     console.log(JSON.stringify({
       mode: apply ? "APPLY" : "PREVIEW",
-      foundBeepStartCompleted: false,
+      foundBeepStartIncrementalCompleted: false,
       legacyRecordCount: legacyCount,
       recentMigrationRuns: recentRuns,
-      message: "Nenhuma execução BEEPSTART concluída foi encontrada no banco apontado por MB_OPTICA_DATABASE_URL. Nenhum dado foi alterado.",
+      message: "Nenhuma execução BEEPSTART_INCREMENTAL concluída foi encontrada no banco apontado por MB_OPTICA_DATABASE_URL. Nenhum dado foi alterado.",
     }, null, 2));
     if (apply) throw new Error("Rollback não executado: não foi encontrada uma execução BEEPSTART concluída.");
     return;
