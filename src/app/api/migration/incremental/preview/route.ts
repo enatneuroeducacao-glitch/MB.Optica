@@ -21,12 +21,15 @@ export async function POST(request:Request){
     for(const r of records as R[]){const k=String(r.collection_key??"SEM_COLLECTION");byCollection.set(k,[...(byCollection.get(k)??[]),r]);}
     const customers=byCollection.get("Cliente")??[];
     const products=byCollection.get("Produto")??[];
-    const [existingCustomers,existingProducts]=await Promise.all([
+    const [existingCustomers,existingProducts,existingLegacyRecords]=await Promise.all([
       db.customer.findMany({select:{id:true,name:true,cpfCnpj:true,phone:true}}),
       db.product.findMany({select:{id:true,code:true,barcode:true,description:true,brand:true,model:true}}),
+      db.legacyRecord.findMany({select:{collectionKey:true,legacyId:true,targetEntity:true,targetId:true,status:true}}),
     ]);
     const cpfMap=new Map<string,string[]>(), namePhoneMap=new Map<string,string[]>(), nameMap=new Map<string,string[]>();
     for(const c of existingCustomers){if(c.cpfCnpj)add(cpfMap,norm(c.cpfCnpj),c.id);if(c.phone)add(namePhoneMap,norm(c.name)+"|"+norm(c.phone),c.id);if(c.name)add(nameMap,norm(c.name),c.id);}
+    const reconciledMap=new Map<string,{targetEntity:string|null;targetId:string|null;status:string}>();
+    for(const l of existingLegacyRecords){if(l.collectionKey&&l.legacyId)reconciledMap.set(String(l.collectionKey)+":"+String(l.legacyId),{targetEntity:l.targetEntity,targetId:l.targetId,status:l.status});}
     const codeMap=new Map<string,string[]>(), barcodeMap=new Map<string,string[]>(), identityMap=new Map<string,string[]>(), descBrandMap=new Map<string,string[]>();
     for(const p of existingProducts){if(p.code)add(codeMap,norm(p.code),p.id);if(p.barcode)add(barcodeMap,norm(p.barcode),p.id);add(identityMap,norm(p.description)+"|"+norm(p.brand)+"|"+norm(p.model),p.id);add(descBrandMap,norm(p.description)+"|"+norm(p.brand),p.id);}
     const sourceCpf=new Map<string,number>(),sourceBarcode=new Map<string,number>(),sourceCode=new Map<string,number>();
@@ -37,7 +40,9 @@ export async function POST(request:Request){
       const key=legacyKey(c,fingerprint),name=text(first(c,["name","nome"])),cpf=text(first(c,["cpf","cnp","cpfCnpj","document"])),phone=text(first(c,["phone","telefone","celular"]));
       const cpfHits=cpf?(cpfMap.get(norm(cpf))??[]):[],npHits=phone?(namePhoneMap.get(norm(name)+"|"+norm(phone))??[]):[],nameHits=name?(nameMap.get(norm(name))??[]):[];
       let status="NEW",method="",matchedId="",reason="Nenhuma correspondência segura encontrada.";
-      if(cpf&&(sourceCpf.get(norm(cpf))??0)>1){status="REVIEW";method="CPF/CNPJ duplicado no backup";reason="O mesmo documento aparece em mais de um registro do backup.";}
+      const reconciled=reconciledMap.get("Cliente:"+(c.id==null?"":String(c.id)));
+      if(reconciled){status="RECONCILED";method="Reconciliação já concluída";matchedId=reconciled.targetId||"";reason="Este registro já foi reconciliado anteriormente e não será incluído novamente."}
+      else if(cpf&&(sourceCpf.get(norm(cpf))??0)>1){status="REVIEW";method="CPF/CNPJ duplicado no backup";reason="O mesmo documento aparece em mais de um registro do backup.";}
       else if(cpfHits.length===1){status="MATCHED";method="CPF/CNPJ exato";matchedId=cpfHits[0];reason="Correspondência segura.";}
       else if(cpfHits.length>1){status="REVIEW";method="CPF/CNPJ ambíguo";reason="Há mais de um cadastro atual com este documento.";}
       else if(npHits.length===1){status="MATCHED";method="Nome + telefone";matchedId=npHits[0];reason="Correspondência segura sem documento.";}
@@ -50,7 +55,9 @@ export async function POST(request:Request){
       const key=legacyKey(p,fingerprint),description=text(first(p,["description","descricao","name"])),brand=text(first(p,["brand","marca"])),model=text(first(p,["model","modelo"])),barcode=text(first(p,["barcode","codigoBarras","ean"])),code=text(first(p,["codigo","code","codigoProduto"]))||(p.id==null?"":String(p.id));
       const barcodeHits=barcode?(barcodeMap.get(norm(barcode))??[]):[],codeHits=code?(codeMap.get(norm(code))??[]):[],identityHits=identityMap.get(norm(description)+"|"+norm(brand)+"|"+norm(model))??[],dbHits=descBrandMap.get(norm(description)+"|"+norm(brand))??[];
       let status="NEW",method="",matchedId="",reason="Nenhuma correspondência segura encontrada.";
-      if(barcode&&(sourceBarcode.get(norm(barcode))??0)>1){status="REVIEW";method="Código de barras duplicado no backup";reason="O mesmo código de barras aparece em mais de um produto do backup.";}
+      const reconciled=reconciledMap.get("Produto:"+(p.id==null?"":String(p.id)));
+      if(reconciled){status="RECONCILED";method="Reconciliação já concluída";matchedId=reconciled.targetId||"";reason="Este produto já foi reconciliado anteriormente e não será incluído novamente."}
+      else if(barcode&&(sourceBarcode.get(norm(barcode))??0)>1){status="REVIEW";method="Código de barras duplicado no backup";reason="O mesmo código de barras aparece em mais de um produto do backup.";}
       else if(barcodeHits.length===1){status="MATCHED";method="Código de barras exato";matchedId=barcodeHits[0];reason="Correspondência segura.";}
       else if(barcodeHits.length>1){status="REVIEW";method="Código de barras ambíguo";reason="Há mais de um produto atual com este código.";}
       else if(code&&(sourceCode.get(norm(code))??0)>1){status="REVIEW";method="Código duplicado no backup";reason="O mesmo código aparece em mais de um produto do backup.";}
