@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import crypto from "node:crypto";
 
 const db = new PrismaClient();
 
@@ -27,6 +28,13 @@ async function main() {
     const dir = join(process.cwd(), "backups");
     await mkdir(dir, { recursive: true });
 
+    const activeCustomers = customers.filter((item) => item.active).length;
+    const activeProducts = products.filter((item) => item.active).length;
+    const datasetFingerprint = crypto
+      .createHash("sha256")
+      .update(JSON.stringify({ customers, products }))
+      .digest("hex");
+
     const output = {
       format: "MB_OPTICA_OPERATIONAL_BACKUP_V1",
       createdAt: new Date().toISOString(),
@@ -34,8 +42,11 @@ async function main() {
       warning: "DADOS OPERACIONAIS REAIS. NÃO COMMITAR NO GIT.",
       counts: {
         customers: customers.length,
+        activeCustomers,
         products: products.length,
+        activeProducts,
       },
+      datasetFingerprint,
       customers,
       products,
     };
@@ -44,8 +55,9 @@ async function main() {
     await writeFile(file, JSON.stringify(output, null, 2), "utf8");
 
     console.log(`Backup operacional criado: ${file}`);
-    console.log(`Clientes: ${customers.length}`);
-    console.log(`Produtos: ${products.length}`);
+    console.log(`Clientes: ${customers.length} (ativos: ${activeCustomers})`);
+    console.log(`Produtos: ${products.length} (ativos: ${activeProducts})`);
+    console.log(`Fingerprint do conjunto: ${datasetFingerprint}`);
   } finally {
     await db.$disconnect();
   }
