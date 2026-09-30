@@ -117,7 +117,7 @@ export default function Page(){
       <div className="table" style={{marginTop:14}}>
         <div className="row header"><span>Selecionar</span><span>Registro</span><span>{kind==="Produto"?"Lente / estoque":"Correspondência"}</span><span>Critério</span></div>
         {visible.map(item=><div className="row" key={item.legacyKey}>
-          <span>{item.status==="MATCHED"?<small style={{color:"#087f73"}}>✓ Não precisa</small>:<input type="checkbox" checked={selected.has(item.legacyKey)} onChange={()=>toggle(item.legacyKey)}/>}</span>
+          <span>{item.status==="MATCHED"&&kind==="Cliente"?<small style={{color:"#087f73"}}>✓ Já cadastrado</small>:<input type="checkbox" checked={selected.has(item.legacyKey)} onChange={()=>toggle(item.legacyKey)}/>}</span>
           <span><strong>{kind==="Cliente"?item.name:item.description}</strong><small style={{display:"block",color:"var(--muted)"}}>{kind==="Cliente"?(item.document||"sem CPF/CNPJ")+" · "+(item.phone||"sem telefone"):[item.brand,item.model,item.code].filter(Boolean).join(" · ")||"sem identificação completa"}</small></span>
           <span style={{color:statusTone(item.status)}}>{kind==="Produto"&&<label style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,cursor:"pointer"}}><input type="checkbox" checked={nonStockProducts.has(item.legacyKey)} onChange={()=>toggleNonStock(item.legacyKey)}/><b>Lente · não controla estoque</b></label>}<b>{statusLabel(item.status)}</b><small style={{display:"block",color:"var(--muted)"}}>{item.matchedName||"Nenhum cadastro atual localizado"}</small></span>
           <span><b>{item.method||"—"}</b><small style={{display:"block",color:"var(--muted)"}}>{item.reason}</small></span>
