@@ -22,7 +22,8 @@
     "reconcile:beepstart": "tsx scripts/reconcile-beepstart.ts",
     "migration:beepstart": "tsx scripts/import-beepstart.ts",
     "backup:operational": "tsx scripts/backup-operational-data.ts",
-    "rollback:beepstart": "tsx scripts/rollback-latest-beepstart.ts"
+    "rollback:beepstart": "tsx scripts/rollback-latest-beepstart.ts",
+    "db:preflight": "tsx scripts/preflight-operational.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",
