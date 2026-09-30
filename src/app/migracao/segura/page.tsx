@@ -14,6 +14,7 @@ export default function Page(){
   const [preview,setPreview]=useState<Preview|null>(null);
   const [result,setResult]=useState<Result|null>(null);
   const [selected,setSelected]=useState<Set<string>>(new Set());
+  const [nonStockProducts,setNonStockProducts]=useState<Set<string>>(new Set());
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
   const [kind,setKind]=useState<"Cliente"|"Produto">("Cliente");
@@ -35,7 +36,8 @@ export default function Page(){
 
   function toggle(key:string){setSelected(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});}
   function selectStatus(target:"NEW"|"REVIEW"){setSelected(prev=>{const next=new Set(prev);candidates.filter(x=>x.status===target).forEach(x=>next.add(x.legacyKey));return next;});}
-  function clearSelection(){setSelected(new Set());}
+  function clearSelection(){setSelected(new Set());setNonStockProducts(new Set());}
+  function toggleNonStock(key:string){setSelected(prev=>{const next=new Set(prev);next.add(key);return next;});setNonStockProducts(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});}
 
   async function analyze(){
     if(!file)return;
@@ -57,7 +59,7 @@ export default function Page(){
     if(!window.confirm("CONFIRMAR RECONCILIAÇÃO SELETIVA\\n\\nRegistros selecionados: "+selected.size+"\\n\\nSomente os registros marcados serão considerados para inclusão. Correspondências existentes não serão substituídas.\\n\\nContinuar?"))return;
     setBusy(true);setMessage("");
     try{
-      const r=await fetch("/api/migration/incremental",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,selectedKeys:[...selected]})});
+      const r=await fetch("/api/migration/incremental",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,selectedKeys:[...selected],nonStockProductKeys:[...nonStockProducts]})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Falha na reconciliação seletiva.");
       setResult(d.result);setMessage("Reconciliação seletiva concluída. Nenhum registro fora da seleção foi incorporado.");
@@ -75,7 +77,7 @@ export default function Page(){
     <div className="settings-grid">
       <div className="panel">
         <div className="panel-heading"><div><span className="eyebrow">ETAPA 1</span><h2>Pesquisar o novo backup</h2><p>A análise compara documentos, nomes, telefones, códigos, barras e identidade dos produtos.</p></div></div>
-        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e=>{setFile(e.target.files?.[0]||null);setPreview(null);setResult(null);setRecords(null);setSelected(new Set());setMessage("");}}/>
+        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e=>{setFile(e.target.files?.[0]||null);setPreview(null);setResult(null);setRecords(null);setSelected(new Set());setNonStockProducts(new Set());setMessage("");}}/>
         <button className="primary" disabled={!file||busy} onClick={analyze} style={{marginTop:10}}>{busy?"Pesquisando...":"Pesquisar e gerar reconciliação"}</button>
       </div>
       <div className="panel">
@@ -95,7 +97,7 @@ export default function Page(){
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
         {[["Clientes",preview.customerSource,preview.customerCounts.NEW,preview.customerCounts.REVIEW],["Produtos",preview.productSource,preview.productCounts.NEW,preview.productCounts.REVIEW]].map(([label,total,news,reviews])=><div key={String(label)} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>{label}</small><strong style={{fontSize:25,display:"block"}}>{Number(total).toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>novos: {Number(news).toLocaleString("pt-BR")} · revisar: {Number(reviews).toLocaleString("pt-BR")}</span></div>)}
         <div style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>Registros do backup</small><strong style={{fontSize:25,display:"block"}}>{preview.totalRecords.toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>demais coleções: {preview.otherRecords.toLocaleString("pt-BR")}</span></div>
-        <div style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>Selecionados</small><strong style={{fontSize:25,display:"block"}}>{selected.size.toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>somente estes serão enviados</span></div>
+        <div style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>Selecionados</small><strong style={{fontSize:25,display:"block"}}>{selected.size.toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>somente estes serão enviados</span></div><div style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>Lentes selecionadas</small><strong style={{fontSize:25,display:"block"}}>{nonStockProducts.size.toLocaleString("pt-BR")}</strong><span style={{fontSize:12}}>entram sem controle de estoque físico</span></div>
       </div>
 
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:18}}>
@@ -113,18 +115,18 @@ export default function Page(){
       <div style={{marginTop:12}}><input value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}} placeholder={kind==="Cliente"?"Pesquisar cliente por nome, CPF ou telefone...":"Pesquisar produto por descrição, marca, código ou código de barras..."}/></div>
 
       <div className="table" style={{marginTop:14}}>
-        <div className="row header"><span>Selecionar</span><span>Registro</span><span>Correspondência</span><span>Critério</span></div>
+        <div className="row header"><span>Selecionar</span><span>Registro</span><span>{kind==="Produto"?"Lente / estoque":"Correspondência"}</span><span>Critério</span></div>
         {visible.map(item=><div className="row" key={item.legacyKey}>
           <span>{item.status==="MATCHED"?<small style={{color:"#087f73"}}>✓ Não precisa</small>:<input type="checkbox" checked={selected.has(item.legacyKey)} onChange={()=>toggle(item.legacyKey)}/>}</span>
           <span><strong>{kind==="Cliente"?item.name:item.description}</strong><small style={{display:"block",color:"var(--muted)"}}>{kind==="Cliente"?(item.document||"sem CPF/CNPJ")+" · "+(item.phone||"sem telefone"):[item.brand,item.model,item.code].filter(Boolean).join(" · ")||"sem identificação completa"}</small></span>
-          <span style={{color:statusTone(item.status)}}><b>{statusLabel(item.status)}</b><small style={{display:"block",color:"var(--muted)"}}>{item.matchedName||"Nenhum cadastro atual localizado"}</small></span>
+          <span style={{color:statusTone(item.status)}}>{kind==="Produto"&&<label style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,cursor:"pointer"}}><input type="checkbox" checked={nonStockProducts.has(item.legacyKey)} onChange={()=>toggleNonStock(item.legacyKey)}/><b>Lente · não controla estoque</b></label>}<b>{statusLabel(item.status)}</b><small style={{display:"block",color:"var(--muted)"}}>{item.matchedName||"Nenhum cadastro atual localizado"}</small></span>
           <span><b>{item.method||"—"}</b><small style={{display:"block",color:"var(--muted)"}}>{item.reason}</small></span>
         </div>)}
       </div>
       {filtered.length===0&&<p style={{color:"var(--muted)",marginTop:14}}>Nenhum registro para este filtro.</p>}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12}}><span style={{fontSize:12,color:"var(--muted)"}}>Exibindo {visible.length} de {filtered.length}</span><div style={{display:"flex",gap:6}}><button className="secondary" disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Anterior</button><span style={{padding:"8px 10px",fontSize:12}}>Página {page} / {pages}</span><button className="secondary" disabled={page>=pages} onClick={()=>setPage(p=>p+1)}>Próxima</button></div></div>
 
-      <div style={{marginTop:16,padding:14,borderRadius:10,background:"#f7f9fb",color:"var(--muted)",fontSize:12}}><b>Regra:</b> os itens marcados serão os únicos enviados à reconciliação. Os já encontrados não são substituídos. Casos de revisão só entram se você selecioná-los.</div>
+      <div style={{marginTop:16,padding:14,borderRadius:10,background:"#f7f9fb",color:"var(--muted)",fontSize:12}}><b>Regra:</b> os itens marcados serão os únicos enviados à reconciliação. Em Produtos, você pode marcar manualmente <b>Lente · não controla estoque</b>; essa classificação é individual e não depende do nome da lente. Os já encontrados não são substituídos. Casos de revisão só entram se você selecioná-los.</div>
       <button className="primary" disabled={busy||selected.size===0} onClick={confirm} style={{marginTop:12}}>{busy?"Processando...":"Confirmar reconciliação de "+selected.size+" selecionados"}</button>
     </div>}
 
