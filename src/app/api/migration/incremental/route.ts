@@ -18,8 +18,8 @@ const first = (o: R, keys: string[]) => {
   return null;
 };
 const idOf = (r: R) => r?.id == null ? null : String(r.id);
-const legacyKey = (r: R) =>
-  `BEEPSTART:${String(r.collection_key ?? "SEM_COLLECTION")}:${idOf(r) ?? crypto.createHash("sha256").update(JSON.stringify(r)).digest("hex")}`;
+const legacyKey = (r: R, fingerprint: string) =>
+  `BEEPSTART:${fingerprint}:${String(r.collection_key ?? "SEM_COLLECTION")}:${idOf(r) ?? crypto.createHash("sha256").update(JSON.stringify(r)).digest("hex")}`;
 const money = (v: any) => {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
   const n = Number(String(v ?? 0).replace(/\./g, "").replace(",", ".").replace(/[^0-9.-]/g, ""));
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
 
       const newCustomers: any[] = [];
       for (const c of customers) {
-        const legacy = legacyKey(c);
+        const legacy = legacyKey(c, fingerprint);
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Customer", id: cpfMap.get(norm(first(c, ["cpf", "cnp", "cpfCnpj", "document"]))) ?? "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
       if (newCustomers.length) await tx.customer.createMany({ data: newCustomers });
 
       for (const p of products) {
-        const legacy = legacyKey(p);
+        const legacy = legacyKey(p, fingerprint);
         if (existingLegacySet.has(legacy)) {
           target.set(legacy, { entity: "Product", id: "", status: "LEGACY_ALREADY_PRESENT" });
           continue;
@@ -196,16 +196,16 @@ export async function POST(request: Request) {
       }
 
       const legacyRows = (records as R[]).filter(r => {
-        const k = legacyKey(r);
+        const k = legacyKey(r, fingerprint);
         return !existingLegacySet.has(k);
       }).map(r => {
-        const t = target.get(legacyKey(r));
+        const t = target.get(legacyKey(r, fingerprint));
         return {
           id: crypto.randomUUID(),
           source: "BEEPSTART",
           collectionKey: String(r.collection_key ?? "SEM_COLLECTION"),
           legacyId: idOf(r),
-          legacyKey: legacyKey(r),
+          legacyKey: legacyKey(r, fingerprint),
           payload: r,
           customerId: t?.entity === "Customer" && t.id ? t.id : null,
           migrationRunId: run.id,
