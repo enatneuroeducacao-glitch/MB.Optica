@@ -232,6 +232,7 @@ unit String @default("UN")
 cost Decimal @default(0) @db.Decimal(12,2)
 salePrice Decimal @default(0) @db.Decimal(12,2)
 minimumStock Decimal @default(0) @db.Decimal(12,3)
+stockControlled Boolean @default(true)
 active Boolean @default(true)
 categoryId String?
 supplierId String?
