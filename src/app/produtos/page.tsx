@@ -4,7 +4,7 @@ import {useEffect,useMemo,useState} from "react";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 const empty:any={
- code:"",barcode:"",description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",
+ code:"",barcode:"",description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",stockControlled:true,
  categoryId:"",supplierId:"",ncm:"",cest:"",cfop:"",origin:"0",taxCode:"",
  brand:"",model:"",color:"",frameSize:"",lensWidth:"",bridgeWidth:"",templeLength:"",material:"",frameShape:""
 };
@@ -85,7 +85,7 @@ export default function Produtos(){
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
-  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),
+  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),stockControlled:Boolean(form.stockControlled),
    categoryId:form.categoryId||null,supplierId:form.supplierId||null,
    lensWidth:form.lensWidth?Number(form.lensWidth):null,bridgeWidth:form.bridgeWidth?Number(form.bridgeWidth):null,
    templeLength:form.templeLength?Number(form.templeLength):null
@@ -98,7 +98,7 @@ export default function Produtos(){
 
  const edit=(p:any)=>{
   setSelected(p);
-  setForm({...empty,...p,cost:String(p.cost??0),salePrice:String(p.salePrice??0),minimumStock:String(p.minimumStock??0),
+  setForm({...empty,...p,cost:String(p.cost??0),salePrice:String(p.salePrice??0),minimumStock:String(p.minimumStock??0),stockControlled:p.stockControlled!==false,
    categoryId:p.categoryId||"",supplierId:p.supplierId||"",lensWidth:p.lensWidth?String(p.lensWidth):"",bridgeWidth:p.bridgeWidth?String(p.bridgeWidth):"",templeLength:p.templeLength?String(p.templeLength):""});
   setOpen(true);
  };
@@ -164,7 +164,7 @@ export default function Produtos(){
      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}}>
       <input type="number" step="0.01" placeholder="Custo" value={form.cost} onChange={e=>set("cost",e.target.value)}/>
       <input type="number" step="0.01" placeholder="Preço de venda" value={form.salePrice} onChange={e=>set("salePrice",e.target.value)}/>
-      <input type="number" step="0.001" placeholder="Estoque mínimo" value={form.minimumStock} onChange={e=>set("minimumStock",e.target.value)}/>
+      <input type="number" step="0.001" placeholder="Estoque mínimo" value={form.minimumStock} onChange={e=>set("minimumStock",e.target.value)}/><label style={{display:"flex",alignItems:"center",gap:7,fontSize:12}}><input type="checkbox" checked={form.stockControlled!==false} onChange={e=>set("stockControlled",e.target.checked)}/> Controla estoque</label>
       <button className="primary" type="submit">Salvar produto</button>
      </div>
     </div>
