@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
 type RecordShape = Record<string, unknown>;
-const EXPECTED_TOTAL = 5788;
+const EXPECTED_TOTAL = 5789;
 const EXPECTED_COLLECTIONS = 29;
 
 function keyOf(r: RecordShape, index: number) {
@@ -17,14 +17,24 @@ function keyOf(r: RecordShape, index: number) {
 export async function GET() {
   try {
     await requireRole(["ADMIN"]);
-    const [runs, legacyStored] = await Promise.all([
+    const [runs, legacyStored, customerTotal, activeCustomers, productTotal, activeProducts] = await Promise.all([
       db.migrationRun.findMany({
         orderBy: { startedAt: "desc" }, take: 10,
         select: { id:true,source:true,sourceFingerprint:true,status:true,total:true,imported:true,mapped:true,warnings:true,errors:true,report:true,startedAt:true,completedAt:true }
       }),
       db.legacyRecord.count(),
+      db.customer.count(),
+      db.customer.count({ where: { active: true } }),
+      db.product.count(),
+      db.product.count({ where: { active: true } }),
     ]);
-    return NextResponse.json({ok:true,expected:{source:"BEEPSTART",total:EXPECTED_TOTAL,collections:EXPECTED_COLLECTIONS},legacyStored,runs});
+    return NextResponse.json({
+      ok:true,
+      expected:{source:"BEEPSTART",total:EXPECTED_TOTAL,collections:EXPECTED_COLLECTIONS},
+      operational:{customerTotal,activeCustomers,productTotal,activeProducts},
+      legacyStored,
+      runs
+    });
   } catch (error) {
     return apiError(error, "Não foi possível carregar a central de migração.");
   }
