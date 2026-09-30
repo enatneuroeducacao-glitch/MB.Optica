@@ -15,6 +15,18 @@ export default function Agenda(){
  const [customerSearch,setCustomerSearch]=useState("");
  const [open,setOpen]=useState(false);
  const [msg,setMsg]=useState("");
+ const [calendarMonth,setCalendarMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)});
+ const calendarDays=useMemo(()=>{
+  const year=calendarMonth.getFullYear(),month=calendarMonth.getMonth();
+  const first=new Date(year,month,1);
+  const start=new Date(year,month,1-first.getDay());
+  return Array.from({length:42},(_,i)=>new Date(start.getFullYear(),start.getMonth(),start.getDate()+i));
+ },[calendarMonth]);
+ const monthAppointments=useMemo(()=>rows.filter(a=>{const d=new Date(a.scheduledAt);return d.getFullYear()===calendarMonth.getFullYear()&&d.getMonth()===calendarMonth.getMonth()}),[rows,calendarMonth]);
+ const appointmentsForDay=(day:Date)=>monthAppointments.filter(a=>{const d=new Date(a.scheduledAt);return d.getFullYear()===day.getFullYear()&&d.getMonth()===day.getMonth()&&d.getDate()===day.getDate()});
+ const calendarLabel=calendarMonth.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+ const goMonth=(delta:number)=>setCalendarMonth(new Date(calendarMonth.getFullYear(),calendarMonth.getMonth()+delta,1));
+
  const load=async()=>{
   const [cr,ar]=await Promise.all([fetch("/api/customers",{cache:"no-store"}),fetch("/api/appointments",{cache:"no-store"})]);
   if(cr.status===401||ar.status===401){window.location.href="/login";return}
@@ -51,7 +63,37 @@ export default function Agenda(){
     <button className="primary" type="submit" disabled={!form.customerId}>Salvar agendamento</button>
    </form>
   </div>}
-  <div className="toolbar"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar na agenda por cliente, profissional ou tipo..."/></div>
+  <div className="panel" style={{padding:16,marginTop:12}}>
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:14}}>
+    <div><h2 style={{margin:0,textTransform:"capitalize"}}>{calendarLabel}</h2><span style={{fontSize:11,color:"var(--muted)"}}>{monthAppointments.length} compromisso{monthAppointments.length===1?"":"s"} no mês</span></div>
+    <div style={{display:"flex",gap:6}}>
+     <button className="secondary" onClick={()=>goMonth(-1)}>‹</button>
+     <button className="secondary" onClick={()=>{const d=new Date();setCalendarMonth(new Date(d.getFullYear(),d.getMonth(),1))}}>Hoje</button>
+     <button className="secondary" onClick={()=>goMonth(1)}>›</button>
+    </div>
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:1,border:"1px solid var(--line)",background:"var(--line)",borderRadius:8,overflow:"hidden"}}>
+    {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(day=><div key={day} style={{background:"var(--surface)",padding:"8px 6px",fontSize:10,fontWeight:700,textAlign:"center",color:"var(--muted)"}}>{day}</div>)}
+    {calendarDays.map(day=>{
+      const items=appointmentsForDay(day);
+      const inMonth=day.getMonth()===calendarMonth.getMonth();
+      const today=new Date(); const isToday=day.toDateString()===today.toDateString();
+      return <div key={day.toISOString()} style={{minHeight:108,background:inMonth?"#fff":"#f7f8fa",padding:6,verticalAlign:"top",opacity:inMonth?1:.55}}>
+       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+        <span style={{fontSize:11,fontWeight:isToday?800:600,borderRadius:12,padding:isToday?"2px 7px":0,background:isToday?"#e6f4f1":"transparent",color:isToday?"#087f6b":"var(--text)"}}>{day.getDate()}</span>
+        {items.length>0&&<span style={{fontSize:9,color:"var(--muted)"}}>{items.length}</span>}
+       </div>
+       <div style={{display:"grid",gap:4}}>
+        {items.slice(0,3).map(a=><button key={a.id} title={`${new Date(a.scheduledAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})} · ${a.customer.name}`} onClick={()=>setSearch(a.customer.name)} style={{border:0,borderLeft:"3px solid #087f6b",borderRadius:4,background:"#eef8f6",padding:"4px 5px",textAlign:"left",fontSize:9,cursor:"pointer",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>
+          <b>{new Date(a.scheduledAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b> · {a.customer.name}
+        </button>)}
+        {items.length>3&&<span style={{fontSize:9,color:"var(--muted)",paddingLeft:4}}>+ {items.length-3} compromisso{items.length-3===1?"":"s"}</span>}
+       </div>
+      </div>
+    })}
+   </div>
+  </div>
+  <div className="toolbar"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar na agenda por cliente, profissional ou tipo..."/><button className="secondary" onClick={load}>Atualizar</button></div>
   <div className="panel"><div className="table"><div className="row header"><span>Data/hora</span><span>Cliente</span><span>Tipo</span><span>Profissional</span><span>Status</span><span></span></div>
    {filtered.map(a=><div className="row" key={a.id}><strong>{new Date(a.scheduledAt).toLocaleString("pt-BR")}</strong><span>{a.customer.name}</span><span>{a.type}</span><span>{a.professionalType==="OFTALMOLOGISTA"?"Oftalmologista":a.professionalType==="OPTOMETRISTA"?"Optometrista":"Outro"} · {a.professionalName}</span><span>{a.status}</span><button className="link-button" onClick={()=>remove(a.id)}>Excluir</button></div>)}
    {!filtered.length&&<div style={{padding:25,textAlign:"center",color:"var(--muted)"}}>Nenhum agendamento encontrado.</div>}
