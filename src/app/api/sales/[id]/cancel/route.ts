@@ -13,7 +13,11 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const result=await db.$transaction(async(tx)=>{
       const sale=await tx.sale.findUnique({
         where:{id},
-        include:{payments:{include:{method:true}},items:true}
+        include:{
+          payments:{include:{method:true}},
+          items:true,
+          accounts:{where:{type:"RECEBER"},include:{settlements:{include:{payment:true}}}}
+        }
       });
       if(!sale) throw new Error("Venda não encontrada");
       if(sale.canceled) return sale;
@@ -48,6 +52,25 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
             reversalReference:b.reference?String(b.reference):reason
           }
         });
+      }
+
+      let reversedSettlements=0;
+      let canceledAccounts=0;
+      for(const account of sale.accounts){
+        const activeSettlements=account.settlements.filter(s=>!s.reversedAt);
+        if(activeSettlements.length){
+          await tx.accountSettlement.updateMany({
+            where:{id:{in:activeSettlements.map(s=>s.id)}},
+            data:{reversedAt:new Date()}
+          });
+          reversedSettlements+=activeSettlements.length;
+        }
+
+        await tx.account.update({
+          where:{id:account.id},
+          data:{paidAmount:0,status:"CANCELADO"}
+        });
+        canceledAccounts++;
       }
 
       const movements=await tx.stockMovement.findMany({
@@ -89,7 +112,9 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           reason,
           restoredMovements:movements.length,
           reversedPayments:activePayments.length,
-          cashRefunds
+          cashRefunds,
+          reversedSettlements,
+          canceledAccounts
         }
       });
       return canceled;
