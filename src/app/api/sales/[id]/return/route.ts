@@ -126,12 +126,12 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           description:saleItem.description,
           quantity,
           amount:lineNet,
-          movementId:movement.id
+          movementId
         });
       }
 
       const globalDiscount=money(sale.discount);
-      const discountShare=sale.subtotal>0
+      const discountShare=money(sale.subtotal)>0
         ? globalDiscount*(returnedSubtotal/money(sale.subtotal))
         : 0;
       const refundAmount=Math.max(0,Number((returnedSubtotal-discountShare).toFixed(2)));
