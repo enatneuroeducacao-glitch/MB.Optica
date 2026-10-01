@@ -2,12 +2,13 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
+ const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
  useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
+ useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
  const s=d.summary,inc=d.inconsistencies||[];
  const download=()=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="mb-optica-relatorios.json";a.click();URL.revokeObjectURL(u)};
@@ -96,6 +97,61 @@ export default function Relatorios(){
       <div className="report-row head"><span>Meio</span><span></span><span></span><span>Valor</span></div>
       {d.sales.paymentMethods.map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span></span><strong>{money(x.value)}</strong></div>)}
      </div>
+    </div>
+   </div>;
+ })()}
+ {tab==="MARGEM"&&(()=>{
+   const m=management?.margem;
+   if(!m)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.5</span><h2>Margem</h2><p>Carregando os indicadores centrais de margem...</p></div></div></div>;
+   const custo=n(m.custo),bruta=n(m.margemBruta),pct=n(m.margemBrutaPercentual),prevPct=n(m.margemMesAnteriorPercentual),pp=n(m.variacaoPontosPercentuais),varPct=m.variacaoPercentual===null?null:n(m.variacaoPercentual),descontos=n(m.descontos),descontoPct=n(m.descontoPercentual);
+   const insuficientes=m.produtosInsuficientes||[],abaixoCusto=m.produtosAbaixoDoCusto||[];
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.5</span><h2>Análise de margem</h2><p>Leitura específica de custo, margem bruta, percentual, descontos e comparação temporal usando o motor central de indicadores.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Custo das vendas" v={money(custo)} d="mês atual"/>
+      <Card t="Margem bruta" v={money(bruta)} d="faturamento menos custo"/>
+      <Card t="Margem bruta %" v={pct.toFixed(1)+"%"} d="mês atual"/>
+      <Card t="Margem mês anterior" v={prevPct.toFixed(1)+"%"} d="comparação temporal"/>
+      <Card t="Variação" v={(pp>=0?"+":"")+pp.toFixed(1)+" p.p."} d={varPct===null?"sem base percentual":"variação relativa de "+varPct.toFixed(1)+"%"}/>
+      <Card t="Descontos" v={money(descontos)} d={descontoPct.toFixed(1)+"% da venda bruta"}/>
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Comparação temporal</h2><p>Margem atual versus mês anterior.</p></div></div>
+     <div className="funnel">
+      <div><span>Margem atual</span><strong>{pct.toFixed(1)}%</strong></div>
+      <div><span>Margem anterior</span><strong>{prevPct.toFixed(1)}%</strong></div>
+      <div><span>Variação em pontos percentuais</span><strong>{(pp>=0?"+":"")+pp.toFixed(1)+" p.p."}</strong></div>
+      <div><span>Custo atual</span><strong>{money(custo)}</strong></div>
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Impacto dos descontos</h2><p>Descontos consolidados pelo motor de indicadores.</p></div></div>
+     <div className="funnel">
+      <div><span>Desconto aplicado</span><strong>{money(descontos)}</strong></div>
+      <div><span>Participação sobre venda bruta</span><strong>{descontoPct.toFixed(1)}%</strong></div>
+      <div><span>Desconto mês anterior</span><strong>{money(m.descontoMesAnterior)}</strong></div>
+      <div><span>Leitura</span><strong>{descontos>0?"acompanhar efeito sobre margem":"sem desconto registrado"}</strong></div>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Produtos com margem insuficiente</h2><p>Itens vendidos no mês atual com margem inferior ao limite configurado de 20%.</p></div><span className={insuficientes.length?"alert-badge":"good-badge"}>{insuficientes.length} item(ns)</span></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Produto</span><span>Qtd.</span><span>Margem</span><span>% Margem</span></div>
+      {insuficientes.length?insuficientes.map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{x.quantity}</span><span>{money(x.margin)}</span><strong>{n(x.marginPercent).toFixed(1)}%</strong></div>):<div className="empty-state">✓ Nenhum produto vendido abaixo do limite configurado.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Produtos com preço abaixo do custo</h2><p>Cadastro ativo em que o preço de venda está inferior ao custo informado.</p></div><span className={abaixoCusto.length?"alert-badge":"good-badge"}>{abaixoCusto.length} item(ns)</span></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Produto</span><span>Custo</span><span>Preço</span><span>Diferença</span></div>
+      {abaixoCusto.length?abaixoCusto.map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{money(x.cost)}</span><span>{money(x.salePrice)}</span><strong>{money(x.difference)}</strong></div>):<div className="empty-state">✓ Nenhum produto ativo com preço abaixo do custo.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Leitura gerencial da margem</h2><p>Os dados são derivados do motor central; o relatório apenas organiza a análise.</p></div></div>
+     <p style={{lineHeight:1.7,fontSize:13}}>A margem bruta representa o faturamento das vendas ativas menos o custo dos itens vendidos. A comparação temporal mostra a mudança em pontos percentuais em relação ao mês anterior. Os descontos são apresentados separadamente para permitir avaliar seu peso sobre a venda bruta. Produtos abaixo de 20% de margem aparecem para revisão, enquanto produtos com preço cadastrado abaixo do custo são tratados como inconsistência comercial.</p>
     </div>
    </div>;
  })()}
