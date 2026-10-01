@@ -30,7 +30,7 @@ type EconomicHealth={
 const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",RETORNO_GARANTIA:"Retorno em garantia",PRONTO:"Pronto"} as Record<string,string>)[s]||s;
 
 export default function Dashboard(){
- const [data,setData]=useState<DashboardData|null>(null); const [legacy,setLegacy]=useState<LegacyFinancial|null>(null); const [error,setError]=useState(""); const [health,setHealth]=useState<EconomicHealth|null>(null); const [healthLoading,setHealthLoading]=useState(false);
+ const [data,setData]=useState<DashboardData|null>(null); const [legacy,setLegacy]=useState<LegacyFinancial|null>(null); const [management,setManagement]=useState<ManagementIndicators|null>(null); const [error,setError]=useState(""); const [health,setHealth]=useState<EconomicHealth|null>(null); const [healthLoading,setHealthLoading]=useState(false);
  const load=async()=>{try{const r=await fetch("/api/dashboard",{cache:"no-store"});if(!r.ok)throw new Error("Não foi possível carregar o dashboard");setData(await r.json());setError("")}catch(e){setError(e instanceof Error?e.message:"Erro ao carregar dashboard")}};
  const loadLegacy=async()=>{try{const r=await fetch("/api/migration/financial-summary",{cache:"no-store"});if(r.ok)setLegacy(await r.json())}catch{}};
  const loadManagement=async()=>{try{const r=await fetch("/api/gestao/indicadores",{cache:"no-store"});if(r.ok)setManagement(await r.json())}catch{}};
