@@ -173,6 +173,15 @@ export async function GET(){
       .sort((a,b)=>a.marginPercent-b.marginPercent)
       .slice(0,50);
 
+    const soldQuantityMap=new Map<string,number>();
+    sales.forEach(sale=>{
+      (sale.items||[]).forEach(item=>{
+        const productId=item.product?.id;
+        if(!productId)return;
+        soldQuantityMap.set(productId,(soldQuantityMap.get(productId)||0)+num(item.quantity));
+      });
+    });
+
     const stock=products.map(product=>{
       const quantity=stockQuantity(product);
       return {
@@ -185,7 +194,10 @@ export async function GET(){
         salePrice:money(num(product.salePrice)),
         stockCost:money(quantity*num(product.cost)),
         stockRetail:money(quantity*num(product.salePrice)),
-        supplierId:product.supplierId
+        supplierId:product.supplierId,
+        soldThisMonth:num(soldQuantityMap.get(product.id)),
+        reorderQuantity:Math.max(0,num(product.minimumStock)-quantity),
+        status:quantity<0?"NEGATIVO":quantity===0?"ZERADO":quantity<=num(product.minimumStock)?"ABAIXO_MINIMO":"OK"
       };
     });
 
@@ -196,6 +208,22 @@ export async function GET(){
       .slice(0,50);
     const zeroStock=stock.filter(item=>item.quantity<=0);
     const negativeStock=stock.filter(item=>item.quantity<0);
+    const criticalStock=stock
+      .filter(item=>item.status!=="OK")
+      .sort((a,b)=>{
+        const rank=(x:any)=>x.status==="NEGATIVO"?0:x.status==="ZERADO"?1:2;
+        return rank(a)-rank(b)||b.reorderQuantity-a.reorderQuantity;
+      })
+      .slice(0,50);
+    const replenishment=stock
+      .filter(item=>item.reorderQuantity>0)
+      .sort((a,b)=>b.reorderQuantity-a.reorderQuantity)
+      .slice(0,50);
+    const stockCoverage=stock.filter(item=>item.soldThisMonth>0).map(item=>({
+      id:item.id,code:item.code,description:item.description,quantity:item.quantity,soldThisMonth:item.soldThisMonth,
+      estimatedDaysCoverage:Math.round((item.quantity/item.soldThisMonth)*new Date().getDate()),
+      status:item.status
+    })).sort((a,b)=>a.estimatedDaysCoverage-b.estimatedDaysCoverage).slice(0,50);
 
     const receivable=outstanding(receivables);
     const payable=outstanding(payables);
@@ -332,7 +360,9 @@ export async function GET(){
         estoqueNegativo:negativeStock.length,
         valorCusto:money(stock.reduce((sum,item)=>sum+item.stockCost,0)),
         valorVenda:money(stock.reduce((sum,item)=>sum+item.stockRetail,0)),
-        itensCriticos:[...negativeStock,...zeroStock,...lowStock].slice(0,50)
+        itensCriticos:criticalStock,
+        reposicaoNecessaria:replenishment,
+        coberturaCritica:stockCoverage
       },
       contas:{
         receber:money(receivable),
