@@ -20,8 +20,7 @@ const next:Record<string,string>={
 };
 
 const emptyForm={
- customerId:"",prescriptionId:"",productId:"",quantity:"1",unitPrice:"",
- kind:"LENTE",laboratory:"",dueDate:"",notes:""
+ customerId:"",prescriptionId:"",laboratory:"",dueDate:"",notes:""
 };
 
 const money=(value:number|string|undefined|null)=>Number(value||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -109,10 +108,14 @@ export default function Pedidos(){
  const [prescriptions,setPrescriptions]=useState<Prescription[]>([]);
  const [products,setProducts]=useState<Product[]>([]);
  const [form,setForm]=useState(emptyForm);
+ const [items,setItems]=useState<any[]>([]);
  const [open,setOpen]=useState(false);
+ const [editingId,setEditingId]=useState<string|null>(null);
  const [selected,setSelected]=useState<Order|null>(null);
  const [msg,setMsg]=useState("");
  const [search,setSearch]=useState("");
+ const [customerQuery,setCustomerQuery]=useState("");
+ const [productQueries,setProductQueries]=useState<Record<number,string>>({});
 
  const load=async()=>{
   const [o,c,p,rx]=await Promise.all([fetch("/api/orders"),fetch("/api/customers"),fetch("/api/products"),fetch("/api/prescriptions")]);
@@ -126,23 +129,120 @@ export default function Pedidos(){
   [prescriptions,form.customerId]
  );
 
+ const resetEditor=()=>{
+  setForm(emptyForm);
+  setItems([]);
+  setEditingId(null);
+  setCustomerQuery("");
+  setProductQueries({});
+ };
+
+ const openNew=()=>{
+  resetEditor();
+  setOpen(true);
+  setMsg("");
+ };
+
+ const openEdit=(o:Order)=>{
+  setEditingId(o.id);
+  setForm({
+   customerId:o.customerId||"",
+   prescriptionId:o.prescriptionId||"",
+   laboratory:o.laboratory||"",
+   dueDate:o.dueDate?String(o.dueDate).slice(0,10):"",
+   notes:o.notes||""
+  });
+  setCustomerQuery(o.customer?.name||"");
+  setItems((o.items||[]).map((i:any)=>({
+   productId:i.productId||"",
+   description:i.description||"",
+   quantity:String(i.quantity??1),
+   unitPrice:String(i.unitPrice??0),
+   kind:i.kind||"OUTRO",
+   eye:i.eye||""
+  })));
+  const queries:Record<number,string>={};
+  (o.items||[]).forEach((i:any,index:number)=>{queries[index]=i.description||""});
+  setProductQueries(queries);
+  setOpen(true);
+  setSelected(null);
+  setMsg("");
+ };
+
+ const addItem=()=>{
+  const index=items.length;
+  setItems([...items,{productId:"",description:"",quantity:"1",unitPrice:"",kind:"LENTE",eye:""}]);
+  setProductQueries({...productQueries,[index]:""});
+ };
+
+ const removeItem=(index:number)=>{
+  setItems(items.filter((_:any,i:number)=>i!==index));
+  const nextQueries:Record<number,string>={};
+  items.forEach((_:any,i:number)=>{if(i!==index) nextQueries[i>index?i-1:i]=productQueries[i]||""});
+  setProductQueries(nextQueries);
+ };
+
+ const chooseCustomer=(c:Customer)=>{
+  setForm({...form,customerId:c.id,prescriptionId:""});
+  setCustomerQuery(c.name);
+ };
+
+ const chooseProduct=(index:number,p:Product)=>{
+  const nextItems=[...items];
+  nextItems[index]={...nextItems[index],productId:p.id,description:p.description,unitPrice:String(p.salePrice)};
+  setItems(nextItems);
+  setProductQueries({...productQueries,[index]:p.description});
+ };
+
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
-  const p=products.find(x=>x.id===form.productId);
+  if(!form.customerId){setMsg("Selecione um cliente.");return}
+  if(!items.length){setMsg("Adicione pelo menos um produto ao pedido.");return}
+  if(items.some((i:any)=>!i.description.trim()||!Number(i.quantity)||Number(i.quantity)<=0||!Number.isFinite(Number(i.unitPrice))||Number(i.unitPrice)<0)){
+   setMsg("Revise os itens: produto/descrição, quantidade e preço são obrigatórios.");return
+  }
   const me=await fetch("/api/auth/me").then(r=>r.json());
   const sellerId=me.user?.id||me.id;
   if(!sellerId){setMsg("Sessão administrativa não identificada.");return}
-  const r=await fetch("/api/orders",{
-   method:"POST",headers:{"content-type":"application/json"},
-   body:JSON.stringify({
-    customerId:form.customerId,prescriptionId:form.prescriptionId||undefined,sellerId,
-    laboratory:form.laboratory,dueDate:form.dueDate||undefined,notes:form.notes,
-    items:[{productId:form.productId||undefined,description:p?.description||"Item óptico",kind:form.kind,quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||p?.salePrice||0)}]
-   })
+
+  const payload={
+   customerId:form.customerId,
+   prescriptionId:form.prescriptionId||undefined,
+   sellerId,
+   laboratory:form.laboratory,
+   dueDate:form.dueDate||undefined,
+   notes:form.notes,
+   items:items.map((i:any)=>({
+    productId:i.productId||undefined,
+    description:i.description,
+    kind:i.kind||"OUTRO",
+    eye:i.eye||undefined,
+    quantity:Number(i.quantity),
+    unitPrice:Number(i.unitPrice||0)
+   }))
+  };
+
+  const r=await fetch(editingId?"/api/orders/"+editingId:"/api/orders",{
+   method:editingId?"PATCH":"POST",
+   headers:{"content-type":"application/json"},
+   body:JSON.stringify(payload)
   });
   const d=await r.json();
   if(!r.ok){setMsg(d.error+" "+(d.detail||""));return}
-  setMsg("Pedido criado.");setOpen(false);setForm(emptyForm);load();
+  setMsg(editingId?"Pedido atualizado.":"Pedido criado.");
+  setOpen(false);
+  resetEditor();
+  await load();
+ };
+
+ const removeOrder=async(o:Order)=>{
+  if(!window.confirm("Excluir o pedido #"+o.number+"? Esta ação não poderá ser desfeita.")) return;
+  const r=await fetch("/api/orders/"+o.id,{method:"DELETE"});
+  const d=await r.json();
+  if(!r.ok){setMsg(d.error+" "+(d.detail||""));return}
+  setMsg("Pedido #"+o.number+" excluído.");
+  if(selected?.id===o.id)setSelected(null);
+  await load();
  };
 
  const advance=async(o:Order)=>{
@@ -159,30 +259,58 @@ export default function Pedidos(){
  return <section className="page">
   <div className="page-heading">
    <div><span className="eyebrow">OPERAÇÃO</span><h1>Pedidos</h1><p>Transforme o orçamento em produção, acompanhe o laboratório e finalize a entrega.</p></div>
-   <button className="primary" onClick={()=>setOpen(true)}>+ Novo pedido</button>
+   <button className="primary" onClick={openNew}>+ Novo pedido</button>
   </div>
   {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
 
   <div className="status-strip">{Object.keys(next).map(s=><div key={s}><span className="dot"></span><b>{s.replaceAll("_"," ")}</b></div>)}</div>
 
   {open&&<div className="panel" style={{padding:20,marginTop:12}}>
-   <div className="panel-heading" style={{padding:0,marginBottom:16}}><div><h2>Novo pedido óptico</h2><p>Selecione o cliente, a receita e os itens que serão enviados ao laboratório.</p></div><button className="secondary" onClick={()=>setOpen(false)}>Fechar</button></div>
+   <div className="panel-heading" style={{padding:0,marginBottom:16}}><div><h2>{editingId?"Editar pedido":"Novo pedido óptico"}</h2><p>Pesquise cliente e produtos e adicione quantos itens forem necessários ao mesmo pedido.</p></div><button className="secondary" onClick={()=>{setOpen(false);resetEditor()}}>Fechar</button></div>
    <form onSubmit={save}>
     <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr 1fr",gap:12}}>
-     <label>Cliente<select required value={form.customerId} onChange={e=>setForm({...form,customerId:e.target.value,prescriptionId:""})}><option value="">Selecione o cliente</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</option>)}</select></label>
+     <label>Cliente
+      <input required value={customerQuery} onChange={e=>{setCustomerQuery(e.target.value);if(form.customerId&&e.target.value!==customers.find(c=>c.id===form.customerId)?.name)setForm({...form,customerId:"",prescriptionId:""})}} placeholder="Pesquisar por nome ou CPF/CNPJ..." autoComplete="off"/>
+      {customerQuery&& !form.customerId && <div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:180,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:5}}>
+       {customers.filter(c=>(c.name+" "+(c.cpfCnpj||"")).toLowerCase().includes(customerQuery.toLowerCase())).slice(0,8).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:9,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
+      </div>}
+     </label>
      <label>Receita vinculada<select disabled={!form.customerId} value={form.prescriptionId} onChange={e=>setForm({...form,prescriptionId:e.target.value})}><option value="">{form.customerId?(customerPrescriptions.length?"Selecione a receita":"Nenhuma receita cadastrada"):"Selecione o cliente primeiro"}</option>{customerPrescriptions.map(r=><option key={r.id} value={r.id}>{dateBR(r.date)}{r.professional?" — "+r.professional:""}</option>)}</select></label>
      <label>Laboratório<input value={form.laboratory} onChange={e=>setForm({...form,laboratory:e.target.value})} placeholder="Ex.: Laboratório parceiro"/></label>
      <label>Prazo de entrega<input type="date" value={form.dueDate} onChange={e=>setForm({...form,dueDate:e.target.value})}/></label>
-     <label>Produto<select required value={form.productId} onChange={e=>{const p=products.find(x=>x.id===e.target.value);setForm({...form,productId:e.target.value,unitPrice:p?String(p.salePrice):""})}}><option value="">Selecione o produto</option>{products.map(p=><option key={p.id} value={p.id}>{p.code} — {p.description}</option>)}</select></label>
-     <label>Tipo<select value={form.kind} onChange={e=>setForm({...form,kind:e.target.value})}><option value="LENTE">Lente</option><option value="ARMAÇÃO">Armação</option><option value="TRATAMENTO">Tratamento</option><option value="SERVIÇO">Serviço</option><option value="OUTRO">Outro</option></select></label>
-     <label>Quantidade<input required type="number" min="1" step="1" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label>
-     <label>Preço unitário<input required type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})} placeholder="0,00"/></label>
     </div>
+
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:8}}>
+     <div><b>Produtos do pedido</b><div style={{fontSize:12,color:"var(--muted)"}}>Você pode adicionar lente, armação, tratamento e outros produtos no mesmo pedido.</div></div>
+     <button type="button" className="secondary" onClick={addItem}>+ Adicionar produto</button>
+    </div>
+
+    {!items.length&&<div className="panel" style={{padding:14,textAlign:"center",color:"var(--muted)"}}>Nenhum produto adicionado. Clique em “Adicionar produto”.</div>}
+
+    {items.map((item:any,index:number)=>{
+     const q=productQueries[index]||item.description||"";
+     const matches=products.filter(p=>(p.code+" "+p.description).toLowerCase().includes(q.toLowerCase())).slice(0,8);
+     return <div key={index} className="panel" style={{padding:12,marginBottom:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr auto",gap:10,alignItems:"end"}}>
+       <label>Produto
+        <input required value={q} onChange={e=>{setProductQueries({...productQueries,[index]:e.target.value});setItems(items.map((x:any,i:number)=>i===index?{...x,productId:"",description:e.target.value}:x))}} placeholder="Pesquisar código ou descrição..." autoComplete="off"/>
+        {q&&<div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:150,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:4}}>
+         {matches.map(p=><button type="button" key={p.id} onClick={()=>chooseProduct(index,p)} style={{display:"block",width:"100%",textAlign:"left",padding:8,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}
+        </div>}
+       </label>
+       <label>Tipo<select value={item.kind} onChange={e=>setItems(items.map((x:any,i:number)=>i===index?{...x,kind:e.target.value}:x))}><option value="LENTE">Lente</option><option value="ARMAÇÃO">Armação</option><option value="TRATAMENTO">Tratamento</option><option value="SERVIÇO">Serviço</option><option value="OUTRO">Outro</option></select></label>
+       <label>Quantidade<input required type="number" min="1" step="1" value={item.quantity} onChange={e=>setItems(items.map((x:any,i:number)=>i===index?{...x,quantity:e.target.value}:x))}/></label>
+       <label>Preço unitário<input required type="number" min="0" step="0.01" value={item.unitPrice} onChange={e=>setItems(items.map((x:any,i:number)=>i===index?{...x,unitPrice:e.target.value}:x))} placeholder="0,00"/></label>
+       <button type="button" className="secondary" onClick={()=>removeItem(index)}>Excluir</button>
+      </div>
+     </div>
+    })}
+
     <label style={{display:"block",marginTop:16}}>
      <span style={{display:"block",fontWeight:600,marginBottom:7}}>Observações / instruções ao laboratório</span>
      <textarea rows={5} style={{width:"100%",minHeight:130,resize:"vertical"}} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} placeholder="Material, tratamento, montagem, observações de conferência..."/>
     </label>
-    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:12}}><button type="button" className="secondary" onClick={()=>setOpen(false)}>Cancelar</button><button className="primary" type="submit">Criar pedido</button></div>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:12}}><button type="button" className="secondary" onClick={()=>{setOpen(false);resetEditor()}}>Cancelar</button><button className="primary" type="submit">{editingId?"Salvar alterações":"Criar pedido"}</button></div>
    </form>
   </div>}
 
@@ -190,14 +318,14 @@ export default function Pedidos(){
 
   <div className="panel"><div className="table">
    <div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span><span>Ação</span></div>
-   {filtered.map(o=><div className="row" key={o.id}><strong>#{o.number}</strong><span>{o.customer?.name}</span><span><StatusBadge status={o.status}/></span><span>{dateBR(o.dueDate)}</span><strong>{money(o.total)}</strong><button className="link-button" onClick={()=>setSelected(o)}>Detalhes</button></div>)}
+   {filtered.map(o=><div className="row" key={o.id}><strong>#{o.number}</strong><span>{o.customer?.name}</span><span><StatusBadge status={o.status}/></span><span>{dateBR(o.dueDate)}</span><strong>{money(o.total)}</strong><div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="link-button" onClick={()=>setSelected(o)}>Detalhes</button>{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(o.status)&&<button className="link-button" onClick={()=>openEdit(o)}>Editar</button>}{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(o.status)&&<button className="link-button" onClick={()=>removeOrder(o)}>Excluir</button>}</div></div>)
    {!filtered.length&&<div style={{padding:20,textAlign:"center",color:"var(--muted)"}}>Nenhum pedido encontrado.</div>}
   </div></div>
 
   {selected&&<div className="panel" style={{padding:20,marginTop:12}}>
    <div className="panel-heading" style={{padding:0,marginBottom:12}}>
     <div><span className="eyebrow">PEDIDO #{selected.number}</span><h2>{selected.customer?.name}</h2><p>{selected.laboratory||"Laboratório não informado"} · Entrega: {dateBR(selected.dueDate)}</p></div>
-    <div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>printLabAndOS(selected)}>🖨 Laboratório + O.S.</button><button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div>
+    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button className="secondary" onClick={()=>printLabAndOS(selected)}>🖨 Laboratório + O.S.</button>{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(selected.status)&&<button className="secondary" onClick={()=>openEdit(selected)}>Editar</button>}{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(selected.status)&&<button className="secondary" onClick={()=>removeOrder(selected)}>Excluir</button>}<button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div>
    </div>
    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
     <div className="panel" style={{padding:10}}><small>Status</small><div><StatusBadge status={selected.status}/></div></div>
