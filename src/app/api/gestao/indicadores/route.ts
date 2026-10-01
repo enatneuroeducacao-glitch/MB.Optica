@@ -516,6 +516,176 @@ export async function GET(){
       });
     }
 
+    const intelligence:Array<{
+      id:string;
+      severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";
+      priority:number;
+      category:string;
+      title:string;
+      evidence:string;
+      approach:string;
+      relatedIndicators:string[];
+    }>=[];
+
+    const addIntelligence=(
+      id:string,
+      severity:"CRITICO"|"ATENCAO"|"INFORMATIVO",
+      priority:number,
+      category:string,
+      title:string,
+      evidence:string,
+      approach:string,
+      relatedIndicators:string[]
+    )=>intelligence.push({id,severity,priority,category,title,evidence,approach,relatedIndicators});
+
+    const currentSalesVariation=previousTotal>0?((saleTotal-previousTotal)/previousTotal)*100:null;
+    const capitalAdjustedNegative=capitalDeGiroAjustado<0;
+    const receivable30=receivableFuture30;
+    const payable30=payableFuture30;
+    const topSupplierShare=totalSupplierPayable>0?(supplierIndicators[0]?.shareOfPayable||0):0;
+    const criticalStockWithSales=criticalStock.filter(item=>num(item.soldThisMonth)>0).length;
+
+    if(capitalAdjustedNegative){
+      addIntelligence(
+        "CAPITAL_INADIMPLENCIA",
+        "CRITICO",
+        100,
+        "FINANCEIRO",
+        "Capital de giro ajustado comprometido",
+        `Capital de giro de ${money(capitalDeGiro)}; após descontar ${money(overdueReceivable)} vencidos a posição ajustada é ${money(capitalDeGiroAjustado)}.`,
+        "Priorizar recebimentos vencidos, revisar compromissos próximos e preservar caixa antes de assumir novas obrigações.",
+        ["contas","inadimplencia","caixa"]
+      );
+    }else if(payable>receivable&&payable>0){
+      addIntelligence(
+        "CAPITAL_COMPROMETIDO",
+        "ATENCAO",
+        85,
+        "FINANCEIRO",
+        "Contas a pagar superam contas a receber",
+        `Há ${money(payable)} a pagar contra ${money(receivable)} a receber, gerando capital de giro de ${money(capitalDeGiro)}.`,
+        "Revisar o calendário de vencimentos e alinhar cobranças com os compromissos financeiros.",
+        ["contas","caixa"]
+      );
+    }
+
+    if(overdueReceivable>0&&delinquencyImpactOnCapital!==null&&delinquencyImpactOnCapital>=50){
+      addIntelligence(
+        "INADIMPLENCIA_CAPITAL",
+        "CRITICO",
+        95,
+        "INADIMPLENCIA",
+        "Inadimplência com impacto elevado sobre o capital de giro",
+        `Vencidos de ${money(overdueReceivable)} representam ${delinquencyImpactOnCapital.toFixed(1).replace(".",",")}% do capital de giro atual.`,
+        "Concentrar a rotina de cobrança nos maiores vencidos e acompanhar diariamente a recuperação dos valores.",
+        ["inadimplencia","contas","capitalDeGiro"]
+      );
+    }
+
+    if(receivable30<payable30&&payable30>0){
+      addIntelligence(
+        "FLUXO_30_DIAS",
+        "ATENCAO",
+        80,
+        "FINANCEIRO",
+        "Compromissos dos próximos 30 dias superam os recebimentos previstos",
+        `Próximos 30 dias: ${money(receivable30)} a receber contra ${money(payable30)} a pagar; saldo projetado de ${money(receivable30-payable30)}.`,
+        "Conferir vencimentos, acelerar cobranças elegíveis e revisar a programação de pagamentos.",
+        ["contas","capitalDeGiro"]
+      );
+    }
+
+    if(currentSalesVariation!==null&&currentSalesVariation<=-15&&marginVariationPoints<0){
+      addIntelligence(
+        "VENDAS_MARGEM",
+        "ATENCAO",
+        78,
+        "VENDAS_E_MARGEM",
+        "Queda de vendas acompanhada de redução da margem",
+        `Faturamento variou ${currentSalesVariation.toFixed(1).replace(".",",")}% e a margem variou ${marginVariationPoints.toFixed(1).replace(".",",")} p.p. em relação ao mês anterior.`,
+        "Separar os efeitos de volume, preço, custo e desconto antes de ajustar a estratégia comercial.",
+        ["vendas","faturamento","margem"]
+      );
+    }else if(currentSalesVariation!==null&&currentSalesVariation<=-15){
+      addIntelligence(
+        "QUEDA_VENDAS",
+        "ATENCAO",
+        65,
+        "VENDAS",
+        "Queda relevante do faturamento mensal",
+        `O faturamento atual está ${Math.abs(currentSalesVariation).toFixed(1).replace(".",",")}% abaixo do mês anterior.`,
+        "Investigar volume de vendas, ticket médio, mix e concentração por vendedor antes de intervir na operação.",
+        ["vendas","faturamento"]
+      );
+    }
+
+    if(saleTotal>0&&grossMarginPercent<20){
+      addIntelligence(
+        "MARGEM_BAIXA",
+        "ATENCAO",
+        72,
+        "MARGEM",
+        "Margem bruta abaixo do limite de acompanhamento",
+        `A margem bruta do mês está em ${grossMarginPercent.toFixed(1).replace(".",",")}% sobre ${money(saleTotal)} de faturamento.`,
+        "Revisar custos, descontos e produtos de menor margem antes de ampliar descontos comerciais.",
+        ["margem","faturamento","vendas"]
+      );
+    }
+
+    if(criticalStockWithSales>0){
+      addIntelligence(
+        "ESTOQUE_VENDAS",
+        "ATENCAO",
+        70,
+        "ESTOQUE_E_VENDAS",
+        "Itens críticos de estoque já apresentam vendas no mês",
+        `${criticalStockWithSales} item(ns) em situação crítica de estoque tiveram vendas no período atual.`,
+        "Priorizar a conferência e reposição dos itens críticos que já demonstram demanda.",
+        ["estoque","vendas"]
+      );
+    }
+
+    if(topSupplierShare>=50&&supplierPayable30>0){
+      addIntelligence(
+        "FORNECEDOR_CONCENTRACAO",
+        "ATENCAO",
+        68,
+        "FORNECEDORES",
+        "Concentração de compromissos em um fornecedor com vencimentos próximos",
+        `O maior fornecedor concentra ${topSupplierShare.toFixed(1).replace(".",",")}% dos compromissos vinculados a fornecedores; ${money(supplierPayable30)} vencem nos próximos 30 dias.`,
+        "Acompanhar o compromisso concentrado junto ao fluxo de caixa e avaliar a programação de pagamentos.",
+        ["fornecedores","contas","caixa"]
+      );
+    }
+
+    if(supplierIndicators.some(item=>item.overdue>0)&&capitalDeGiro<0){
+      addIntelligence(
+        "FORNECEDOR_CAPITAL",
+        "ATENCAO",
+        82,
+        "FORNECEDORES_E_FINANCEIRO",
+        "Compromissos vencidos com fornecedores em cenário de capital de giro negativo",
+        `Existem ${money(supplierIndicators.reduce((sum,item)=>sum+item.overdue,0))} vencidos com fornecedores e o capital de giro está em ${money(capitalDeGiro)}.`,
+        "Priorizar a conciliação dos vencimentos e organizar pagamentos conforme o caixa e a criticidade operacional.",
+        ["fornecedores","contas","capitalDeGiro"]
+      );
+    }
+
+    if(intelligence.length===0){
+      addIntelligence(
+        "ACOMPANHAMENTO_ROTINA",
+        "INFORMATIVO",
+        10,
+        "CONSOLIDADO",
+        "Nenhum cruzamento crítico acionado pelos critérios atuais",
+        "Os indicadores das fases 6.3–6.10 não produziram uma combinação que ultrapasse os limiares de atenção configurados.",
+        "Manter o acompanhamento periódico e revisar os indicadores quando houver mudança relevante no período.",
+        ["faturamento","margem","estoque","contas","inadimplencia","fornecedores","vendas"]
+      );
+    }
+
+    intelligence.sort((a,b)=>b.priority-a.priority);
+
     return NextResponse.json({
       ok:true,
       generatedAt:now.toISOString(),
@@ -614,6 +784,7 @@ export async function GET(){
         canceladasExcluidas:true,
         vendedoresComVenda:new Set(sales.map(sale=>sale.sellerId).filter(Boolean)).size
       },
+      inteligenciaGerencial:intelligence,
       alertas:[...delinquencyAlerts,...alerts]
     });
   }catch(error){
