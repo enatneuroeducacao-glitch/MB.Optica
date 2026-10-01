@@ -88,6 +88,9 @@ jobs:
           done
           docker logs mb-optica-app
           exit 1
+      - name: Prepare Node dependencies for integration test
+        run: npm install --no-audit --no-fund
+
       - name: Integrated financial cycle test
         run: npx tsx scripts/integration-financial-cycle.ts
 
