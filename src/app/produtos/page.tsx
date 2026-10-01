@@ -5,8 +5,8 @@ import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 const checksumEan13=(base:string)=>{const digits=base.slice(0,12).split("").map(Number);const sum=digits.reduce((a,d,i)=>a+d*(i%2===0?1:3),0);return String((10-(sum%10))%10)};
 const makeInternalBarcode=()=>{const base="20"+String(Date.now()%10000000000).padStart(10,"0");return base+checksumEan13(base)};
-const makeInternalCode=()=>{const stamp=new Date().toISOString().replace(/\\D/g,"").slice(0,14);return "P-"+stamp+"-"+String(Math.floor(Math.random()*1000)).padStart(3,"0")};
-const makeEmpty=()=>({code:makeInternalCode(),barcode:makeInternalBarcode(),description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",initialStock:"0",stockControlled:true,
+const makeInternalCode=()=>{const stamp=new Date().toISOString().replace(/\D/g,"").slice(0,14);return "P-"+stamp+"-"+String(Math.floor(Math.random()*1000)).padStart(3,"0")};
+const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});\nconst makeEmpty=()=>({code:makeInternalCode(),barcode:makeInternalBarcode(),description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",initialStock:"0",stockControlled:true,
  categoryId:"",supplierId:"",ncm:"",cest:"",cfop:"",origin:"0",taxCode:"",
  brand:"",model:"",color:"",frameSize:"",lensWidth:"",bridgeWidth:"",templeLength:"",material:"",frameShape:""});
 
