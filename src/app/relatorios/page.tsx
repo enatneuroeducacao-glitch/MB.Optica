@@ -500,7 +500,7 @@ export default function Relatorios(){
      </div>
     </div>
 
-    <div className="panel">
+    <div className="panel full">
      <div className="panel-heading"><div><h2>Riscos e atenção</h2><p>Resumo da inteligência gerencial já calculada.</p></div><span className={critical.length?"alert-badge":"good-badge"}>{critical.length+attention.length} ponto(s)</span></div>
      <div className="report-table">
       <div className="report-row head"><span>Prioridade</span><span>Severidade</span><span>Alerta</span><span>Indicadores</span></div>
@@ -533,7 +533,7 @@ export default function Relatorios(){
     </div>
 
     <div className="panel">
-     <div className="panel-heading"><div><h2>Estoque e fornecedores</h2><p>Resumo dos indicadores de abastecimento e compromissos.</p></div></div>
+     <div className="panel-heading"><div><h2>Estoque e fornecedores</h2><p>Resumo consolidado dos indicadores de estoque, abastecimento e compromissos.</p></div></div>
      <div className="report-metrics">
       <div><b>{e?.produtosAtivos||0}</b><span>produtos ativos</span></div>
       <div><b>{e?.estoqueBaixo||0}</b><span>estoque baixo</span></div>
@@ -541,6 +541,12 @@ export default function Relatorios(){
       <div><b>{e?.estoqueNegativo||0}</b><span>estoque negativo</span></div>
       <div><b>{money(e?.valorCusto)}</b><span>estoque a custo</span></div>
       <div><b>{stockCritical}</b><span>itens críticos</span></div>
+      <div><b>{management?.fornecedores?.ativos||0}</b><span>fornecedores ativos</span></div>
+      <div><b>{management?.fornecedores?.comProdutos||0}</b><span>com produtos</span></div>
+      <div><b>{management?.fornecedores?.semProdutos||0}</b><span>sem produtos</span></div>
+      <div><b>{money(management?.fornecedores?.totalAPararFornecedores)}</b><span>compromissos em aberto</span></div>
+      <div><b>{money(management?.fornecedores?.vencido)}</b><span>compromissos vencidos</span></div>
+      <div><b>{money(management?.fornecedores?.futuro?.ate30)}</b><span>a pagar até 30 dias</span></div>
      </div>
     </div>
 
