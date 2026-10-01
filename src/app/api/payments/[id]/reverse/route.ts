@@ -8,7 +8,14 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const {id}=await params;
     const b=await req.json().catch(()=>({}));
     const result=await db.$transaction(async(tx)=>{
-      const payment=await tx.payment.findUnique({where:{id},include:{sale:true,method:true}});
+      const payment=await tx.payment.findUnique({
+        where:{id},
+        include:{
+          sale:true,
+          method:true,
+          accountSettlement:{include:{account:true}}
+        }
+      });
       if(!payment) throw new Error("Pagamento não encontrado");
       if(payment.reversedAt) throw new Error("Pagamento já estornado");
       if(payment.sale.canceled) throw new Error("Venda cancelada");
@@ -28,12 +35,51 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         });
       }
 
+      const reversedAt=new Date();
       const reversed=await tx.payment.update({
         where:{id},
-        data:{reversedAt:new Date(),reversalReference:b.reference?String(b.reference):undefined}
+        data:{reversedAt,reversalReference:b.reference?String(b.reference):undefined}
       });
-      await writeAudit(tx,{action:"REVERSE",entity:"Payment",entityId:id,metadata:{saleId:payment.saleId,amount:payment.amount.toString(),isCash:payment.method.isCash,reason:b.reason||null}});
-      return {payment:reversed,movement};
+
+      let reversedSettlement=null;
+      let updatedAccount=null;
+      if(payment.accountSettlement){
+        const settlement=payment.accountSettlement;
+        if(settlement.reversedAt) throw new Error("Liquidação da conta já foi estornada");
+
+        reversedSettlement=await tx.accountSettlement.update({
+          where:{id:settlement.id},
+          data:{reversedAt}
+        });
+
+        const nextPaidAmount=Math.max(0,Number(settlement.account.paidAmount)-Number(settlement.amount));
+        const nextStatus=nextPaidAmount<=0
+          ?"PENDENTE"
+          :nextPaidAmount+0.001>=Number(settlement.account.amount)
+            ?"PAGO"
+            :"PARCIAL";
+
+        updatedAccount=await tx.account.update({
+          where:{id:settlement.accountId},
+          data:{paidAmount:nextPaidAmount,status:nextStatus}
+        });
+      }
+
+      await writeAudit(tx,{
+        action:"REVERSE",
+        entity:"Payment",
+        entityId:id,
+        metadata:{
+          saleId:payment.saleId,
+          amount:payment.amount.toString(),
+          isCash:payment.method.isCash,
+          reason:b.reason||null,
+          accountSettlementId:payment.accountSettlement?.id||null,
+          reversedSettlement:!!reversedSettlement,
+          accountId:updatedAccount?.id||null
+        }
+      });
+      return {payment:reversed,movement,reversedSettlement,account:updatedAccount};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(result);
   }catch(error){
