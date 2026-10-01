@@ -77,6 +77,10 @@ id String @id @default(cuid())
   series String?
   environment String @default("HOMOLOGACAO")
   secretReference String?
+  certificateType String?
+  certificateExpiresAt DateTime?
+  certificateAuthority String?
+  certificateLastCheckedAt DateTime?
   active Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
