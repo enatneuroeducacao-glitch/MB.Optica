@@ -36,16 +36,16 @@ export default function Dashboard(){
    <StatCard label="Produtos ativos" value={data?String(data.products):"—"} detail={data?String(data.integratedProducts||0)+" integrado(s) do BeepStart":"catálogo atual"}/>
    <StatCard label="A receber" value={legacy?money(legacy.receivable):"—"} detail="saldo em aberto no BeepStart"/>
   </div>
-  {legacy&&<div className="panel" style={{marginBottom:16}}>
+  {legacy&&(()=>{const monthWithSales=[...legacy.months].reverse().find(m=>m.sales>0)||legacy.months[legacy.months.length-1];const ticket=monthWithSales?.sales?Number(monthWithSales.billing)/Number(monthWithSales.sales):0;const target=Math.max(0,Number(monthWithSales?.billing||0));return <div className="panel" style={{marginBottom:16}}>
    <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO BEEPSTART</span><h2>Resumo financeiro 2026</h2><p>Visão histórica separada dos indicadores operacionais de hoje.</p></div><a href="/migracao">Abrir migração</a></div>
    <div className="stats">
     <StatCard label="Faturamento 2026" value={money(legacy.billing)} detail={legacy.salesCount+" vendas no legado"}/>
     <StatCard label="Recebido 2026" value={money(legacy.received)} detail="entradas registradas no período"/>
-    <StatCard label="A receber" value={money(legacy.receivable)} detail="saldo histórico estimado"/>
-    <StatCard label="A pagar" value={money(legacy.payable)} detail="saldo histórico estimado"/>
+    <StatCard label={"Ticket médio · "+(monthWithSales?.month||"mês")} value={money(ticket)} detail={monthWithSales?.sales+" venda(s) no último mês com movimento"}/>
+    <StatCard label="Meta mínima próximo mês" value={money(target)} detail="piso igual ao faturamento do último mês com movimento"/>
    </div>
-   <div className="table" style={{marginTop:14}}><div className="row header"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span><span>A receber</span></div>{legacy.months.map(m=><div className="row" key={m.month}><strong>{m.month}</strong><span>{m.sales}</span><span>{money(m.billing)}</span><span>{money(m.received)}</span><span>{money(m.receivable)}</span></div>)}</div>
-  </div>}
+   <div className="table" style={{marginTop:14}}><div className="row header"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span></div>{legacy.months.map(m=><div className="row" key={m.month}><strong>{m.month}</strong><span>{m.sales}</span><span>{money(m.billing)}</span><span>{money(m.received)}</span></div>)}</div>
+  </div>})()}
   {health&&<div className="panel" style={{marginBottom:16}} id="relatorio-saude-economica">
    <div className="panel-heading"><div><span className="eyebrow">RELATÓRIO GERENCIAL</span><h2>Saúde econômica do negócio</h2><p>Leitura automática dos dados disponíveis, sem substituir uma análise contábil.</p></div><div style={{display:"flex",gap:8}}><button className="secondary" onClick={generateEconomicHealth}>Atualizar relatório</button><button className="secondary" onClick={()=>window.print()}>Imprimir</button></div></div>
    <div className="stats">
