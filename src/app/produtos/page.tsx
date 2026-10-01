@@ -3,11 +3,12 @@
 import {useEffect,useMemo,useState} from "react";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
-const empty:any={
- code:"",barcode:"",description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",stockControlled:true,
+const checksumEan13=(base:string)=>{const digits=base.slice(0,12).split("").map(Number);const sum=digits.reduce((a,d,i)=>a+d*(i%2===0?1:3),0);return String((10-(sum%10))%10)};
+const makeInternalBarcode=()=>{const base="20"+String(Date.now()%10000000000).padStart(10,"0");return base+checksumEan13(base)};
+const makeInternalCode=()=>{const stamp=new Date().toISOString().replace(/\\D/g,"").slice(0,14);return "P-"+stamp+"-"+String(Math.floor(Math.random()*1000)).padStart(3,"0")};
+const makeEmpty=()=>({code:makeInternalCode(),barcode:makeInternalBarcode(),description:"",unit:"UN",cost:"0",salePrice:"0",minimumStock:"0",initialStock:"0",stockControlled:true,
  categoryId:"",supplierId:"",ncm:"",cest:"",cfop:"",origin:"0",taxCode:"",
- brand:"",model:"",color:"",frameSize:"",lensWidth:"",bridgeWidth:"",templeLength:"",material:"",frameShape:""
-};
+ brand:"",model:"",color:"",frameSize:"",lensWidth:"",bridgeWidth:"",templeLength:"",material:"",frameShape:""});
 
 const code39:any={
  "0":"101001101101","1":"110100101011","2":"101100101011","3":"110110010101","4":"101001101011",
@@ -58,7 +59,7 @@ function printLabels(p:any,quantity:number){
 
 export default function Produtos(){
  const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]),[fiscalDiag,setFiscalDiag]=useState<any>(null),[fiscalDiagLoading,setFiscalDiagLoading]=useState(false);
- const [form,setForm]=useState<any>(empty),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState(""),[reconciling,setReconciling]=useState(false);
+ const [form,setForm]=useState<any>(makeEmpty()),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState(""),[reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
   try{
@@ -68,7 +69,9 @@ export default function Produtos(){
    setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
   }catch(e){setRows([]);setMsg(e instanceof Error?e.message:"Não foi possível carregar os produtos.");}
  };
- useEffect(()=>{load()},[]);
+ useEffect(()=>{load()},[]);\n const defaultCategories=["Armações","Lentes","Tratamentos","Acessórios","Serviços","Outros"];
+ const createDefaultCategories=async()=>{setMsg("");try{for(const name of defaultCategories){await fetch("/api/categories",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})})}await load();setMsg("Categorias padrão criadas.");}catch(e){setMsg("Não foi possível criar as categorias padrão.")}};
+
  useRealtimeRefresh(load,20000);
  
  const loadFiscalDiagnostic=async()=>{  setFiscalDiagLoading(true);setMsg("");  try{   const r=await fetch("/api/fiscal/produtos/diagnostico",{cache:"no-store"});   const d=await r.json();   if(!r.ok)throw new Error(d?.error||"Não foi possível diagnosticar os dados fiscais dos produtos.");   setFiscalDiag(d);  }catch(e){setMsg(e instanceof Error?e.message:"Não foi possível diagnosticar os dados fiscais dos produtos.");}  finally{setFiscalDiagLoading(false);} }; const reconcileBeepStart=async()=>{
@@ -85,7 +88,7 @@ export default function Produtos(){
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
-  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),stockControlled:Boolean(form.stockControlled),
+  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),initialStock:selected?0:Number(form.initialStock||0),stockControlled:Boolean(form.stockControlled),
    categoryId:form.categoryId||null,supplierId:form.supplierId||null,
    lensWidth:form.lensWidth?Number(form.lensWidth):null,bridgeWidth:form.bridgeWidth?Number(form.bridgeWidth):null,
    templeLength:form.templeLength?Number(form.templeLength):null
@@ -93,12 +96,12 @@ export default function Produtos(){
   const r=await fetch(selected?"/api/products/"+selected.id:"/api/products",{method:selected?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
   const d=await r.json();
   if(!r.ok){setMsg(d.error||"Erro ao salvar");return}
-  setOpen(false);setSelected(null);setForm(empty);await load();
+  setOpen(false);setSelected(null);setForm(makeEmpty());await load();
  };
 
  const edit=(p:any)=>{
   setSelected(p);
-  setForm({...empty,...p,cost:String(p.cost??0),salePrice:String(p.salePrice??0),minimumStock:String(p.minimumStock??0),stockControlled:p.stockControlled!==false,
+  setForm({...makeEmpty(),...p,initialStock:"0",cost:String(p.cost??0),salePrice:String(p.salePrice??0),minimumStock:String(p.minimumStock??0),stockControlled:p.stockControlled!==false,
    categoryId:p.categoryId||"",supplierId:p.supplierId||"",lensWidth:p.lensWidth?String(p.lensWidth):"",bridgeWidth:p.bridgeWidth?String(p.bridgeWidth):"",templeLength:p.templeLength?String(p.templeLength):""});
   setOpen(true);
  };
@@ -112,7 +115,7 @@ export default function Produtos(){
  return <section className="page">
   <div className="page-heading">
    <div><span className="eyebrow">CATÁLOGO</span><h1>Produtos</h1><p>Cadastro, estoque, identificação e etiquetas para a operação da ótica.</p></div>
-   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button className="secondary" onClick={()=>{setFiscalDiag(null);loadFiscalDiagnostic()}} disabled={fiscalDiagLoading}>{fiscalDiagLoading?"Analisando...":"✓ Diagnóstico fiscal"}</button><button className="secondary" onClick={()=>setLabelCatalogOpen(true)}>🏷 Etiquetas</button><button className="primary" onClick={()=>{setSelected(null);setForm(empty);setOpen(true);window.scrollTo({top:0,behavior:"smooth"})}}>+ Novo produto</button></div>
+   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button className="secondary" onClick={()=>{setFiscalDiag(null);loadFiscalDiagnostic()}} disabled={fiscalDiagLoading}>{fiscalDiagLoading?"Analisando...":"✓ Diagnóstico fiscal"}</button><button className="secondary" onClick={()=>setLabelCatalogOpen(true)}>🏷 Etiquetas</button><button className="primary" onClick={()=>{setSelected(null);setForm(makeEmpty());setOpen(true);window.scrollTo({top:0,behavior:"smooth"})}}>+ Novo produto</button></div>
   </div>
 
   {msg&&<div className="panel" style={{padding:12,marginBottom:12,color:"#a33"}}>{msg}</div>}
@@ -138,7 +141,7 @@ export default function Produtos(){
      <input placeholder="Código interno" value={form.code} onChange={e=>set("code",e.target.value)} required/>
      <input placeholder="Código de barras" value={form.barcode} onChange={e=>set("barcode",e.target.value)}/>
      <input placeholder="Descrição" value={form.description} onChange={e=>set("description",e.target.value)} required style={{gridColumn:"span 2"}}/>
-     <select value={form.categoryId} onChange={e=>set("categoryId",e.target.value)}><option value="">Categoria</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
+     <div style={{display:"flex",gap:6,alignItems:"center"}}><select style={{flex:1}} value={form.categoryId} onChange={e=>set("categoryId",e.target.value)}><option value="">Categoria</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>{!cats.length&&<button type="button" className="secondary" onClick={createDefaultCategories}>Criar padrão</button>}</div>
      <select value={form.supplierId} onChange={e=>set("supplierId",e.target.value)}><option value="">Fornecedor</option>{suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select>
      <input placeholder="Marca" value={form.brand} onChange={e=>set("brand",e.target.value)}/>
      <input placeholder="Modelo / referência" value={form.model} onChange={e=>set("model",e.target.value)}/>
@@ -154,7 +157,7 @@ export default function Produtos(){
       <input type="number" placeholder="Lente mm" value={form.lensWidth} onChange={e=>set("lensWidth",e.target.value)}/>
       <input type="number" placeholder="Ponte mm" value={form.bridgeWidth} onChange={e=>set("bridgeWidth",e.target.value)}/>
       <input type="number" placeholder="Haste mm" value={form.templeLength} onChange={e=>set("templeLength",e.target.value)}/>
-      <input placeholder="Unidade" value={form.unit} onChange={e=>set("unit",e.target.value)}/>
+      <select value={form.unit} onChange={e=>set("unit",e.target.value)}><option value="UN">UN — Unidade</option><option value="PAR">PAR — Par</option><option value="PC">PC — Peça</option><option value="CX">CX — Caixa</option><option value="FR">FR — Frasco</option><option value="SERV">SERV — Serviço</option><option value="H">H — Hora</option><option value="KG">KG — Quilograma</option><option value="G">G — Grama</option><option value="L">L — Litro</option><option value="ML">ML — Mililitro</option><option value="M">M — Metro</option></select>
      </div>
      <small style={{display:"block",marginTop:7,color:"var(--muted)"}}>As medidas podem ser cadastradas individualmente ou resumidas no campo Tamanho, por exemplo 52-18-140.</small>
     </div>
@@ -162,11 +165,15 @@ export default function Produtos(){
     <div className="panel" style={{padding:12,marginTop:12}}>
      <b>Estoque e preços</b>
      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginTop:10}}>
-      <input type="number" step="0.01" placeholder="Custo" value={form.cost} onChange={e=>set("cost",e.target.value)}/>
-      <input type="number" step="0.01" placeholder="Preço de venda" value={form.salePrice} onChange={e=>set("salePrice",e.target.value)}/>
-      <input type="number" step="0.001" placeholder="Estoque mínimo" value={form.minimumStock} onChange={e=>set("minimumStock",e.target.value)}/><label style={{display:"flex",alignItems:"center",gap:7,fontSize:12}}><input type="checkbox" checked={form.stockControlled!==false} onChange={e=>set("stockControlled",e.target.checked)}/> Controla estoque</label>
+      <label>Custo unitário<input type="number" step="0.01" min="0" value={form.cost} onChange={e=>set("cost",e.target.value)}/></label>
+      <label>Preço de venda<input type="number" step="0.01" min="0" value={form.salePrice} onChange={e=>set("salePrice",e.target.value)}/></label>
+      {!selected&&<label>Estoque inicial<input type="number" step="0.001" min="0" value={form.initialStock} onChange={e=>set("initialStock",e.target.value)}/></label>}
+      <label>Estoque mínimo<input type="number" step="0.001" min="0" value={form.minimumStock} onChange={e=>set("minimumStock",e.target.value)}/></label>
+      <label style={{display:"flex",alignItems:"center",gap:7,fontSize:12}}><input type="checkbox" checked={form.stockControlled!==false} onChange={e=>set("stockControlled",e.target.checked)}/> Controla estoque</label>
+      <div><small style={{display:"block",color:"var(--muted)"}}>Valor financeiro do estoque inicial</small><strong>{money(Number(form.initialStock||0)*Number(form.cost||0))}</strong></div>
       <button className="primary" type="submit">Salvar produto</button>
      </div>
+     <small style={{display:"block",marginTop:8,color:"var(--muted)"}}>{selected?"Para alterar o estoque, use a entrada de estoque; editar o produto não altera o saldo existente.":"O estoque inicial será registrado como uma entrada de estoque e ficará disponível no saldo do produto."}</small>
     </div>
 
     <details style={{marginTop:12}}><summary style={{cursor:"pointer",fontWeight:700}}>Dados fiscais</summary>
