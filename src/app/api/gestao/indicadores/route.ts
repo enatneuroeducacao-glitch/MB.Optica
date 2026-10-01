@@ -67,7 +67,7 @@ export async function GET(){
           surcharge:true,
           createdAt:true,
           sellerId:true,
-          items:{select:{quantity:true,unitCost:true,total:true}}
+          items:{select:{quantity:true,unitCost:true,total:true,product:{select:{id:true,code:true,description:true}}}}
         }
       }),
       db.sale.findMany({
@@ -147,7 +147,6 @@ export async function GET(){
     );
     const previousMargin=previousTotal-previousCost;
     const previousDiscountTotal=previousMonthSales.reduce((sum,sale)=>sum+num(sale.discount),0);
-    const previousGrossSalesBeforeDiscount=previousMonthSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((lineSum,item)=>lineSum+num(item.total),0)+num(sale.surcharge),0);
     const previousMarginPercent=previousTotal>0?(previousMargin/previousTotal)*100:0;
     const marginVariationPoints=grossMarginPercent-previousMarginPercent;
     const marginVariationPercent=previousMarginPercent!==0?(marginVariationPoints/Math.abs(previousMarginPercent))*100:null;
