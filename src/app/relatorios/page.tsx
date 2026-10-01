@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
  const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
@@ -458,6 +458,104 @@ export default function Relatorios(){
     <div className="panel full">
      <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como utilizar esta camada.</p></div></div>
      <p style={{lineHeight:1.8,fontSize:13}}>Esta visão não substitui os relatórios de faturamento, margem, estoque, contas, inadimplência, fornecedores ou vendas. Ela cruza os indicadores já existentes para destacar combinações que merecem atenção. A prioridade orienta a ordem de análise; a evidência mostra o fato que acionou o alerta; e a abordagem gerencial indica o próximo ponto de investigação, sem executar decisões automaticamente.</p>
+    </div>
+   </div>;
+ })()}
+ {tab==="RELATÓRIO CONSOLIDADO"&&(()=>{
+   const f=management?.faturamento, m=management?.margem, e=management?.estoque, cta=management?.contas, intel=management?.inteligenciaGerencial||[];
+   if(!management)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.12</span><h2>Relatório consolidado</h2><p>Consolidando os indicadores gerenciais...</p></div></div></div>;
+   const critical=intel.filter((x:any)=>x.severity==="CRITICO");
+   const attention=intel.filter((x:any)=>x.severity==="ATENCAO");
+   const info=intel.filter((x:any)=>x.severity==="INFORMATIVO");
+   const cash=n(cta?.capitalDeGiro), adjusted=n(cta?.inadimplencia?.capitalDeGiroAjustado);
+   const overdue=n(cta?.inadimplencia?.total), payable=n(cta?.pagar), receivable=n(cta?.receber);
+   const salesVariation=f?.variacaoPercentual;
+   const marginPct=n(m?.margemBrutaPercentual);
+   const stockCritical=(e?.itensCriticos||[]).length;
+   const topAlert=[...intel].sort((a:any,b:any)=>n(b.priority)-n(a.priority))[0];
+   const status=(critical.length>0?"ATENÇÃO PRIORITÁRIA":attention.length>0?"ACOMPANHAMENTO":"MONITORAMENTO");
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading">
+      <div><span className="eyebrow">FASE 6.12</span><h2>Relatório consolidado de gestão</h2><p>Visão executiva integrada dos indicadores das fases 6.3–6.11, sem duplicar os relatórios analíticos.</p></div>
+      <div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div>
+     </div>
+     <div className="report-kpis compact">
+      <Card t="Faturamento" v={money(f?.total)} d="mês atual"/>
+      <Card t="Margem bruta" v={money(m?.margemBruta)} d={marginPct.toFixed(1)+"% do faturamento"}/>
+      <Card t="A receber" v={money(receivable)}/>
+      <Card t="A pagar" v={money(payable)}/>
+      <Card t="Capital de giro" v={money(cash)}/>
+      <Card t="Inadimplência" v={money(overdue)} d={n(cta?.inadimplencia?.percentualSobreReceber).toFixed(1)+"% do a receber"}/>
+     </div>
+    </div>
+
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Posição executiva</h2><p>Leitura sintética do momento atual.</p></div><span className={critical.length?"alert-badge":"good-badge"}>{status}</span></div>
+     <div className="funnel">
+      <div><span>Faturamento do mês</span><strong>{money(f?.total)}</strong></div>
+      <div><span>Variação mensal</span><strong>{salesVariation===null||salesVariation===undefined?"sem base":((n(salesVariation)>=0?"+":"")+n(salesVariation).toFixed(1)+"%")}</strong></div>
+      <div><span>Margem bruta</span><strong>{marginPct.toFixed(1)}%</strong></div>
+      <div><span>Capital de giro ajustado</span><strong>{money(adjusted)}</strong></div>
+     </div>
+    </div>
+
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Riscos e atenção</h2><p>Resumo da inteligência gerencial já calculada.</p></div><span className={critical.length?"alert-badge":"good-badge"}>{critical.length+attention.length} ponto(s)</span></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Prioridade</span><span>Severidade</span><span>Alerta</span><span>Indicadores</span></div>
+      {intel.length?intel.slice(0,6).map((x:any)=><div className="report-row" key={x.id}><strong>{x.priority}</strong><span>{x.severity==="CRITICO"?"CRÍTICO":x.severity==="ATENCAO"?"ATENÇÃO":"INFORMATIVO"}</span><span>{x.title}</span><strong>{(x.relatedIndicators||[]).join(" · ")}</strong></div>):<div className="empty-state">✓ Nenhum alerta consolidado.</div>}
+     </div>
+    </div>
+
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Financeiro</h2><p>Indicadores já validados nas fases de contas e inadimplência.</p></div></div>
+     <div className="report-metrics">
+      <div><b>{money(receivable)}</b><span>a receber</span></div>
+      <div><b>{money(payable)}</b><span>a pagar</span></div>
+      <div><b>{money(cash)}</b><span>capital de giro</span></div>
+      <div><b>{money(overdue)}</b><span>vencidos</span></div>
+      <div><b>{n(cta?.futuro?.receber30).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</b><span>a receber em 30 dias</span></div>
+      <div><b>{n(cta?.futuro?.pagar30).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</b><span>a pagar em 30 dias</span></div>
+     </div>
+    </div>
+
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Comercial e margem</h2><p>Resumo das fases de faturamento, vendas e margem.</p></div></div>
+     <div className="report-metrics">
+      <div><b>{f?.vendas||0}</b><span>vendas no mês</span></div>
+      <div><b>{money(f?.ticketMedio)}</b><span>ticket médio</span></div>
+      <div><b>{marginPct.toFixed(1)}%</b><span>margem bruta</span></div>
+      <div><b>{money(m?.descontos)}</b><span>descontos</span></div>
+      <div><b>{salesVariation===null||salesVariation===undefined?"—":n(salesVariation).toFixed(1)+"%"}</b><span>variação do faturamento</span></div>
+      <div><b>{(m?.produtosInsuficientes||[]).length}</b><span>itens com margem insuficiente</span></div>
+     </div>
+    </div>
+
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Estoque e fornecedores</h2><p>Resumo dos indicadores de abastecimento e compromissos.</p></div></div>
+     <div className="report-metrics">
+      <div><b>{e?.produtosAtivos||0}</b><span>produtos ativos</span></div>
+      <div><b>{e?.estoqueBaixo||0}</b><span>estoque baixo</span></div>
+      <div><b>{e?.estoqueZero||0}</b><span>estoque zerado</span></div>
+      <div><b>{e?.estoqueNegativo||0}</b><span>estoque negativo</span></div>
+      <div><b>{money(e?.valorCusto)}</b><span>estoque a custo</span></div>
+      <div><b>{stockCritical}</b><span>itens críticos</span></div>
+     </div>
+    </div>
+
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Prioridades de gestão</h2><p>Somente os pontos mais relevantes já identificados pela inteligência gerencial.</p></div></div>
+     {topAlert?<div className="report-table">
+       <div className="report-row head"><span>Prioridade</span><span>Alerta</span><span>Evidência</span><span>Abordagem</span></div>
+       {intel.slice(0,5).map((x:any)=><div className="report-row" key={x.id}><strong>{x.priority}</strong><span><b>{x.title}</b><br/>{x.severity==="CRITICO"?"CRÍTICO":x.severity==="ATENCAO"?"ATENÇÃO":"INFORMATIVO"}</span><span>{x.evidence}</span><span>{x.approach}</span></div>)}
+      </div>:<div className="empty-state">✓ Nenhuma prioridade gerencial identificada.</div>}
+    </div>
+
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Conclusão executiva</h2><p>Leitura consolidada sem substituir os relatórios analíticos.</p></div></div>
+     <p style={{lineHeight:1.8,fontSize:13}}>O relatório consolidado reúne os indicadores já produzidos nas fases 6.3–6.11 e os apresenta em uma única visão executiva. Ele não cria novos cálculos operacionais nem substitui as análises detalhadas de faturamento, margem, estoque, contas, inadimplência, fornecedores, vendas e inteligência gerencial. A finalidade é facilitar a identificação do que merece atenção primeiro, preservando a evidência e a origem de cada indicador.</p>
+     <p style={{lineHeight:1.8,fontSize:13,marginTop:8}}>Estado atual: <b>{status}</b>. {info.length} informativo(s), {attention.length} ponto(s) de atenção e {critical.length} crítico(s) foram gerados pela inteligência gerencial atual.</p>
     </div>
    </div>;
  })()}
