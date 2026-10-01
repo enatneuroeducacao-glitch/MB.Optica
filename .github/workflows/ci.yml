@@ -88,6 +88,9 @@ jobs:
           done
           docker logs mb-optica-app
           exit 1
+      - name: Integrated financial cycle test
+        run: npx tsx scripts/integration-financial-cycle.ts
+
       - name: Stop application
         if: always()
         run: docker rm -f mb-optica-app 2>/dev/null || true
