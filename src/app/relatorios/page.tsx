@@ -291,7 +291,69 @@ export default function Relatorios(){
     </div>
    </div>;
  })()}
- {tab==="VENDAS"&&<div className="report-grid-2"><div className="panel"><div className="panel-heading"><div><h2>Vendas por vendedor</h2></div></div><div className="report-table">{d.sales.bySeller.map((x:any)=>row(x.name,"","",money(x.total)))}</div></div><div className="panel"><div className="panel-heading"><div><h2>Meios de pagamento</h2></div></div><div className="report-table">{d.sales.paymentMethods.map((x:any)=>row(x.name,"","",money(x.value)))}</div></div><div className="panel full"><div className="panel-heading"><div><h2>Itens com maior faturamento</h2></div></div><div className="report-table">{d.sales.topItems.map((x:any,i:number)=>row("#"+(i+1)+" · "+x.description,"","",money(x.total)))}</div></div></div>}
+ {tab==="VENDAS"&&(()=>{
+   const monthly=d.sales?.monthly||[], sellers=d.sales?.bySeller||[], methods=d.sales?.paymentMethods||[], topItems=d.sales?.topItems||[];
+   const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0};
+   const previous=monthly[monthly.length-2]||{month:"—",sales:0,total:0,received:0};
+   const currentTotal=n(current.total), previousTotal=n(previous.total);
+   const variation=previousTotal>0?((currentTotal-previousTotal)/previousTotal)*100:null;
+   const ticket=current.sales>0?currentTotal/current.sales:0;
+   const average12=monthly.length?monthly.reduce((sum:any,x:any)=>sum+n(x.total),0)/monthly.length:0;
+   const topSeller=sellers.slice().sort((a:any,b:any)=>n(b.total)-n(a.total))[0];
+   const topMethod=methods.slice().sort((a:any,b:any)=>n(b.value)-n(a.value))[0];
+   const sellerTotal=sellers.reduce((sum:any,x:any)=>sum+n(x.total),0);
+   const methodTotal=methods.reduce((sum:any,x:any)=>sum+n(x.value),0);
+   const alerts:any[]=[];
+   if(variation!==null&&variation<-15)alerts.push(["ATENÇÃO","Queda de faturamento","O faturamento do mês está "+Math.abs(variation).toFixed(1)+"% abaixo do mês anterior.","Comparar volume de vendas, ticket e mix de produtos."]);
+   if(current.sales>0&&ticket<average12/Math.max(1,monthly.reduce((sum:any,x:any)=>sum+n(x.sales),0)/Math.max(1,monthly.length)))alerts.push(["ACOMPANHAR","Ticket médio","O ticket atual merece comparação com a média histórica disponível.","Verificar composição das vendas e oportunidades de venda adicional."]);
+   if(topSeller&&sellerTotal>0&&n(topSeller.total)/sellerTotal>=0.5)alerts.push(["ACOMPANHAR","Concentração por vendedor","Um vendedor responde por "+(n(topSeller.total)/sellerTotal*100).toFixed(1)+"% do faturamento listado.","Acompanhar distribuição das vendas sem tratar concentração isoladamente como problema."]);
+   if(topMethod&&methodTotal>0&&n(topMethod.value)/methodTotal>=0.7)alerts.push(["ACOMPANHAR","Concentração por pagamento","O principal meio de pagamento representa "+(n(topMethod.value)/methodTotal*100).toFixed(1)+"% dos valores registrados.","Acompanhar dependência do meio de pagamento predominante."]);
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.10</span><h2>Inteligência de vendas</h2><p>Análise gerencial do volume, faturamento, ticket, vendedores, meios de pagamento, itens e evolução mensal.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Vendas no mês" v={current.sales}/>
+      <Card t="Faturamento no mês" v={money(currentTotal)}/>
+      <Card t="Ticket médio" v={money(ticket)}/>
+      <Card t="Recebido associado" v={money(current.received)}/>
+      <Card t="Variação mensal" v={variation===null?"sem base":(variation>=0?"+":"")+variation.toFixed(1)+"%"}/>
+      <Card t="Média mensal" v={money(average12)}/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Evolução das vendas</h2><p>Volume e faturamento dos últimos 12 meses disponíveis.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Mês</span><span>Quantidade</span><span>Faturamento</span><span>Variação</span></div>
+      {monthly.map((x:any,i:number)=>{const prev=monthly[i-1];const v=prev&&n(prev.total)>0?((n(x.total)-n(prev.total))/n(prev.total))*100:null;return <div className="report-row" key={x.month}><strong>{x.month}</strong><span>{x.sales}</span><span>{money(x.total)}</span><strong>{v===null?"—":(v>=0?"+":"")+v.toFixed(1)+"%"}</strong></div>})}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Desempenho por vendedor</h2><p>Faturamento registrado por vendedor no conjunto de vendas ativas consultado.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Vendedor</span><span></span><span>Faturamento</span><span>Participação</span></div>
+      {sellers.length?sellers.slice().sort((a:any,b:any)=>n(b.total)-n(a.total)).map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span>{money(x.total)}</span><strong>{sellerTotal>0?(n(x.total)/sellerTotal*100).toFixed(1)+"%":"—"}</strong></div>):<div className="empty-state">Nenhuma venda ativa encontrada.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Participação dos valores recebidos nas vendas ativas.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Meio</span><span></span><span>Valor</span><span>Participação</span></div>
+      {methods.length?methods.slice().sort((a:any,b:any)=>n(b.value)-n(a.value)).map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span>{money(x.value)}</span><strong>{methodTotal>0?(n(x.value)/methodTotal*100).toFixed(1)+"%":"—"}</strong></div>):<div className="empty-state">Nenhum pagamento registrado.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Itens mais vendidos</h2><p>Itens ordenados pelo valor vendido no conjunto consultado.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Item</span><span></span><span>Valor vendido</span><span>Participação</span></div>
+      {topItems.length?topItems.slice(0,15).map((x:any)=><div className="report-row" key={x.description}><span>{x.description}</span><span></span><span>{money(x.total)}</span><strong>{currentTotal>0?(n(x.total)/currentTotal*100).toFixed(1)+"%":"—"}</strong></div>):<div className="empty-state">Nenhum item vendido.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Pontos de atenção</h2><p>Leitura gerencial derivada dos indicadores já disponíveis.</p></div><span className={alerts.length?"alert-badge":"good-badge"}>{alerts.length} alerta(s)</span></div>
+     <div className="report-table">{alerts.length?alerts.map((x:any,i:number)=><div className="report-row" key={i}><strong>{x[0]}</strong><span>{x[1]}</span><span>{x[2]}</span><span>{x[3]}</span></div>):<div className="empty-state">✓ Nenhum ponto específico acionado pelos critérios atuais.</div>}</div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como interpretar os indicadores de vendas.</p></div></div>
+     <p style={{lineHeight:1.8,fontSize:13}}>A análise de vendas deve combinar quantidade de vendas, faturamento, ticket médio, evolução mensal, distribuição por vendedor, meios de pagamento e mix de itens. Concentração é um indicador de dependência e deve ser acompanhada junto ao contexto comercial. O relatório não substitui a rotina do PDV nem reconstrói o financeiro operacional.</p>
+    </div>
+   </div>;
+ })()}
  {tab==="ESTOQUE"&&(()=>{
    const e=management?.estoque;
    if(!e)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.6</span><h2>Estoque</h2><p>Carregando os indicadores centrais de estoque...</p></div></div></div>;
