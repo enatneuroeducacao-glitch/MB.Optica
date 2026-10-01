@@ -16,10 +16,10 @@ export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){
    const order=await tx.opticalOrder.create({
     data:{
      customerId:quote.customerId,prescriptionId:quote.prescriptionId||undefined,sellerId:quote.sellerId||actor.id,
-     status:"APROVADO",dueDate:quote.deliveryDate||undefined,notes:quote.notes||undefined,total:quote.total,
+     status:"PEDIDO",dueDate:quote.deliveryDate||undefined,notes:quote.notes||undefined,total:quote.total,
      quoteId:quote.id,
      items:{create:quote.items.map(item=>({productId:item.productId||undefined,description:item.description,kind:item.kind||"ORÇAMENTO",eye:item.eye||undefined,quantity:item.quantity,unitPrice:item.unitPrice}))},
-     events:{create:{status:"APROVADO",message:"Orçamento convertido em O.S."}}
+     events:{create:{status:"PEDIDO",message:"Orçamento convertido em pedido/O.S."}}
     }
    });
    await tx.quote.update({where:{id},data:{status:"CONVERTIDO"}});
