@@ -89,8 +89,8 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers",
     "/api/orders", "/api/payment-methods", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
-    "/api/quotes", "/api/relatorios", "/api/audit", "/api/users", "/api/settings",
-    "/api/service-orders", "/api/migration",
+    "/api/quotes", "/api/relatorios", "/api/gestao/indicadores", "/api/audit", "/api/users", "/api/settings",
+    "/api/service-orders", "/api/migration", "/api/gestao/indicadores",
   ],
   VENDEDOR: [
     "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
@@ -101,6 +101,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
   FINANCEIRO: [
     "/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments",
     "/api/pix-keys", "/api/finance", "/api/financeiro", "/api/cash", "/api/sales",
+    "/api/gestao/indicadores",
   ],
   LABORATORIO: [
     "/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions",
