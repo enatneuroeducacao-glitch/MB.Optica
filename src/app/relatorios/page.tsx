@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
  const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
@@ -394,6 +394,70 @@ export default function Relatorios(){
     <div className="panel full">
      <div className="panel-heading"><div><h2>Leitura gerencial do estoque</h2><p>Os indicadores são calculados no motor central e apenas organizados nesta visão.</p></div></div>
      <p style={{lineHeight:1.7,fontSize:13}}>O valor a custo representa o capital atualmente imobilizado nos produtos ativos. O valor a venda mostra o potencial bruto de venda do estoque existente. Estoque negativo exige conferência do movimento; estoque zerado pode representar risco de ruptura; estoque abaixo do mínimo indica necessidade de reposição conforme o parâmetro cadastrado. A cobertura estimada usa o ritmo de vendas do mês corrente e deve ser interpretada junto ao histórico e ao comportamento de cada produto.</p>
+    </div>
+   </div>;
+ })()}
+ {tab==="INTELIGÊNCIA GERENCIAL"&&(()=>{
+   const intelligence=management?.inteligenciaGerencial||[];
+   const critical=intelligence.filter((x:any)=>x.severity==="CRITICO");
+   const attention=intelligence.filter((x:any)=>x.severity==="ATENCAO");
+   const informational=intelligence.filter((x:any)=>x.severity==="INFORMATIVO");
+   const severityLabel=(x:any)=>x==="CRITICO"?"CRÍTICO":x==="ATENCAO"?"ATENÇÃO":"INFORMATIVO";
+   const categoryLabel=(x:any)=>String(x||"").replaceAll("_"," ");
+   if(!management)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.11</span><h2>Inteligência gerencial</h2><p>Consolidando os cruzamentos dos indicadores...</p></div></div></div>;
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading">
+      <div><span className="eyebrow">FASE 6.11.2</span><h2>Alertas e inteligência gerencial</h2><p>Visão consolidada dos cruzamentos entre os indicadores das fases 6.3–6.10.</p></div>
+      <div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div>
+     </div>
+     <div className="report-kpis compact">
+      <Card t="Críticos" v={critical.length} d="prioridade imediata"/>
+      <Card t="Atenção" v={attention.length} d="requerem análise"/>
+      <Card t="Informativos" v={informational.length} d="acompanhamento"/>
+      <Card t="Total" v={intelligence.length} d="cruzamentos acionados"/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Visão consolidada para decisão</h2><p>Os itens estão ordenados pela prioridade calculada pelo motor central.</p></div><span className={critical.length?"alert-badge":"good-badge"}>{critical.length} crítico(s)</span></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Prioridade</span><span>Severidade / Categoria</span><span>Alerta e evidência</span><span>Abordagem gerencial</span></div>
+      {intelligence.length?intelligence.map((x:any)=><div className="report-row" key={x.id}>
+       <strong>{x.priority}</strong>
+       <span><b>{severityLabel(x.severity)}</b><br/>{categoryLabel(x.category)}</span>
+       <span><b>{x.title}</b><br/>{x.evidence}</span>
+       <span>{x.approach}</span>
+      </div>):<div className="empty-state">✓ Nenhum alerta gerencial acionado pelos critérios atuais.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Críticos</h2><p>Ocorrências de maior prioridade.</p></div><span className={critical.length?"alert-badge":"good-badge"}>{critical.length}</span></div>
+     <div className="report-table">
+      {critical.length?critical.map((x:any)=><div className="report-row" key={x.id}><strong>{x.priority}</strong><span>{x.title}</span><span>{x.evidence}</span><strong>{severityLabel(x.severity)}</strong></div>):<div className="empty-state">✓ Nenhum alerta crítico.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Atenção</h2><p>Situações que exigem acompanhamento gerencial.</p></div><span className={attention.length?"alert-badge":"good-badge"}>{attention.length}</span></div>
+     <div className="report-table">
+      {attention.length?attention.map((x:any)=><div className="report-row" key={x.id}><strong>{x.priority}</strong><span>{x.title}</span><span>{x.evidence}</span><strong>{severityLabel(x.severity)}</strong></div>):<div className="empty-state">✓ Nenhum alerta de atenção.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Informativos</h2><p>Itens para acompanhamento de rotina.</p></div><span className="good-badge">{informational.length}</span></div>
+     <div className="report-table">
+      {informational.length?informational.map((x:any)=><div className="report-row" key={x.id}><strong>{x.priority}</strong><span>{x.title}</span><span>{x.evidence}</span><strong>{severityLabel(x.severity)}</strong></div>):<div className="empty-state">Nenhum informativo gerado.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Indicadores envolvidos</h2><p>Cada alerta informa quais áreas contribuíram para o cruzamento.</p></div></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Alerta</span><span>Categoria</span><span>Indicadores</span><span>Prioridade</span></div>
+      {intelligence.map((x:any)=><div className="report-row" key={x.id}><span>{x.title}</span><span>{categoryLabel(x.category)}</span><span>{(x.relatedIndicators||[]).join(" · ")}</span><strong>{x.priority}</strong></div>)}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como utilizar esta camada.</p></div></div>
+     <p style={{lineHeight:1.8,fontSize:13}}>Esta visão não substitui os relatórios de faturamento, margem, estoque, contas, inadimplência, fornecedores ou vendas. Ela cruza os indicadores já existentes para destacar combinações que merecem atenção. A prioridade orienta a ordem de análise; a evidência mostra o fato que acionou o alerta; e a abordagem gerencial indica o próximo ponto de investigação, sem executar decisões automaticamente.</p>
     </div>
    </div>;
  })()}
