@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
  const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
@@ -45,6 +45,58 @@ export default function Relatorios(){
       <div className="report-table"><div className="report-row head"><span>Nível</span><span>Item</span><span>Evidência</span><span>Abordagem sugerida</span></div>{pontos.map((p,i)=><div className="report-row" key={i}><strong>{p.nivel}</strong><span><b>{p.item}</b></span><span>{p.evidencia}</span><span>{p.acao}</span></div>)}</div>
     </div>
     {legacy?.ok&&<div className="report-grid-2" style={{marginTop:16}}><div className="panel"><div className="panel-heading"><div><h2>Histórico BeepStart</h2><p>Base histórica separada do operacional atual.</p></div></div><div className="report-metrics"><div><b>{money(legacy.billing)}</b><span>faturamento 2026</span></div><div><b>{money(legacy.received)}</b><span>recebido 2026</span></div><div><b>{money(legacy.receivable)}</b><span>a receber</span></div><div><b>{legacy.salesCount}</b><span>vendas históricas</span></div></div></div><div className="panel"><div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como interpretar o relatório.</p></div></div><p style={{lineHeight:1.7,fontSize:13}}>O relatório não classifica a empresa por uma nota única. Ele identifica relações entre faturamento, recebimento, contas a receber, contas a pagar, margem, estoque, orçamentos e integridade dos dados. Cada alerta deve ser analisado junto com sua evidência antes de qualquer decisão.</p></div></div>}
+   </div>;
+ })()}
+ {tab==="FATURAMENTO"&&(()=>{ 
+   const monthly=(d.sales?.monthly||[]).map((x:any)=>({...x,total:n(x.total),received:n(x.received),sales:n(x.sales)}));
+   const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0};
+   const previous=monthly[monthly.length-2]||{month:"—",sales:0,total:0,received:0};
+   const variation=previous.total>0?((current.total-previous.total)/previous.total)*100:null;
+   const average=monthly.length?monthly.reduce((a:any,x:any)=>a+x.total,0)/monthly.length:0;
+   const receivedRate=current.total>0?(current.received/current.total)*100:null;
+   const highest=monthly.reduce((a:any,x:any)=>x.total>a.total?x:a,current);
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.4</span><h2>Faturamento</h2><p>Análise do faturamento operacional dos últimos 12 meses, com comparação, recebimento e evolução.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Faturamento do mês" v={money(current.total)} d={current.sales+" venda(s)"}/>
+      <Card t="Mês anterior" v={money(previous.total)} d={previous.sales+" venda(s)"}/>
+      <Card t="Variação" v={variation===null?"sem base":((variation>=0?"+":"")+variation.toFixed(1)+"%")} d="comparação com o mês anterior"/>
+      <Card t="Recebido no mês" v={money(current.received)} d={receivedRate===null?"sem base":receivedRate.toFixed(1)+"% do faturamento"}/>
+      <Card t="Média mensal" v={money(average)} d="últimos 12 meses"/>
+      <Card t="Maior faturamento do período" v={money(highest.total)} d={highest.month}/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Evolução do faturamento</h2><p>Comparação mês a mês da receita registrada e dos recebimentos associados às vendas.</p></div></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span></div>
+      {monthly.map((x:any,i:number)=>{const prev=monthly[i-1];const v=prev?.total>0?((x.total-prev.total)/prev.total)*100:null;return <div className="report-row" key={x.month}><strong>{x.month}</strong><span>{x.sales}</span><span>{money(x.total)}</span><strong>{money(x.received)}{v===null?"": " · "+(v>=0?"+":"")+v.toFixed(1)+"%"}</strong></div>})}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Leitura do período</h2><p>Indicadores derivados da série mensal.</p></div></div>
+     <div className="funnel">
+      <div><span>Faturamento atual</span><strong>{money(current.total)}</strong></div>
+      <div><span>Recebimento associado</span><strong>{money(current.received)}</strong></div>
+      <div><span>Ticket médio do mês</span><strong>{money(current.sales?current.total/current.sales:0)}</strong></div>
+      <div><span>Participação do mês atual na média</span><strong>{average>0?(current.total/average*100).toFixed(1)+"%":"—"}</strong></div>
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Composição das vendas</h2><p>Indicadores disponíveis na base operacional.</p></div></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Vendedor</span><span></span><span></span><span>Faturamento</span></div>
+      {d.sales.bySeller.slice(0,10).map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span></span><strong>{money(x.total)}</strong></div>)}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Valor registrado por meio de pagamento nas vendas ativas.</p></div></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Meio</span><span></span><span></span><span>Valor</span></div>
+      {d.sales.paymentMethods.map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span></span><strong>{money(x.value)}</strong></div>)}
+     </div>
+    </div>
    </div>;
  })()}
  {tab==="VENDAS"&&<div className="report-grid-2"><div className="panel"><div className="panel-heading"><div><h2>Vendas por vendedor</h2></div></div><div className="report-table">{d.sales.bySeller.map((x:any)=>row(x.name,"","",money(x.total)))}</div></div><div className="panel"><div className="panel-heading"><div><h2>Meios de pagamento</h2></div></div><div className="report-table">{d.sales.paymentMethods.map((x:any)=>row(x.name,"","",money(x.value)))}</div></div><div className="panel full"><div className="panel-heading"><div><h2>Itens com maior faturamento</h2></div></div><div className="report-table">{d.sales.topItems.map((x:any,i:number)=>row("#"+(i+1)+" · "+x.description,"","",money(x.total)))}</div></div></div>}
