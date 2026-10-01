@@ -69,7 +69,11 @@ export default function Laboratorio(){
  const reject=async()=>{if(!selected)return;const reason=window.prompt("Informe o motivo da devolução ao laboratório:");if(!reason?.trim())return;await update(selected,"AGUARDANDO_LABORATORIO","Retorno ao laboratório: "+reason.trim());};
  const openWarranty=()=>{setWarranty({reason:"",originalFiscalNumber:"",originalFiscalKey:"",notes:""});setShowWarrantyForm(true);setMsg("")};
  const createWarrantyReturn=async()=>{if(!selected)return;if(!warranty.reason.trim()){setMsg("Informe o motivo do retorno em garantia.");return}const r=await fetch("/api/orders/"+selected.id+"/status",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({status:"RETORNO_GARANTIA",message:"Retorno em garantia — "+warranty.reason.trim(),warranty})});const d=await r.json();if(!r.ok){setMsg(d.error+(d.detail?" — "+d.detail:""));return}setMsg("Retorno em garantia registrado. Revise os dados fiscais antes da emissão da NF-e.");setWarranty({reason:"",originalFiscalNumber:"",originalFiscalKey:"",notes:""});setShowWarrantyForm(false);await load();const fresh=await fetch("/api/orders").then(x=>x.json());setSelected(fresh.find((x:Order)=>x.id===selected.id)||null)};
- const advance=async(o:Order)=>{const n=next[o.status];if(!n)return;await update(o,n,n==="AGUARDANDO_LABORATORIO"?"Pedido enviado ao laboratório":"Atualização pelo laboratório");};
+ const advance=async(o:Order)=>{
+  const n=next[o.status];if(!n)return;
+  if(n==="ENTREGUE"&&!window.confirm("Confirma a entrega deste pedido ao cliente?"))return;
+  await update(o,n,n==="AGUARDANDO_LABORATORIO"?"Pedido enviado ao laboratório":"Atualização pelo laboratório");
+};
  const openDetail=(o:Order)=>{setSelected(o);setCheck({})};
  const checklist=[["cliente","Cliente correto"],["receita","Receita conferida"],["od","OD conferido"],["oe","OE conferido"],["dnp","DNP conferida"],["produto","Lente/produto correto"],["tratamento","Tratamento correto"],["montagem","Montagem sem danos e ajuste"]];
 
