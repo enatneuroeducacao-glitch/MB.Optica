@@ -70,6 +70,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/suppliers": "fornecedores",
   "/api/users": "usuarios",
   "/api/settings": "configuracoes",
+  "/api/fiscal/configuracao": "configuracoes",
   "/api/migration": "migracao",
   "/api/gestao/indicadores": "relatorios",
 };
@@ -112,6 +113,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
 export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/users", ["ADMIN"]],
   ["/api/settings", ["ADMIN", "GERENTE"]],
+  ["/api/fiscal/configuracao", ["ADMIN", "GERENTE"]],
   ["/api/audit", ["ADMIN", "GERENTE"]],
   ["/api/products", ["ADMIN", "GERENTE"]],
   ["/api/categories", ["ADMIN", "GERENTE"]],
