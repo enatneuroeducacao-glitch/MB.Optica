@@ -58,20 +58,23 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         const lineNet=money(saleItem.unitPrice)*quantity-(money(saleItem.discount)*(quantity/money(saleItem.quantity)));
         returnedSubtotal+=Math.max(0,lineNet);
 
-        const movement=await tx.stockMovement.findFirst({
-          where:{
-            reference:"VENDA",
-            referenceId:sale.id,
-            productId:saleItem.productId||undefined,
-            type:"SAIDA"
-          },
-          orderBy:{createdAt:"asc"},
-          include:{lotLinks:true}
-        });
+        let movementId:string|null=null;
 
         if(saleItem.productId){
+          const movement=await tx.stockMovement.findFirst({
+            where:{
+              reference:"VENDA",
+              referenceId:sale.id,
+              productId:saleItem.productId,
+              type:"SAIDA"
+            },
+            orderBy:{createdAt:"asc"},
+            include:{lotLinks:true}
+          });
+
           const product=await tx.product.findUnique({where:{id:saleItem.productId}});
           if(!product||!product.active) throw new Error("Produto do item não encontrado");
+
           if(product.stockControlled){
             if(!movement||movement.lotLinks.length===0) throw new Error("Item sem rastreabilidade de lote; devolução bloqueada");
 
@@ -94,31 +97,29 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
               const restore=Math.min(availableFromLot,remainingToRestore);
               if(restore<=0) continue;
 
-              const updated=await tx.stockLot.updateMany({
+              const updatedLot=await tx.stockLot.updateMany({
                 where:{id:link.lotId},
                 data:{quantity:{increment:restore}}
               });
-              if(updated.count!==1) throw new Error("Lote de estoque não encontrado");
+              if(updatedLot.count!==1) throw new Error("Lote de estoque não encontrado");
 
               remainingToRestore-=restore;
             }
             if(remainingToRestore>0) throw new Error("Não foi possível rastrear toda a devolução ao lote original");
           }
-        }
 
-        const movement=await tx.stockMovement.create({
-          data:{
-            productId:saleItem.productId||undefined,
-            type:"DEVOLUCAO",
-            quantity,
-            reference:"DEVOLUCAO_PARCIAL",
-            referenceId:saleItemId,
-            notes:reason,
-            lotLinks:saleItem.productId&&movement?.lotLinks.length
-              ? undefined
-              : undefined
-          }
-        });
+          const stockMovement=await tx.stockMovement.create({
+            data:{
+              productId:saleItem.productId,
+              type:"DEVOLUCAO",
+              quantity,
+              reference:"DEVOLUCAO_PARCIAL",
+              referenceId:saleItemId,
+              notes:reason
+            }
+          });
+          movementId=stockMovement.id;
+        }
 
         returnLines.push({
           saleItemId,
