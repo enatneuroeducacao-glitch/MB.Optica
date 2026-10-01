@@ -94,11 +94,11 @@ export async function GET(){
       }),
       db.account.findMany({
         where:{type:"RECEBER",status:{in:["PENDENTE","PARCIAL"]}},
-        select:{amount:true,paidAmount:true,dueDate:true}
+        select:{id:true,description:true,customerId:true,supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true}
       }),
       db.account.findMany({
         where:{type:"PAGAR",status:{in:["PENDENTE","PARCIAL"]}},
-        select:{amount:true,paidAmount:true,dueDate:true}
+        select:{id:true,description:true,customerId:true,supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true}
       }),
       db.account.findMany({
         where:{
@@ -225,6 +225,24 @@ export async function GET(){
       status:item.status
     })).sort((a,b)=>a.estimatedDaysCoverage-b.estimatedDaysCoverage).slice(0,50);
 
+    const openReceivable=receivables.map(account=>({
+      id:account.id,description:account.description,customerId:account.customerId,supplierId:account.supplierId,
+      amount:money(Math.max(0,num(account.amount)-num(account.paidAmount))),dueDate:account.dueDate,status:account.status
+    })).sort((a,b)=>b.amount-a.amount);
+    const openPayable=payables.map(account=>({
+      id:account.id,description:account.description,customerId:account.customerId,supplierId:account.supplierId,
+      amount:money(Math.max(0,num(account.amount)-num(account.paidAmount))),dueDate:account.dueDate,status:account.status
+    })).sort((a,b)=>b.amount-a.amount);
+    const accountNow=today.getTime();
+    const periodAmount=(rows:any[],days:number)=>rows.filter(x=>new Date(x.dueDate).getTime()>=accountNow&&new Date(x.dueDate).getTime()<accountNow+days*86400000).reduce((sum,x)=>sum+num(x.amount),0);
+    const receivableFuture30=periodAmount(openReceivable,30);
+    const receivableFuture60=periodAmount(openReceivable,60)-receivableFuture30;
+    const receivableFuture90=periodAmount(openReceivable,90)-periodAmount(openReceivable,60);
+    const payableFuture30=periodAmount(openPayable,30);
+    const payableFuture60=periodAmount(openPayable,60)-payableFuture30;
+    const payableFuture90=periodAmount(openPayable,90)-periodAmount(openPayable,60);
+    const receivableConcentration=openReceivable.slice(0,10);
+    const payableConcentration=openPayable.slice(0,10);
     const receivable=outstanding(receivables);
     const payable=outstanding(payables);
     const overdueReceivable=overdueAccounts
@@ -370,7 +388,15 @@ export async function GET(){
         capitalDeGiro:money(receivable-payable),
         receberVencido:money(overdueReceivable),
         pagarVencido:money(overduePayable),
-        titulosVencidos:overdueAccounts.length
+        titulosVencidos:overdueAccounts.length,
+        titulosReceber:openReceivable.length,
+        titulosPagar:openPayable.length,
+        futuro:{
+          receber30:money(receivableFuture30),receber60:money(receivableFuture60),receber90:money(receivableFuture90),
+          pagar30:money(payableFuture30),pagar60:money(payableFuture60),pagar90:money(payableFuture90)
+        },
+        concentracaoReceber:receivableConcentration,
+        concentracaoPagar:payableConcentration
       },
       caixa:{
         aberto:cashSessions.length>0,
