@@ -141,6 +141,7 @@ export async function POST(req:Request){
         for(const [productId,quantity] of requested){
           const product=await tx.product.findUnique({where:{id:productId}});
           if(!product||!product.active) throw new Error("Produto de estoque inválido: "+productId);
+          if(!product.stockControlled) continue;
 
           const lots=await tx.stockLot.findMany({
             where:{productId:product.id,archived:false,quantity:{gt:0}},
