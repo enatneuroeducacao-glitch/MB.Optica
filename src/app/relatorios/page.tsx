@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
  const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
@@ -249,6 +249,45 @@ export default function Relatorios(){
     <div className="panel full">
      <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como transformar os indicadores em acompanhamento de gestão.</p></div></div>
      <p style={{lineHeight:1.8,fontSize:13}}>A inadimplência deve ser acompanhada pelo valor vencido, quantidade de títulos, tempo de atraso e concentração por cliente. Títulos acima de 90 dias representam uma exposição mais antiga e devem ser analisados individualmente. A concentração mostra onde uma cobrança pode ter maior efeito sobre o saldo vencido. O capital de giro ajustado demonstra quanto do saldo líquido de contas deixa de ser tratado como recurso disponível enquanto a carteira vencida permanece sem liquidação.</p>
+    </div>
+   </div>;
+ })()}
+ {tab==="FORNECEDORES"&&(()=>{
+   const f=management?.fornecedores;
+   if(!f)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.9</span><h2>Fornecedores</h2><p>Carregando os indicadores centrais de fornecedores...</p></div></div></div>;
+   const lista=f.concentracao||f.maioresCompromissos||[];
+   const futuro=f.futuro||{};
+   const total=n(f.totalAPararFornecedores);
+   const vencido=n(f.vencido);
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.9</span><h2>Inteligência de fornecedores</h2><p>Análise gerencial da base de fornecedores, compromissos financeiros, concentração, produtos vinculados e próximos vencimentos.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Fornecedores ativos" v={f.ativos}/>
+      <Card t="Com produtos" v={f.comProdutos}/>
+      <Card t="Sem produtos vinculados" v={f.semProdutos}/>
+      <Card t="Compromissos em aberto" v={money(total)}/>
+      <Card t="Compromissos vencidos" v={money(vencido)}/>
+      <Card t="Próximos 30 dias" v={money(futuro.ate30)}/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Concentração de compromissos</h2><p>Fornecedores ordenados pelo valor de contas a pagar em aberto vinculadas.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Fornecedor</span><span>Produtos</span><span>Em aberto</span><span>Participação</span></div>
+      {lista.length?lista.map((x:any)=><div className="report-row" key={x.id}><span>{x.name}</span><span>{x.products}</span><span>{money(x.payable)}</span><strong>{n(x.shareOfPayable).toFixed(1)}%</strong></div>):<div className="empty-state">Nenhum compromisso financeiro vinculado a fornecedor.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Compromissos futuros</h2><p>Contas a pagar vinculadas a fornecedores por janela de vencimento.</p></div></div>
+     <div className="funnel"><div><span>Até 30 dias</span><strong>{money(futuro.ate30)}</strong></div><div><span>31–60 dias</span><strong>{money(futuro.de31a60)}</strong></div><div><span>61–90 dias</span><strong>{money(futuro.de61a90)}</strong></div></div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Exposição vencida</h2><p>Compromissos de fornecedores que já ultrapassaram o vencimento.</p></div></div>
+     <div className="funnel"><div><span>Total vencido</span><strong>{money(vencido)}</strong></div><div><span>Participação nos compromissos</span><strong>{total>0?(vencido/total*100).toFixed(1)+"%":"—"}</strong></div><div><span>Fornecedores com exposição</span><strong>{lista.filter((x:any)=>n(x.overdue)>0).length}</strong></div></div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como utilizar os indicadores para acompanhamento de fornecedores.</p></div></div>
+     <p style={{lineHeight:1.8,fontSize:13}}>A análise de fornecedores deve combinar o valor dos compromissos em aberto, os vencimentos futuros, a exposição já vencida e a concentração por fornecedor. Uma concentração elevada não significa, por si só, um problema: ela indica dependência financeira relevante que merece acompanhamento. Fornecedores ativos sem produtos vinculados também aparecem para conferência cadastral. A análise utiliza os dados operacionais existentes e não reconstrói contas a pagar.</p>
     </div>
    </div>;
  })()}
