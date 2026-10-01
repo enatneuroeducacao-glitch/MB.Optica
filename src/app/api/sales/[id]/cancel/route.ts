@@ -13,13 +13,42 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const result=await db.$transaction(async(tx)=>{
       const sale=await tx.sale.findUnique({
         where:{id},
-        include:{payments:true,items:true}
+        include:{payments:{include:{method:true}},items:true}
       });
       if(!sale) throw new Error("Venda não encontrada");
       if(sale.canceled) return sale;
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
-      if(activePayments.length) throw new Error("Estorne os pagamentos antes de cancelar a venda");
+      let cashRefunds=0;
+
+      for(const payment of activePayments){
+        if(payment.method.isCash){
+          const session=await tx.cashSession.findFirst({
+            where:{closedAt:null},
+            orderBy:{openedAt:"desc"}
+          });
+          if(!session) throw new Error("É necessário um caixa aberto para devolver pagamento em dinheiro");
+
+          await tx.cashMovement.create({
+            data:{
+              sessionId:session.id,
+              kind:"SAIDA",
+              amount:payment.amount,
+              description:"Devolução do pagamento da venda #"+sale.number,
+              referenceId:sale.id
+            }
+          });
+          cashRefunds++;
+        }
+
+        await tx.payment.update({
+          where:{id:payment.id},
+          data:{
+            reversedAt:new Date(),
+            reversalReference:b.reference?String(b.reference):reason
+          }
+        });
+      }
 
       const movements=await tx.stockMovement.findMany({
         where:{reference:"VENDA",referenceId:sale.id,type:"SAIDA"},
@@ -51,7 +80,18 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         where:{id:sale.id},
         data:{canceled:true,canceledAt:new Date(),cancelReason:reason}
       });
-      await writeAudit(tx,{action:"CANCEL",entity:"Sale",entityId:sale.id,metadata:{reason,restoredMovements:movements.length}});
+
+      await writeAudit(tx,{
+        action:"CANCEL",
+        entity:"Sale",
+        entityId:sale.id,
+        metadata:{
+          reason,
+          restoredMovements:movements.length,
+          reversedPayments:activePayments.length,
+          cashRefunds
+        }
+      });
       return canceled;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
