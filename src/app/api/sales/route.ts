@@ -11,6 +11,11 @@ export async function POST(req:Request){
     if(!b.customerId) throw new Error("customerId é obrigatório");
     if(!b.sellerId) throw new Error("sellerId é obrigatório");
     if(!Array.isArray(b.items)||b.items.length===0) throw new Error("A venda precisa ter itens");
+    const saleTypes=["BALCAO","PEDIDO_OPTICO","ENCOMENDA","SERVICO","PRODUTOS"];
+    const saleType=String(b.saleType||"BALCAO");
+    if(!saleTypes.includes(saleType)) throw new Error("Tipo de venda inválido");
+    if(saleType==="PEDIDO_OPTICO"&&!b.orderId) throw new Error("Selecione o pedido óptico para este tipo de venda");
+    if(saleType!=="PEDIDO_OPTICO"&&b.orderId) throw new Error("Pedido óptico só pode ser usado em venda vinculada a pedido óptico");
 
     const discount=Number(b.discount||0);
     const surcharge=Number(b.surcharge||0);
@@ -75,6 +80,7 @@ export async function POST(req:Request){
         data:{
           customerId:customer.id,
           sellerId:seller.id,
+          saleType,
           orderId:linkedOrder?.id,
           subtotal,
           discount,
