@@ -73,8 +73,19 @@ export async function POST(req:Request){
       const installments=Math.max(0,Math.floor(Number(b.installments||0)));
       const entryAmount=Math.max(0,Math.min(total,Number(b.entryAmount||0)));
       const paymentMethodId=b.paymentMethodId?String(b.paymentMethodId):null;
+      const mixedPayments=Array.isArray(b.payments)?b.payments:[];
+      const mixedPaid=mixedPayments.reduce((sum:any,p:any)=>sum+Math.max(0,Number(p.amount||0)),0);
+      const receivableAmount=Math.max(0,Math.min(total,Number(b.receivable?.amount||0)));
       if(installments>0&&!paymentMethodId&&entryAmount>0) throw new Error("Selecione o meio de pagamento da entrada");
       if(installments>0&&installments>60) throw new Error("Parcelamento limitado a 60 parcelas");
+      if(String(b.paymentCondition||"") === "MISTO"){
+        if(!mixedPayments.length && receivableAmount<=0) throw new Error("Informe pelo menos um pagamento ou saldo a receber");
+        if(Math.abs((mixedPaid+receivableAmount)-total)>0.01) throw new Error("A composição dos pagamentos deve fechar exatamente o total da venda");
+        if(receivableAmount>0){
+          const due=new Date(String(b.receivable?.dueDate||""));
+          if(Number.isNaN(due.getTime())) throw new Error("Informe a data do saldo a receber");
+        }
+      }
 
       const sale=await tx.sale.create({
         data:{
@@ -97,6 +108,47 @@ export async function POST(req:Request){
 
       let createdAccounts:any[]=[];
       let entryPayment:any=null;
+      if(String(b.paymentCondition||"") === "MISTO"){
+        for(const part of mixedPayments){
+          const amount=Number(part.amount||0);
+          if(!Number.isFinite(amount)||amount<=0) throw new Error("Valor de pagamento misto inválido");
+          if(!part.methodId) throw new Error("Selecione o meio de pagamento de cada parcela recebida");
+          const method=await tx.paymentMethod.findUnique({where:{id:String(part.methodId)}});
+          if(!method||!method.active) throw new Error("Meio de pagamento inválido");
+          const session=method.isCash
+            ? await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}})
+            : null;
+          if(method.isCash&&!session) throw new Error("Não há caixa aberto para registrar este recebimento");
+          const payment=await tx.payment.create({data:{saleId:sale.id,methodId:method.id,amount,reference:part.reference?String(part.reference):undefined}});
+          if(method.isCash&&session){
+            await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount,description:"Pagamento da venda #"+sale.number+" — composição mista",referenceId:sale.id}});
+          }
+          if(!entryPayment) entryPayment=payment;
+        }
+        if(receivableAmount>0){
+          const due=new Date(String(b.receivable.dueDate));
+          const intendedMethodId=b.receivable.methodId?String(b.receivable.methodId):null;
+          let intendedMethodName="";
+          if(intendedMethodId){
+            const intended=await tx.paymentMethod.findUnique({where:{id:intendedMethodId}});
+            if(!intended||!intended.active) throw new Error("Meio de pagamento futuro inválido");
+            intendedMethodName=intended.name;
+          }
+          createdAccounts.push(await tx.account.create({
+            data:{
+              type:"RECEBER",
+              description:"Saldo da venda #"+sale.number,
+              customerId:customer.id,
+              saleId:sale.id,
+              dueDate:due,
+              amount:receivableAmount,
+              paidAmount:0,
+              status:"PENDENTE",
+              notes:"Saldo a receber posteriormente"+(intendedMethodName?" · meio previsto: "+intendedMethodName:"")
+            }
+          }));
+        }
+      }
       if(installments>0){
         const balance=Math.max(0,total-entryAmount);
         const firstDue=new Date(String(b.firstDueDate||new Date().toISOString()));
