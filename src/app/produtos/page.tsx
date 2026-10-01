@@ -58,7 +58,7 @@ function printLabels(p:any,quantity:number){
 }
 
 export default function Produtos(){
- const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]),[fiscalDiag,setFiscalDiag]=useState<any>(null),[fiscalDiagLoading,setFiscalDiagLoading]=useState(false);
+ const [rows,setRows]=useState<any[]>([]),[cats,setCats]=useState<any[]>([]),[suppliers,setSuppliers]=useState<any[]>([]),[categoryBootstrapTried,setCategoryBootstrapTried]=useState(false),[fiscalDiag,setFiscalDiag]=useState<any>(null),[fiscalDiagLoading,setFiscalDiagLoading]=useState(false);
  const [form,setForm]=useState<any>(makeEmpty()),[selected,setSelected]=useState<any>(null),[open,setOpen]=useState(true),[search,setSearch]=useState(""),[categoryFilter,setCategoryFilter]=useState(""),[stockFilter,setStockFilter]=useState("TODOS"),[msg,setMsg]=useState(""),[labelQty,setLabelQty]=useState(1),[labelProduct,setLabelProduct]=useState<any>(null),[labelCatalogOpen,setLabelCatalogOpen]=useState(false),[labelSearch,setLabelSearch]=useState(""),[reconciling,setReconciling]=useState(false);
 
  const load=async()=>{
@@ -67,6 +67,7 @@ export default function Produtos(){
     fetch("/api/products",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d?.error||"Não foi possível carregar os produtos.");return d}),fetch("/api/categories").then(r=>r.json()),fetch("/api/suppliers").then(r=>r.json())
    ]);
    setRows(Array.isArray(p)?p:[]);setCats(Array.isArray(c)?c:[]);setSuppliers(Array.isArray(s)?s:[]);
+   if(Array.isArray(c)&&c.length===0&&!categoryBootstrapTried){setCategoryBootstrapTried(true);for(const name of ["Armações","Lentes","Lentes de contato","Tratamentos","Acessórios","Serviços","Outros"]){await fetch("/api/categories",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})})}const cc=await fetch("/api/categories").then(r=>r.json());if(Array.isArray(cc))setCats(cc);}
   }catch(e){setRows([]);setMsg(e instanceof Error?e.message:"Não foi possível carregar os produtos.");}
  };
  useEffect(()=>{load()},[]);\n const defaultCategories=["Armações","Lentes","Tratamentos","Acessórios","Serviços","Outros"];
