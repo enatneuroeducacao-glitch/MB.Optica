@@ -7,6 +7,17 @@ import {money} from "@/lib/domain";
 type DashboardData={customers:number;products:number;integratedProducts:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
 type LegacyFinancial={billing:number;received:number;receivable:number;payable:number;salesCount:number;clientsActive:number;salesToday:number;salesTodayCount:number;months:{month:string;sales:number;billing:number;received:number;receivable:number}[]};
 type EconomicAlert={severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";title:string;detail:string};
+type ManagementIndicators={
+ faturamento:{total:number;vendas:number;ticketMedio:number;hoje:number;mesAnterior:number;variacaoPercentual:number|null};
+ margem:{custo:number;margemBruta:number;margemBrutaPercentual:number;margemMesAnterior:number};
+ estoque:{produtosAtivos:number;estoqueBaixo:number;estoqueZero:number;estoqueNegativo:number;valorCusto:number;valorVenda:number;itensCriticos:{id:string;code:string;description:string;quantity:number;minimumStock:number;cost:number;salePrice:number;stockCost:number;stockRetail:number;supplierId:string|null}[]};
+ contas:{receber:number;pagar:number;capitalDeGiro:number;receberVencido:number;pagarVencido:number;titulosVencidos:number};
+ caixa:{aberto:boolean;sessoesAbertas:number;saldo:number};
+ fornecedores:{ativos:number;comProdutos:number;maioresCompromissos:{id:string;name:string;products:number;payable:number}[]};
+ vendas:{total:number;canceladasExcluidas:boolean;vendedoresComVenda:number};
+ alertas:{severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";indicator:string;message:string}[];
+ generatedAt:string;
+};
 type EconomicHealth={
  alerts:EconomicAlert[];
  operational:{cashBalance:number;cashOpen:boolean;receivable:number;payable:number;netWorkingCapital:number;overdue:number;todaySales:number;activeProducts:number;lowStock:number;zeroStock:number};
@@ -22,14 +33,62 @@ export default function Dashboard(){
  const [data,setData]=useState<DashboardData|null>(null); const [legacy,setLegacy]=useState<LegacyFinancial|null>(null); const [error,setError]=useState(""); const [health,setHealth]=useState<EconomicHealth|null>(null); const [healthLoading,setHealthLoading]=useState(false);
  const load=async()=>{try{const r=await fetch("/api/dashboard",{cache:"no-store"});if(!r.ok)throw new Error("Não foi possível carregar o dashboard");setData(await r.json());setError("")}catch(e){setError(e instanceof Error?e.message:"Erro ao carregar dashboard")}};
  const loadLegacy=async()=>{try{const r=await fetch("/api/migration/financial-summary",{cache:"no-store"});if(r.ok)setLegacy(await r.json())}catch{}};
+ const loadManagement=async()=>{try{const r=await fetch("/api/gestao/indicadores",{cache:"no-store"});if(r.ok)setManagement(await r.json())}catch{}};
  const generateEconomicHealth=async()=>{setHealthLoading(true);try{const r=await fetch("/api/dashboard/economic-health",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível gerar o relatório.");setHealth(d)}catch(e){setError(e instanceof Error?e.message:"Erro ao gerar relatório.")}finally{setHealthLoading(false)}};
 
 
- useEffect(()=>{load();loadLegacy()},[]);
- useRealtimeRefresh(load,15000);
+ useEffect(()=>{load();loadLegacy();loadManagement()},[]);
+ useRealtimeRefresh(()=>{load();loadManagement()},15000);
  return <section className="page">
   <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a><button className="secondary" onClick={generateEconomicHealth} disabled={healthLoading}>{healthLoading?"Gerando...":"Saúde econômica"}</button></nav></div>
   {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
+  {management&&<div className="panel" style={{marginBottom:16}}>
+   <div className="panel-heading"><div><span className="eyebrow">FASE 6 · GESTÃO E INTELIGÊNCIA</span><h2>Dashboard gerencial</h2><p>Indicadores consolidados do mês atual, estoque, financeiro, caixa e fornecedores.</p></div><span className="version-badge">Atualizado {new Date(management.generatedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span></div>
+   <div className="stats">
+    <StatCard label="Faturamento do mês" value={money(management.faturamento.total)} detail={management.faturamento.variacaoPercentual===null?"sem comparação com mês anterior":(management.faturamento.variacaoPercentual>=0?"+":"")+management.faturamento.variacaoPercentual.toLocaleString("pt-BR",{maximumFractionDigits:1})+"% vs. mês anterior"}/>
+    <StatCard label="Ticket médio" value={money(management.faturamento.ticketMedio)} detail={management.faturamento.vendas+" venda(s) no mês"}/>
+    <StatCard label="Margem bruta" value={management.margem.margemBrutaPercentual.toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%"} detail={money(management.margem.margemBruta)+" de margem sobre "+money(management.margem.custo)+" de custo"}/>
+    <StatCard label="Capital de giro" value={money(management.contas.capitalDeGiro)} detail="a receber menos a pagar"/>
+    <StatCard label="A receber" value={money(management.contas.receber)} detail={money(management.contas.receberVencido)+" vencido"}/>
+    <StatCard label="A pagar" value={money(management.contas.pagar)} detail={money(management.contas.pagarVencido)+" vencido"}/>
+    <StatCard label="Estoque a custo" value={money(management.estoque.valorCusto)} detail={management.estoque.produtosAtivos+" produtos ativos"}/>
+    <StatCard label="Vendas" value={String(management.vendas.total)} detail={management.vendas.vendedoresComVenda+" vendedor(es) com venda"}/>
+   </div>
+   <div className="grid-two" style={{marginTop:14}}>
+    <div className="panel" style={{margin:0}}>
+     <div className="panel-heading"><div><h3>Alertas gerenciais</h3><p>Prioridades geradas pelo motor de indicadores.</p></div><a href="/relatorios">Relatórios</a></div>
+     <div className="funnel">{management.alertas.length?management.alertas.map((a,i)=><div key={i}><span><b>{a.severity==="CRITICO"?"CRÍTICO":a.severity==="ATENCAO"?"ATENÇÃO":"INFORMATIVO"}</b> · {a.message}</span><strong>{a.indicator}</strong></div>):<div><span>Nenhum alerta gerencial</span><strong>OK</strong></div>}</div>
+    </div>
+    <div className="panel" style={{margin:0}}>
+     <div className="panel-heading"><div><h3>Resumo financeiro</h3><p>Posição operacional do período atual.</p></div><a href="/financeiro">Abrir financeiro</a></div>
+     <div className="funnel">
+      <div><span>Faturamento hoje</span><strong>{money(management.faturamento.hoje)}</strong></div>
+      <div><span>Faturamento mês anterior</span><strong>{money(management.faturamento.mesAnterior)}</strong></div>
+      <div><span>Caixa aberto</span><strong>{management.caixa.aberto?money(management.caixa.saldo):"Fechado"}</strong></div>
+      <div><span>Títulos vencidos</span><strong>{management.contas.titulosVencidos}</strong></div>
+     </div>
+    </div>
+   </div>
+   <div className="grid-two" style={{marginTop:14}}>
+    <div className="panel" style={{margin:0}}>
+     <div className="panel-heading"><div><h3>Estoque e disponibilidade</h3><p>Itens que podem exigir intervenção.</p></div><a href="/estoque">Abrir estoque</a></div>
+     <div className="funnel">
+      <div><span>Estoque baixo</span><strong>{management.estoque.estoqueBaixo}</strong></div>
+      <div><span>Estoque zerado</span><strong>{management.estoque.estoqueZero}</strong></div>
+      <div><span>Estoque negativo</span><strong>{management.estoque.estoqueNegativo}</strong></div>
+      <div><span>Valor potencial de venda</span><strong>{money(management.estoque.valorVenda)}</strong></div>
+     </div>
+    </div>
+    <div className="panel" style={{margin:0}}>
+     <div className="panel-heading"><div><h3>Principais compromissos com fornecedores</h3><p>Contas a pagar agrupadas por fornecedor.</p></div><a href="/fornecedores">Fornecedores</a></div>
+     <div className="table"><div className="row header"><span>Fornecedor</span><span>Produtos</span><span>A pagar</span></div>{management.fornecedores.maioresCompromissos.slice(0,5).map(s=><div className="row" key={s.id}><strong>{s.name}</strong><span>{s.products}</span><strong>{money(s.payable)}</strong></div>)}{!management.fornecedores.maioresCompromissos.length&&<div className="row"><span>—</span><span>Nenhum compromisso</span><strong>—</strong></div>}</div>
+    </div>
+   </div>
+   {management.estoque.itensCriticos.length>0&&<div className="panel" style={{marginTop:14,margin:0}}>
+    <div className="panel-heading"><div><h3>Produtos que exigem atenção</h3><p>Prioridade para estoque negativo, zerado ou abaixo do mínimo.</p></div></div>
+    <div className="table"><div className="row header"><span>Código</span><span>Produto</span><span>Quantidade</span><span>Mínimo</span><span>Valor venda</span></div>{management.estoque.itensCriticos.slice(0,8).map(p=><div className="row" key={p.id}><strong>{p.code||"—"}</strong><span>{p.description}</span><span>{p.quantity}</span><span>{p.minimumStock}</span><strong>{money(p.salePrice*p.quantity)}</strong></div>)}</div>
+   </div>}
+  </div>}
   <div className="stats">
    <StatCard label="Clientes ativos" value={legacy?String(legacy.clientsActive):"—"} detail="clientes ativos no BeepStart"/>
    <StatCard label="Vendas hoje" value={legacy?money(legacy.salesToday):"—"} detail={legacy?legacy.salesTodayCount+" venda(s) hoje · BeepStart":"aguardando dados"}/>
