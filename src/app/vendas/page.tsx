@@ -9,6 +9,7 @@ type Order={id:string;number:number;customerId:string;total:number|string;status
 type Method={id:string;name:string;isCash:boolean;active:boolean};
 type PixKey={id:string;type:string;key:string;holderName:string;holderDocument?:string|null;city?:string|null};
 type Sale=any;
+type SaleItemForm={id:string;productId:string;description:string;quantity:string;unitPrice:string;unitCost:string};
 type LegacyFinancial={salesToday:number;salesTodayCount:number;receivedToday:number;receivable:number;billing:number;salesCount:number;clientsActive:number};
 
 const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -22,6 +23,7 @@ export default function Vendas(){
  const [legacy,setLegacy]=useState<LegacyFinancial|null>(null);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
+ const [saleItems,setSaleItems]=useState<SaleItemForm[]>([]);
  const [pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
@@ -33,8 +35,11 @@ export default function Vendas(){
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
  const product=products.find(p=>p.id===form.productId);
- const subtotal=Number(form.quantity||0)*Number(form.unitPrice||0);
+ const subtotal=saleItems.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity||0)*Number(item.unitPrice||0)),0);
  const total=Math.max(0,subtotal-Number(form.discount||0)+Number(form.surcharge||0));
+ const addSaleItem=()=>{if(!form.productId){setMsg("Selecione o produto/serviço antes de adicionar.");return}const p=products.find(x=>x.id===form.productId);const quantity=Number(form.quantity||0),unitPrice=Number(form.unitPrice||0);if(!p||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitPrice)||unitPrice<0){setMsg("Informe produto, quantidade e preço válidos.");return}setSaleItems(prev=>[...prev,{id:crypto.randomUUID(),productId:p.id,description:p.description,quantity:String(quantity),unitPrice:String(unitPrice),unitCost:String(p.cost||0)}]);setForm({...form,productId:"",quantity:"1",unitPrice:""});setMsg("")};
+ const removeSaleItem=(id:string)=>setSaleItems(prev=>prev.filter(item=>item.id!==id));
+ const updateSaleItem=(id:string,patch:Partial<SaleItemForm>)=>setSaleItems(prev=>prev.map(item=>item.id===id?{...item,...patch}:item));
  const orderChoices=useMemo(()=>orders.filter(o=>o.customerId===form.customerId&&!["CANCELADO","DEVOLVIDO"].includes(o.status)&&!sales.some(s=>s.orderId===o.id)),[orders,form.customerId,sales]);
  const stats=useMemo(()=>{const active=sales.filter(s=>!s.canceled);const gross=active.reduce((a,s)=>a+Number(s.total),0);const paid=active.reduce((a,s)=>a+Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((x:number,p:any)=>x+Number(p.amount),0)||0),0);const today=new Date().toDateString();return {count:active.length,today:active.filter(s=>new Date(s.createdAt).toDateString()===today).reduce((a,s)=>a+Number(s.total),0),paid,pending:Math.max(0,gross-paid)}},[sales]);
  const filtered=sales.filter(s=>{const paid=Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0);const q=(s.number+" "+(s.customer?.name||"")+" "+(s.customer?.cpfCnpj||"")).toLowerCase().includes(search.toLowerCase());const f=filter==="TODAS"||(filter==="ABERTAS"&&!s.canceled&&paid<Number(s.total))||(filter==="PAGAS"&&!s.canceled&&paid>=Number(s.total))||(filter==="CANCELADAS"&&s.canceled);return q&&f});
@@ -43,24 +48,25 @@ export default function Vendas(){
  const submit=async(e:React.FormEvent)=>{
 e.preventDefault();setMsg("");
 if(!user?.id){setMsg("Usuário da sessão não identificado.");return}
-if(!form.customerId||!form.productId){setMsg("Cliente e produto são obrigatórios.");return}
+if(!form.customerId){setMsg("Cliente é obrigatório.");return}
+if(!saleItems.length){setMsg("Adicione pelo menos um produto/serviço à venda.");return}
 const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
 const selectedPix=form.paymentCondition==="PIX"?pixKeys.find(k=>k.id===form.pixPayload):undefined;
 const pixCode=selectedPix?pixPayload(selectedPix,total):form.pixPayload;
 if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
-const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,items:[{productId:form.productId,description:product?.description||"Item",quantity:Number(form.quantity),unitPrice:Number(form.unitPrice||product?.salePrice||0),unitCost:Number(product?.cost||0)}],stock:[{productId:form.productId,quantity:Number(form.quantity)}]})});
+const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,items:saleItems.map(item=>({productId:item.productId,description:item.description,quantity:Number(item.quantity),unitPrice:Number(item.unitPrice),unitCost:Number(item.unitCost||0)})),stock:saleItems.map(item=>({productId:item.productId,quantity:Number(item.quantity)}))})});
 const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}
 if(form.paymentCondition!=="CARNÊ"&&form.paymentMethodId){
 const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:pixCode||undefined})});
 const pd=await pr.json();if(!pr.ok)setMsg("Venda criada, mas o recebimento não foi registrado: "+(pd.detail||pd.error||"erro"));else setMsg("Venda #"+d.number+" registrada e recebida.");
 }else setMsg("Venda #"+d.number+" registrada.");
 setOpen(false);
-setForm({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
+setForm({customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});setSaleItems([]);
 const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSales=await refreshed.json();if(Array.isArray(refreshedSales)){setSales(refreshedSales);const created=refreshedSales.find((s:any)=>s.id===d.id);if(created)setSelected(created);}
 }; const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:""});await load()};
  const openCash=async()=>{const r=await fetch("/api/cash/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({openingCash:Number(opening||0)})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setOpening("");setMsg("Caixa aberto.");await load()}; const closeCash=async()=>{if(!cash)return;const value=window.prompt("Informe o valor contado no caixa para o fechamento:","0");if(value===null)return;const counted=Number(value.replace(",","."));if(!Number.isFinite(counted)||counted<0){setMsg("Valor de fechamento inválido.");return}const r=await fetch("/api/cash/close",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({closingCash:counted})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}const diff=Number(d.difference||0);setMsg("Caixa fechado. Saldo esperado: "+money(d.expected)+" · Contado: "+money(counted)+" · Diferença: "+money(diff));await load()};
  const cashMove=async(e:React.FormEvent)=>{e.preventDefault();const r=await fetch("/api/cash/movement",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(move)});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMove({kind:"SANGRIA",amount:"",description:""});setMsg("Movimentação registrada.");await load()};
- const chooseOrder=(id:string)=>{const o=orders.find(x=>x.id===id);if(!o)return;const i=o.items?.find((x:any)=>x.productId);const p=products.find(x=>x.id===i?.productId);setForm({...form,orderId:id,customerId:o.customerId,productId:i?.productId||"",quantity:String(i?.quantity||1),unitPrice:String(i?.unitPrice||p?.salePrice||"")})}; const printSale=(kind:"CUPOM"|"RECIBO"|"CARNE"|"PROMISSORIA"|"FISCAL"|"NF_PREPARO")=>{
+ const chooseOrder=(id:string)=>{const o=orders.find(x=>x.id===id);if(!o)return;const imported=(o.items||[]).filter((i:any)=>i.productId).map((i:any)=>{const p=products.find(x=>x.id===i.productId);return {id:crypto.randomUUID(),productId:String(i.productId),description:String(i.description||p?.description||"Item"),quantity:String(i.quantity||1),unitPrice:String(i.unitPrice??p?.salePrice??0),unitCost:String(p?.cost||0)}});setForm({...form,orderId:id,customerId:o.customerId,productId:"",quantity:"1",unitPrice:""});setSaleItems(imported);setMsg(imported.length?`${imported.length} item(ns) do pedido adicionados à venda.`:"O pedido não possui itens de produto para importar.");}; const printSale=(kind:"CUPOM"|"RECIBO"|"CARNE"|"PROMISSORIA"|"FISCAL"|"NF_PREPARO")=>{
   if(!selected)return;
   const f=selected.fiscalDocument;
   if(kind==="FISCAL"&&!f){setMsg("Esta venda ainda não possui documento fiscal autorizado.");return}
@@ -98,12 +104,30 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
    <div className="panel sales-insight"><div className="panel-heading"><div><h2>Inteligência da venda</h2><p>Recursos próprios do MB Óptica.</p></div></div><div className="sales-insight-list"><div><b>Venda sem redigitação</b><span>Pedido óptico preenche cliente e item.</span></div><div><b>Rastreabilidade</b><span>Venda → estoque → pagamento → caixa.</span></div><div><b>Visão financeira</b><span>Recebido e saldo a receber em tempo real.</span></div><div><b>Auditoria</b><span>Eventos são registrados no histórico do sistema.</span></div></div></div>
   </div>
 
-  {open&&<div className="sales-pdv-overlay" role="dialog" aria-modal="true" aria-label="Nova venda" onMouseDown={e=>{if(e.currentTarget===e.target)setOpen(false)}}><div className="panel sales-form sales-pdv-modal"><div className="panel-heading"><div><span className="eyebrow">PDV</span><h2>Nova venda</h2><p>Venda avulsa ou vinculada a pedido óptico.</p></div><button className="secondary" type="button" onClick={()=>setOpen(false)}>Fechar</button></div>
+  {open&&<div className="sales-pdv-overlay" role="dialog" aria-modal="true" aria-label="Nova venda" onMouseDown={e=>{if(e.currentTarget===e.target)setOpen(false)}}><div className="panel sales-form sales-pdv-modal"><div className="panel-heading"><div><span className="eyebrow">PDV</span><h2>Nova venda</h2><p>Venda avulsa ou vinculada a pedido óptico, com múltiplos produtos e serviços.</p></div><button className="secondary" type="button" onClick={()=>setOpen(false)}>Fechar</button></div>
    <form onSubmit={submit}><div className="sales-form-grid">
-    <label>Cliente<select required value={form.customerId} onChange={e=>setForm({...form,customerId:e.target.value,orderId:""})}><option value="">Selecione</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</option>)}</select></label>
+    <label>Cliente<select required value={form.customerId} onChange={e=>{setForm({...form,customerId:e.target.value,orderId:""});setSaleItems([])}}><option value="">Selecione</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</option>)}</select></label>
     <label>Pedido óptico<select value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Venda avulsa</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>
-    <label>Produto / serviço<select required value={form.productId} onChange={e=>{const p=products.find(x=>x.id===e.target.value);setForm({...form,productId:e.target.value,unitPrice:p?String(p.salePrice):""})}}><option value="">Selecione</option>{products.map(p=><option key={p.id} value={p.id}>{p.code} · {p.description} · {money(p.salePrice)}</option>)}</select></label>
-    <label>Quantidade<input required type="number" min="0.001" step="0.001" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label><label>Preço unitário<input required type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})}/></label><label>Desconto<input type="number" min="0" step="0.01" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})}/></label><label>Acréscimo<input type="number" min="0" step="0.01" value={form.surcharge} onChange={e=>setForm({...form,surcharge:e.target.value})}/></label><div className="sales-total-box"><span>Total</span><strong>{money(total)}</strong></div>
+    <div className="sales-wide" style={{border:"1px solid var(--line)",borderRadius:12,padding:12}}>
+      <div className="sales-payment-title"><b>Itens da venda</b><span>{saleItems.length} item(ns) adicionado(s). Combine armação, lentes, serviços e outros produtos na mesma venda.</span></div>
+      {saleItems.length>0&&<div style={{display:"grid",gap:8,marginTop:10}}>
+       {saleItems.map(item=><div key={item.id} style={{display:"grid",gridTemplateColumns:"minmax(180px,2fr) 100px 130px 130px auto",gap:8,alignItems:"end",padding:"10px 0",borderTop:"1px solid var(--line)"}}>
+        <div><small>Produto / serviço</small><div style={{fontWeight:600}}>{item.description}</div></div>
+        <label style={{margin:0}}>Qtd.<input type="number" min="0.001" step="0.001" value={item.quantity} onChange={e=>updateSaleItem(item.id,{quantity:e.target.value})}/></label>
+        <label style={{margin:0}}>Unitário<input type="number" min="0" step="0.01" value={item.unitPrice} onChange={e=>updateSaleItem(item.id,{unitPrice:e.target.value})}/></label>
+        <div><small>Total</small><div style={{fontWeight:700}}>{money(Number(item.quantity||0)*Number(item.unitPrice||0))}</div></div>
+        <button type="button" className="secondary" onClick={()=>removeSaleItem(item.id)}>Remover</button>
+       </div>)}
+      </div>}
+      <div style={{display:"grid",gridTemplateColumns:"minmax(220px,2fr) 100px 130px auto",gap:8,alignItems:"end",marginTop:12}}>
+       <label style={{margin:0}}>Adicionar produto / serviço<select value={form.productId} onChange={e=>{const p=products.find(x=>x.id===e.target.value);setForm({...form,productId:e.target.value,unitPrice:p?String(p.salePrice):""})}}><option value="">Selecione</option>{products.map(p=><option key={p.id} value={p.id}>{p.code} · {p.description} · {money(p.salePrice)}</option>)}</select></label>
+       <label style={{margin:0}}>Qtd.<input type="number" min="0.001" step="0.001" value={form.quantity} onChange={e=>setForm({...form,quantity:e.target.value})}/></label>
+       <label style={{margin:0}}>Unitário<input type="number" min="0" step="0.01" value={form.unitPrice} onChange={e=>setForm({...form,unitPrice:e.target.value})}/></label>
+       <button type="button" className="primary" onClick={addSaleItem}>+ Adicionar item</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:12,fontSize:13}}><b>Subtotal dos itens: {money(subtotal)}</b></div>
+    </div>
+    <label>Desconto<input type="number" min="0" step="0.01" value={form.discount} onChange={e=>setForm({...form,discount:e.target.value})}/></label><label>Acréscimo<input type="number" min="0" step="0.01" value={form.surcharge} onChange={e=>setForm({...form,surcharge:e.target.value})}/></label><div className="sales-total-box"><span>Total</span><strong>{money(total)}</strong></div>
    <div className="sales-payment-box sales-wide">
     <div className="sales-payment-title"><b>Condição de pagamento</b><span>Escolha como esta venda será recebida.</span></div>
     <div className="sales-form-grid">
