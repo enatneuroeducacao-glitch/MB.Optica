@@ -17,20 +17,36 @@ const schema=z.object({
   series:z.string().trim().max(10).nullable().optional(),
   environment:z.enum(["HOMOLOGACAO","PRODUCAO"]),
   secretReference:z.string().trim().max(255).nullable().optional(),
+  certificateType:z.enum(["A1","A3","SE-S","SE-H"]).nullable().optional(),
+  certificateExpiresAt:z.coerce.date().nullable().optional(),
+  certificateAuthority:z.string().trim().max(160).nullable().optional(),
+  certificateLastCheckedAt:z.coerce.date().nullable().optional(),
   active:z.boolean()
 });
 
 const defaults={
   legalName:null,tradeName:null,cnpj:null,stateRegistration:null,municipalRegistration:null,
   uf:"SC",city:null,taxRegime:"SIMEI" as const,integrationMode:"NFF" as const,
-  series:null,environment:"HOMOLOGACAO" as const,secretReference:null,active:true
+  series:null,environment:"HOMOLOGACAO" as const,secretReference:null,
+  certificateType:null,certificateExpiresAt:null,certificateAuthority:null,certificateLastCheckedAt:null,active:true
 };
+
+function certificateState(config:{secretReference:string|null;certificateType:string|null;certificateExpiresAt:Date|null}){
+  if(!config.secretReference)return {status:"SEM_REFERENCIA",daysRemaining:null};
+  if(!config.certificateType)return {status:"SEM_TIPO",daysRemaining:null};
+  if(!config.certificateExpiresAt)return {status:"SEM_VALIDADE",daysRemaining:null};
+  const daysRemaining=Math.ceil((config.certificateExpiresAt.getTime()-Date.now())/86400000);
+  if(daysRemaining<0)return {status:"EXPIRADO",daysRemaining};
+  if(daysRemaining<=30)return {status:"VENCE_EM_30_DIAS",daysRemaining};
+  return {status:"VALIDO",daysRemaining};
+}
 
 export async function GET(){
   try{
     await requireUser();
     const config=await db.fiscalConfig.findFirst({orderBy:{updatedAt:"desc"}});
-    return NextResponse.json({config:config ?? defaults});
+    const resolved=config ?? defaults;
+    return NextResponse.json({config:resolved,certificate:certificateState(resolved)});
   }catch(error){return apiError(error,"Não foi possível carregar a configuração fiscal.");}
 }
 
@@ -47,7 +63,7 @@ export async function PATCH(request:Request){
       entity:"FiscalConfig",entityId:config.id,userId:actor.id,
       metadata:{environment:config.environment,integrationMode:config.integrationMode,active:config.active}
     }});
-    return NextResponse.json({config});
+    return NextResponse.json({config,certificate:certificateState(config)});
   }catch(error){
     if(error instanceof z.ZodError)return NextResponse.json({error:"Dados fiscais inválidos. Revise os campos obrigatórios."},{status:422});
     return apiError(error,"Não foi possível salvar a configuração fiscal.");
