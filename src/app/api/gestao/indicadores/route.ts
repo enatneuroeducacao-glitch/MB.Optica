@@ -94,7 +94,7 @@ export async function GET(){
       }),
       db.account.findMany({
         where:{type:"RECEBER",status:{in:["PENDENTE","PARCIAL"]}},
-        select:{id:true,description:true,customerId:true,supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true}
+        select:{id:true,description:true,customerId:true,supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true,customer:{select:{name:true}}}
       }),
       db.account.findMany({
         where:{type:"PAGAR",status:{in:["PENDENTE","PARCIAL"]}},
@@ -105,7 +105,7 @@ export async function GET(){
           status:{in:["PENDENTE","PARCIAL"]},
           dueDate:{lt:today}
         },
-        select:{type:true,amount:true,paidAmount:true,dueDate:true}
+        select:{type:true,amount:true,paidAmount:true,dueDate:true,customerId:true,customer:{select:{name:true}}}
       }),
       db.cashSession.findMany({
         where:{closedAt:null},
@@ -226,7 +226,7 @@ export async function GET(){
     })).sort((a,b)=>a.estimatedDaysCoverage-b.estimatedDaysCoverage).slice(0,50);
 
     const openReceivable=receivables.map(account=>({
-      id:account.id,description:account.description,customerId:account.customerId,supplierId:account.supplierId,
+      id:account.id,description:account.description,customerId:account.customerId,customerName:account.customer?.name||null,supplierId:account.supplierId,
       amount:money(Math.max(0,num(account.amount)-num(account.paidAmount))),dueDate:account.dueDate,status:account.status
     })).sort((a,b)=>b.amount-a.amount);
     const openPayable=payables.map(account=>({
@@ -290,6 +290,94 @@ export async function GET(){
     const overduePayable=overdueAccounts
       .filter(account=>account.type==="PAGAR")
       .reduce((sum,account)=>sum+Math.max(0,num(account.amount)-num(account.paidAmount)),0);
+    const delinquencyAccounts=overdueAccounts
+      .filter(account=>account.type==="RECEBER")
+      .map(account=>({
+        id:account.id,
+        customerId:account.customerId||null,
+        customerName:account.customer?.name||"Cliente não identificado",
+        description:account.description,
+        dueDate:account.dueDate,
+        status:account.status,
+        amount:money(Math.max(0,num(account.amount)-num(account.paidAmount)))
+      }))
+      .filter(account=>account.amount>0);
+
+    const delinquencyAging={
+      ate30:{quantidade:0,valor:0},
+      de31a60:{quantidade:0,valor:0},
+      de61a90:{quantidade:0,valor:0},
+      acima90:{quantidade:0,valor:0}
+    };
+    let weightedOverdueDays=0;
+    let overdueExposureForAverage=0;
+    delinquencyAccounts.forEach(account=>{
+      const days=Math.max(1,Math.floor((accountNow-startOfDay(new Date(account.dueDate)).getTime())/86400000));
+      if(days<=30){
+        delinquencyAging.ate30.quantidade++;
+        delinquencyAging.ate30.valor+=account.amount;
+      }else if(days<=60){
+        delinquencyAging.de31a60.quantidade++;
+        delinquencyAging.de31a60.valor+=account.amount;
+      }else if(days<=90){
+        delinquencyAging.de61a90.quantidade++;
+        delinquencyAging.de61a90.valor+=account.amount;
+      }else{
+        delinquencyAging.acima90.quantidade++;
+        delinquencyAging.acima90.valor+=account.amount;
+      }
+      weightedOverdueDays+=days*account.amount;
+      overdueExposureForAverage+=account.amount;
+    });
+    Object.values(delinquencyAging).forEach(bucket=>{
+      bucket.valor=money(bucket.valor);
+    });
+    const averageDaysOverdue=overdueExposureForAverage>0?money(weightedOverdueDays/overdueExposureForAverage):0;
+
+    const delinquencyCustomerMap=new Map<string,{customerId:string|null,customerName:string,quantidade:number,valor:number}>();
+    delinquencyAccounts.forEach(account=>{
+      const key=account.customerId||"SEM_CLIENTE";
+      const current=delinquencyCustomerMap.get(key)||{
+        customerId:account.customerId||null,
+        customerName:account.customerName,
+        quantidade:0,
+        valor:0
+      };
+      current.quantidade++;
+      current.valor+=account.amount;
+      delinquencyCustomerMap.set(key,current);
+    });
+    const delinquencyByCustomer=Array.from(delinquencyCustomerMap.values())
+      .map(item=>({...item,valor:money(item.valor)}))
+      .sort((a,b)=>b.valor-a.valor)
+      .slice(0,10);
+
+    const delinquencyRate=receivable>0?money((overdueReceivable/receivable)*100):0;
+    const capitalDeGiro=money(receivable-payable);
+    const capitalDeGiroAjustado=money(capitalDeGiro-overdueReceivable);
+    const delinquencyImpactOnCapital=capitalDeGiro>0?money((overdueReceivable/capitalDeGiro)*100):null;
+
+    const delinquencyEvolution:any[]=[];
+    for(let idx=11;idx>=0;idx--){
+      const month=new Date(now);
+      month.setDate(1);
+      month.setMonth(month.getMonth()-idx);
+      const year=month.getFullYear();
+      const monthIndex=month.getMonth();
+      const rows=delinquencyAccounts.filter(account=>{
+        const due=new Date(account.dueDate);
+        return due.getFullYear()===year&&due.getMonth()===monthIndex;
+      });
+      delinquencyEvolution.push({
+        month:year+"-"+String(monthIndex+1).padStart(2,"0"),
+        quantidade:rows.length,
+        valor:money(rows.reduce((sum,row)=>sum+row.amount,0))
+      });
+    }
+
+    const delinquencyAlerts:Array<{severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";indicator:string;message:string}>=[];
+
+
 
     const cashBalance=cashSessions.reduce((total,session)=>{
       const entries=(session.movements||[])
@@ -338,10 +426,24 @@ export async function GET(){
       });
     }
     if(overdueReceivable>0){
-      alerts.push({
+      delinquencyAlerts.push({
         severity:"CRITICO",
         indicator:"inadimplencia",
-        message:`Há ${money(overdueReceivable).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})} em contas a receber vencidas.`
+        message:`Há ${money(overdueReceivable).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})} em contas a receber vencidas, distribuídas em ${delinquencyAccounts.length} título(s).`
+      });
+    }
+    if(delinquencyRate>=10){
+      delinquencyAlerts.push({
+        severity:"ATENCAO",
+        indicator:"inadimplencia",
+        message:`A inadimplência representa ${delinquencyRate.toFixed(1).replace(".",",")}% do saldo de contas a receber em aberto.`
+      });
+    }
+    if(delinquencyAging.acima90.quantidade>0){
+      delinquencyAlerts.push({
+        severity:"ATENCAO",
+        indicator:"inadimplencia",
+        message:`${delinquencyAging.acima90.quantidade} título(s) vencido(s) há mais de 90 dias totalizam ${money(delinquencyAging.acima90.valor)}.`
       });
     }
     if(payable>receivable&&payable>0){
@@ -424,7 +526,19 @@ export async function GET(){
       contas:{
         receber:money(receivable),
         pagar:money(payable),
-        capitalDeGiro:money(receivable-payable),
+        capitalDeGiro,
+        inadimplencia:{
+          total:money(overdueReceivable),
+          titulos:delinquencyAccounts.length,
+          percentualSobreReceber:delinquencyRate,
+          mediaDiasAtraso:averageDaysOverdue,
+          faixas:delinquencyAging,
+          concentracaoClientes:delinquencyByCustomer,
+          evolucaoPorVencimento:delinquencyEvolution,
+          impactoCapitalDeGiro:delinquencyImpactOnCapital,
+          capitalDeGiroAjustado:capitalDeGiroAjustado,
+          alertas:delinquencyAlerts
+        },
         receberVencido:money(overdueReceivable),
         pagarVencido:money(overduePayable),
         titulosVencidos:overdueAccounts.length,
@@ -461,7 +575,7 @@ export async function GET(){
         canceladasExcluidas:true,
         vendedoresComVenda:new Set(sales.map(sale=>sale.sellerId).filter(Boolean)).size
       },
-      alertas:alerts
+      alertas:[...delinquencyAlerts,...alerts]
     });
   }catch(error){
     return NextResponse.json(
