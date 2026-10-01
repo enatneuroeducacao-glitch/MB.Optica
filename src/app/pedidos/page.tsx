@@ -319,7 +319,7 @@ export default function Pedidos(){
   <div className="panel"><div className="table">
    <div className="row header"><span>Pedido</span><span>Cliente</span><span>Status</span><span>Entrega</span><span>Total</span><span>Ação</span></div>
    {filtered.map(o=><div className="row" key={o.id}><strong>#{o.number}</strong><span>{o.customer?.name}</span><span><StatusBadge status={o.status}/></span><span>{dateBR(o.dueDate)}</span><strong>{money(o.total)}</strong><div style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="link-button" onClick={()=>setSelected(o)}>Detalhes</button>{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(o.status)&&<button className="link-button" onClick={()=>openEdit(o)}>Editar</button>}{!["ENTREGUE","CANCELADO","DEVOLVIDO"].includes(o.status)&&<button className="link-button" onClick={()=>removeOrder(o)}>Excluir</button>}</div></div>)
-   {!filtered.length&&<div style={{padding:20,textAlign:"center",color:"var(--muted)"}}>Nenhum pedido encontrado.</div>}
+   {filtered.length===0?<div style={{padding:20,textAlign:"center",color:"var(--muted)"}}>Nenhum pedido encontrado.</div>:null}
   </div></div>
 
   {selected&&<div className="panel" style={{padding:20,marginTop:12}}>
