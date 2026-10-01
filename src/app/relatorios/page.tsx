@@ -157,6 +157,49 @@ export default function Relatorios(){
  })()}
  {tab==="VENDAS"&&<div className="report-grid-2"><div className="panel"><div className="panel-heading"><div><h2>Vendas por vendedor</h2></div></div><div className="report-table">{d.sales.bySeller.map((x:any)=>row(x.name,"","",money(x.total)))}</div></div><div className="panel"><div className="panel-heading"><div><h2>Meios de pagamento</h2></div></div><div className="report-table">{d.sales.paymentMethods.map((x:any)=>row(x.name,"","",money(x.value)))}</div></div><div className="panel full"><div className="panel-heading"><div><h2>Itens com maior faturamento</h2></div></div><div className="report-table">{d.sales.topItems.map((x:any,i:number)=>row("#"+(i+1)+" · "+x.description,"","",money(x.total)))}</div></div></div>}
  {tab==="ESTOQUE"&&<div className="report-grid-2"><div className="panel full"><div className="panel-heading"><div><h2>Posição do estoque</h2><p>Filtre por código ou descrição.</p></div><input className="report-search" value={q} onChange={e=>setQ(e.target.value)} placeholder="Pesquisar produto..." /></div><div className="report-table"><div className="report-row head"><span>Produto</span><span>Qtd.</span><span>Mín.</span><span>Status</span></div>{d.stock.items.filter((x:any)=>!q||x.description.toLowerCase().includes(q.toLowerCase())||x.code.toLowerCase().includes(q.toLowerCase())).slice(0,150).map((x:any)=>row(x.code+" · "+x.description,x.quantity,x.minimum,x.quantity<=0?"ZERADO":x.quantity<=x.minimum?"BAIXO":"OK"))}</div></div></div>}
+ {tab==="ESTOQUE"&&(()=>{
+   const e=management?.estoque;
+   if(!e)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.6</span><h2>Estoque</h2><p>Carregando os indicadores centrais de estoque...</p></div></div></div>;
+   const items=d.stock?.items||[],crit=e.itensCriticos||[],repor=e.reposicaoNecessaria||[],coverage=e.coberturaCritica||[];
+   const totalCost=n(e.valorCusto),totalRetail=n(e.valorVenda),marginStock=totalRetail-totalCost;
+   const qFilter=(x:any)=>!q||String(x.description||"").toLowerCase().includes(q.toLowerCase())||String(x.code||"").toLowerCase().includes(q.toLowerCase());
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.6</span><h2>Análise de estoque</h2><p>Posição atual, criticidade, valor imobilizado, necessidade de reposição e cobertura estimada.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Produtos ativos" v={e.produtosAtivos}/><Card t="Estoque baixo" v={e.estoqueBaixo}/><Card t="Estoque zerado" v={e.estoqueZero}/><Card t="Estoque negativo" v={e.estoqueNegativo}/><Card t="Valor a custo" v={money(totalCost)}/><Card t="Valor a venda" v={money(totalRetail)} d={"potencial bruto "+money(marginStock)}/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Posição do estoque</h2><p>Consulta por código ou descrição.</p></div><input className="report-search" value={q} onChange={e=>setQ(e.target.value)} placeholder="Pesquisar produto..." /></div>
+     <div className="report-table"><div className="report-row head"><span>Produto</span><span>Qtd.</span><span>Mín.</span><span>Status</span></div>
+      {items.filter(qFilter).slice(0,150).map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{x.quantity}</span><span>{x.minimum}</span><strong>{x.quantity<0?"NEGATIVO":x.quantity===0?"ZERADO":x.quantity<=x.minimum?"ABAIXO DO MÍNIMO":"OK"}</strong></div>)}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Necessidade de reposição</h2><p>Quantidade sugerida para retornar ao estoque mínimo cadastrado.</p></div><span className={repor.length?"alert-badge":"good-badge"}>{repor.length} item(ns)</span></div>
+     <div className="report-table"><div className="report-row head"><span>Produto</span><span>Atual</span><span>Mín.</span><span>Repor</span></div>
+      {repor.length?repor.slice(0,50).map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{x.quantity}</span><span>{x.minimumStock}</span><strong>{x.reorderQuantity}</strong></div>):<div className="empty-state">✓ Nenhuma reposição necessária pelo critério de estoque mínimo.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Itens críticos</h2><p>Prioridade: negativos, zerados e abaixo do mínimo.</p></div><span className={crit.length?"alert-badge":"good-badge"}>{crit.length} item(ns)</span></div>
+     <div className="report-table"><div className="report-row head"><span>Produto</span><span>Qtd.</span><span>Vendas no mês</span><span>Status</span></div>
+      {crit.length?crit.slice(0,50).map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{x.quantity}</span><span>{x.soldThisMonth}</span><strong>{x.status.replace("_"," ")}</strong></div>):<div className="empty-state">✓ Nenhum item crítico.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Cobertura estimada</h2><p>Estimativa baseada nas vendas do mês atual; serve como sinal de acompanhamento, não como previsão definitiva.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Produto</span><span>Estoque</span><span>Vendido no mês</span><span>Dias estimados</span></div>
+      {coverage.length?coverage.slice(0,50).map((x:any)=><div className="report-row" key={x.id}><span>{x.code+" · "+x.description}</span><span>{x.quantity}</span><span>{x.soldThisMonth}</span><strong>{x.estimatedDaysCoverage} dia(s)</strong></div>):<div className="empty-state">Sem vendas no mês para estimar cobertura.</div>}
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Leitura gerencial do estoque</h2><p>Os indicadores são calculados no motor central e apenas organizados nesta visão.</p></div></div>
+     <p style={{lineHeight:1.7,fontSize:13}}>O valor a custo representa o capital atualmente imobilizado nos produtos ativos. O valor a venda mostra o potencial bruto de venda do estoque existente. Estoque negativo exige conferência do movimento; estoque zerado pode representar risco de ruptura; estoque abaixo do mínimo indica necessidade de reposição conforme o parâmetro cadastrado. A cobertura estimada usa o ritmo de vendas do mês corrente e deve ser interpretada junto ao histórico e ao comportamento de cada produto.</p>
+    </div>
+   </div>;
+ })()}
  {tab==="PEDIDOS"&&<div className="panel"><div className="panel-heading"><div><h2>Pedidos e laboratório</h2><p>Fluxo por status e pedidos recentes.</p></div></div><div className="report-status-grid">{Object.entries(d.orders.byStatus).map(([k,v]:any)=><div key={k}><span>{k.replaceAll("_"," ")}</span><b>{v}</b></div>)}</div><div className="report-table">{d.orders.recent.slice(0,100).map((x:any)=>row("#"+x.number,x.customer,x.status,x.laboratory||"—"))}</div></div>}
  {tab==="FINANCEIRO"&&<div className="report-grid-2"><div className="panel"><div className="report-kpis compact"><Card t="A receber" v={money(s.receivable)}/><Card t="A pagar" v={money(s.payable)}/><Card t="Recebido" v={money(s.received)}/><Card t="Pago" v={money(s.payablePaid)}/></div></div><div className="panel"><div className="report-kpis compact"><Card t="Saldo de caixa" v={money(s.cashBalance)}/><Card t="Caixas abertos" v={s.openCash}/><Card t="Sessões" v={d.finance.cashSessions.length}/></div></div><div className="panel full"><div className="panel-heading"><div><h2>Liquidações recentes</h2></div></div><div className="report-table">{d.finance.settlements.slice(0,100).map((x:any)=>row(new Date(x.paidAt).toLocaleDateString("pt-BR"),x.account.description,x.account.type,money(x.amount)))}</div></div></div>}
  {tab==="CLIENTES"&&<div className="panel"><div className="report-kpis compact"><Card t="Total" v={s.customers}/><Card t="Ativos" v={s.activeCustomers}/><Card t="Novos 30 dias" v={d.customers.new30}/><Card t="Com telefone/WhatsApp" v={d.customers.withPhone}/><Card t="Sem CPF/CNPJ" v={d.customers.withoutDocument}/></div></div>}
