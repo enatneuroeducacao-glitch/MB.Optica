@@ -29,10 +29,137 @@ export async function GET(){
   return NextResponse.json(products.map(p=>{const stock=p.lots.reduce((sum,l)=>sum+Number(l.quantity),0);return {...p,stock,lowStock:p.stockControlled&&stock<=Number(p.minimumStock),integratedFromBeepStart:legacyByProduct.has(p.id),legacyIntegration:legacyByProduct.get(p.id)||null};}));
  }catch(e){return apiError(e,"Não foi possível carregar os produtos.");}
 }
-export async function POST(req:Request){try{const actor=await requireRole(["ADMIN","GERENTE"]);const b=schema.parse(await req.json());const p=await db.$transaction(async tx=>{if(b.categoryId&&!await tx.category.findUnique({where:{id:b.categoryId,active:true}}))throw new Error("CATEGORY_NOT_FOUND");if(b.supplierId&&!await tx.supplier.findUnique({where:{id:b.supplierId,active:true}}))throw new Error("SUPPLIER_NOT_FOUND");
- let code=b.code?.trim();if(!code){let n=1;const last=await tx.product.findFirst({where:{code:{startsWith:"P-"}},orderBy:{code:"desc"},select:{code:true}});if(last?.code){const m=last.code.match(/P-(\d+)$/);if(m)n=Number(m[1])+1}code="P-"+String(n).padStart(6,"0");while(await tx.product.findUnique({where:{code}}))code="P-"+String(++n).padStart(6,"0");}
- let barcode=b.barcode?.trim()||"";if(!barcode){const base="20"+String(Date.now()%10000000000).padStart(10,"0");const digits=base.split("").map(Number);const sum=digits.reduce((a,d,i)=>a+d*(i%2===0?1:3),0);barcode=base+String((10-(sum%10))%10);}
- if(await tx.product.findUnique({where:{barcode}}))throw new Error("BARCODE_EXISTS");
- const x=await tx.product.create({data:{code,barcode,description:b.description,brand:b.brand||undefined,model:b.model||undefined,color:b.color||undefined,frameSize:b.frameSize||undefined,lensWidth:b.lensWidth??undefined,bridgeWidth:b.bridgeWidth??undefined,templeLength:b.templeLength??undefined,material:b.material||undefined,frameShape:b.frameShape||undefined,unit:b.unit??"UN",cost:b.cost,salePrice:b.salePrice,minimumStock:b.minimumStock,stockControlled:b.stockControlled??true,categoryId:b.categoryId||undefined,supplierId:b.supplierId||undefined,ncm:b.ncm||undefined,cest:b.cest||undefined,cfop:b.cfop||undefined,origin:b.origin||undefined,taxCode:b.taxCode||undefined}});
- if((b.initialStock??0)>0&&x.stockControlled){const qty=Number(b.initialStock);const lot=await tx.stockLot.create({data:{productId:x.id,description:x.description,quantity:qty,cost:Number(b.cost)}});const movement=await tx.stockMovement.create({data:{productId:x.id,type:"ENTRADA",quantity:qty,unitCost:Number(b.cost),reference:"CADASTRO_INICIAL",referenceId:lot.id,notes:"Estoque inicial no cadastro do produto"}});await tx.stockMovementLot.create({data:{movementId:movement.id,lotId:lot.id,quantity:qty}});}}
- await writeAudit(tx,{action:"CREATE",entity:"Product",entityId:x.id,userId:actor.id,metadata:{code:x.code,barcode:x.barcode,description:x.description,initialStock:b.initialStock||0}});return x;});return NextResponse.json(p,{status:201});}catch(e){if(e instanceof z.ZodError)return NextResponse.json({error:"Dados do produto inválidos."},{status:422});if(e instanceof Error&&(e.message==="CATEGORY_NOT_FOUND"||e.message==="SUPPLIER_NOT_FOUND"))return NextResponse.json({error:e.message==="CATEGORY_NOT_FOUND"?"Categoria não encontrada.":"Fornecedor não encontrado."},{status:404});if(e instanceof Error&&e.message==="BARCODE_EXISTS")return NextResponse.json({error:"Código de barras já cadastrado."},{status:409});return apiError(e,"Não foi possível criar o produto.");}}
+export async function POST(req:Request){
+ try{
+  const actor=await requireRole(["ADMIN","GERENTE"]);
+  const b=schema.parse(await req.json());
+  const product=await db.$transaction(async tx=>{
+   if(b.categoryId){
+    const category=await tx.category.findUnique({where:{id:b.categoryId,active:true}});
+    if(!category) throw new Error("CATEGORY_NOT_FOUND");
+   }
+   if(b.supplierId){
+    const supplier=await tx.supplier.findUnique({where:{id:b.supplierId,active:true}});
+    if(!supplier) throw new Error("SUPPLIER_NOT_FOUND");
+   }
+
+   let code=b.code?.trim();
+   if(!code){
+    let n=1;
+    const last=await tx.product.findFirst({
+     where:{code:{startsWith:"P-"}},
+     orderBy:{code:"desc"},
+     select:{code:true}
+    });
+    if(last?.code){
+     const match=last.code.match(/P-(\d+)$/);
+     if(match) n=Number(match[1])+1;
+    }
+    code="P-"+String(n).padStart(6,"0");
+    while(await tx.product.findUnique({where:{code}})){
+     code="P-"+String(++n).padStart(6,"0");
+    }
+   }
+
+   let barcode=b.barcode?.trim()||"";
+   if(!barcode){
+    const base="20"+String(Date.now()%10000000000).padStart(10,"0");
+    const digits=base.split("").map(Number);
+    const sum=digits.reduce((total,digit,index)=>total+digit*(index%2===0?1:3),0);
+    barcode=base+String((10-(sum%10))%10);
+   }
+   if(await tx.product.findUnique({where:{barcode}})){
+    throw new Error("BARCODE_EXISTS");
+   }
+
+   const product=await tx.product.create({
+    data:{
+     code,
+     barcode,
+     description:b.description,
+     brand:b.brand||undefined,
+     model:b.model||undefined,
+     color:b.color||undefined,
+     frameSize:b.frameSize||undefined,
+     lensWidth:b.lensWidth??undefined,
+     bridgeWidth:b.bridgeWidth??undefined,
+     templeLength:b.templeLength??undefined,
+     material:b.material||undefined,
+     frameShape:b.frameShape||undefined,
+     unit:b.unit??"UN",
+     cost:b.cost,
+     salePrice:b.salePrice,
+     minimumStock:b.minimumStock,
+     stockControlled:b.stockControlled??true,
+     categoryId:b.categoryId||undefined,
+     supplierId:b.supplierId||undefined,
+     ncm:b.ncm||undefined,
+     cest:b.cest||undefined,
+     cfop:b.cfop||undefined,
+     origin:b.origin||undefined,
+     taxCode:b.taxCode||undefined
+    }
+   });
+
+   const initialStock=Number(b.initialStock??0);
+   if(initialStock>0 && product.stockControlled){
+    const lot=await tx.stockLot.create({
+     data:{
+      productId:product.id,
+      description:product.description,
+      quantity:initialStock,
+      cost:Number(b.cost)
+     }
+    });
+    const movement=await tx.stockMovement.create({
+     data:{
+      productId:product.id,
+      type:"ENTRADA",
+      quantity:initialStock,
+      unitCost:Number(b.cost),
+      reference:"CADASTRO_INICIAL",
+      referenceId:lot.id,
+      notes:"Estoque inicial no cadastro do produto"
+     }
+    });
+    await tx.stockMovementLot.create({
+     data:{
+      movementId:movement.id,
+      lotId:lot.id,
+      quantity:initialStock
+     }
+    });
+   }
+
+   await writeAudit(tx,{
+    action:"CREATE",
+    entity:"Product",
+    entityId:product.id,
+    userId:actor.id,
+    metadata:{
+     code:product.code,
+     barcode:product.barcode,
+     description:product.description,
+     initialStock
+    }
+   });
+
+   return product;
+  });
+
+  return NextResponse.json(product,{status:201});
+ }catch(e){
+  if(e instanceof z.ZodError){
+   return NextResponse.json({error:"Dados do produto inválidos."},{status:422});
+  }
+  if(e instanceof Error && (e.message==="CATEGORY_NOT_FOUND" || e.message==="SUPPLIER_NOT_FOUND")){
+   return NextResponse.json({
+    error:e.message==="CATEGORY_NOT_FOUND"?"Categoria não encontrada.":"Fornecedor não encontrado."
+   },{status:404});
+  }
+  if(e instanceof Error && e.message==="BARCODE_EXISTS"){
+   return NextResponse.json({error:"Código de barras já cadastrado."},{status:409});
+  }
+  return apiError(e,"Não foi possível criar o produto.");
+ }
+}
