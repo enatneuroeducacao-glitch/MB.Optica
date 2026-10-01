@@ -29,9 +29,8 @@ const defaults={
 export async function GET(){
   try{
     await requireUser();
-    let config=await db.fiscalConfig.findFirst({orderBy:{updatedAt:"desc"}});
-    if(!config) config={...defaults,id:undefined};
-    return NextResponse.json({config});
+    const config=await db.fiscalConfig.findFirst({orderBy:{updatedAt:"desc"}});
+    return NextResponse.json({config:config ?? defaults});
   }catch(error){return apiError(error,"Não foi possível carregar a configuração fiscal.");}
 }
 
