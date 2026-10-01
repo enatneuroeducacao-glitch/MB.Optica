@@ -17,28 +17,17 @@ type ManagementIndicators={
  alertas:{severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";indicator:string;message:string}[];
  generatedAt:string;
 };
-type EconomicHealth={
- alerts:EconomicAlert[];
- operational:{cashBalance:number;cashOpen:boolean;receivable:number;payable:number;netWorkingCapital:number;overdue:number;todaySales:number;activeProducts:number;lowStock:number;zeroStock:number};
- historical:{billing:number;received:number;receivable:number;payable:number;netWorkingCapital:number;salesCount:number;activeMonths:number;averageMonthlyBilling:number;collectionRate:number|null;top3Share:number;months:{month:number;sales:number;billing:number;received:number}[]};
- positives:string[];
- attention:string[];
- methodology:string[];
- generatedAt:string;
-};
 const statusLabel=(s:string)=>({AGUARDANDO_LABORATORIO:"Aguardando laboratório",EM_PRODUCAO:"Em produção",RECEBIDO:"Recebido",CONFERENCIA:"Conferência",RETORNO_GARANTIA:"Retorno em garantia",PRONTO:"Pronto"} as Record<string,string>)[s]||s;
 
 export default function Dashboard(){
- const [data,setData]=useState<DashboardData|null>(null); const [management,setManagement]=useState<ManagementIndicators|null>(null); const [error,setError]=useState(""); const [health,setHealth]=useState<EconomicHealth|null>(null); const [healthLoading,setHealthLoading]=useState(false);
+ const [data,setData]=useState<DashboardData|null>(null); const [management,setManagement]=useState<ManagementIndicators|null>(null); const [error,setError]=useState("");
  const load=async()=>{try{const r=await fetch("/api/dashboard",{cache:"no-store"});if(!r.ok)throw new Error("Não foi possível carregar o dashboard");setData(await r.json());setError("")}catch(e){setError(e instanceof Error?e.message:"Erro ao carregar dashboard")}};
  const loadManagement=async()=>{try{const r=await fetch("/api/gestao/indicadores",{cache:"no-store"});if(r.ok)setManagement(await r.json())}catch{}};
- const generateEconomicHealth=async()=>{setHealthLoading(true);try{const r=await fetch("/api/dashboard/economic-health",{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.error||"Não foi possível gerar o relatório.");setHealth(d)}catch(e){setError(e instanceof Error?e.message:"Erro ao gerar relatório.")}finally{setHealthLoading(false)}};
-
 
  useEffect(()=>{load();loadManagement()},[]);
  useRealtimeRefresh(()=>{load();loadManagement()},15000);
  return <section className="page">
-  <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a><button className="secondary" onClick={generateEconomicHealth} disabled={healthLoading}>{healthLoading?"Gerando...":"Saúde econômica"}</button></nav></div>
+  <div className="page-heading dashboard-header"><div><span className="eyebrow">MB ÓPTICA</span><h1>Centro de controle</h1><p>Visão operacional atualizada a partir do banco de dados.</p></div><nav className="dashboard-actions"><a className="primary" href="/vendas">+ Nova venda</a><a className="secondary" href="/clientes">+ Novo cliente</a><a className="secondary" href="/pedidos">+ Novo pedido</a><a className="secondary" href="/agenda">Agenda</a><a className="secondary" href="/relatorios">Relatórios</a></nav></div>
   {error&&<div className="panel"><strong>Dashboard indisponível</strong><p>{error}</p></div>}
   {management&&<div className="panel" style={{marginBottom:16}}>
    <div className="panel-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h2>Resumo gerencial</h2><p>Somente os indicadores essenciais para a primeira tela. Análises detalhadas ficam em Relatórios.</p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><span className="version-badge">Atualizado {new Date(management.generatedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span><a className="secondary" href="/relatorios">Ver relatórios</a></div></div>
