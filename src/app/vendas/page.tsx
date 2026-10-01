@@ -25,7 +25,7 @@ export default function Vendas(){
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
  const [saleItems,setSaleItems]=useState<SaleItemForm[]>([]);
- const [customerQuery,setCustomerQuery]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:""}),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
+ const [customerQuery,setCustomerQuery]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:""}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
   const [s,c,p,o,m,pk,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
@@ -53,16 +53,28 @@ if(!form.customerId){setMsg("Cliente é obrigatório.");return}
 if(!saleItems.length){setMsg("Adicione pelo menos um produto/serviço à venda.");return}
 const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
 const selectedPix=form.paymentCondition==="PIX"?pixKeys.find(k=>k.id===form.pixPayload):undefined;
+const mixedPaid=paymentParts.reduce((sum,p)=>sum+Math.max(0,Number(p.amount||0)),0);
+const mixedReceivable=Math.max(0,total-mixedPaid);
+const addPaymentPart=()=>setPaymentParts(prev=>[...prev,{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]);
+const updatePaymentPart=(id:string,patch:Partial<{methodId:string;amount:string;reference:string}>)=>setPaymentParts(prev=>prev.map(p=>p.id===id?{...p,...patch}:p));
+const removePaymentPart=(id:string)=>setPaymentParts(prev=>prev.length>1?prev.filter(p=>p.id!==id):prev.map(p=>p.id===id?{...p,methodId:"",amount:"",reference:""}:p));
 const pixCode=selectedPix?pixPayload(selectedPix,total):form.pixPayload;
 if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
-const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleType:form.saleType,customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,items:saleItems.map(item=>({productId:item.productId,description:item.description,quantity:Number(item.quantity),unitPrice:Number(item.unitPrice),unitCost:Number(item.unitCost||0)})),stock:saleItems.map(item=>({productId:item.productId,quantity:Number(item.quantity)}))})});
+if(form.paymentCondition==="MISTO"){
+ const validParts=paymentParts.filter(p=>Number(p.amount)>0);
+ if(!validParts.length&&mixedReceivable<=0){setMsg("Informe pelo menos um pagamento ou saldo a receber.");return}
+ if(validParts.some(p=>!p.methodId)){setMsg("Selecione o meio de pagamento de cada valor recebido.");return}
+ if(Math.abs(mixedPaid+mixedReceivable-total)>0.01){setMsg("A composição do pagamento não fecha o total da venda.");return}
+ if(mixedReceivable>0&&!form.firstDueDate){setMsg("Informe a data para o saldo a receber.");return}
+}
+const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleType:form.saleType,customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,payments:form.paymentCondition==="MISTO"?paymentParts.filter(p=>Number(p.amount)>0).map(p=>({methodId:p.methodId,amount:Number(p.amount),reference:p.reference||undefined})):undefined,receivable:form.paymentCondition==="MISTO"&&mixedReceivable>0?{amount:mixedReceivable,dueDate:form.firstDueDate,methodId:form.paymentMethodId||undefined}:undefined,items:saleItems.map(item=>({productId:item.productId,description:item.description,quantity:Number(item.quantity),unitPrice:Number(item.unitPrice),unitCost:Number(item.unitCost||0)})),stock:saleItems.map(item=>({productId:item.productId,quantity:Number(item.quantity)}))})});
 const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}
 if(form.paymentCondition!=="CARNÊ"&&form.paymentMethodId){
 const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:pixCode||undefined})});
 const pd=await pr.json();if(!pr.ok)setMsg("Venda criada, mas o recebimento não foi registrado: "+(pd.detail||pd.error||"erro"));else setMsg("Venda #"+d.number+" registrada e recebida.");
 }else setMsg("Venda #"+d.number+" registrada.");
 setOpen(false);
-setForm({saleType:"BALCAO",customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});setSaleItems([]);setCustomerQuery("");setProductQuery("");
+setForm({saleType:"BALCAO",customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});setSaleItems([]);setCustomerQuery("");setProductQuery("");setPaymentParts([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]);
 const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSales=await refreshed.json();if(Array.isArray(refreshedSales)){setSales(refreshedSales);const created=refreshedSales.find((s:any)=>s.id===d.id);if(created)setSelected(created);}
 }; const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:""});await load()};
  const openCash=async()=>{const r=await fetch("/api/cash/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({openingCash:Number(opening||0)})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setOpening("");setMsg("Caixa aberto.");await load()}; const closeCash=async()=>{if(!cash)return;const value=window.prompt("Informe o valor contado no caixa para o fechamento:","0");if(value===null)return;const counted=Number(value.replace(",","."));if(!Number.isFinite(counted)||counted<0){setMsg("Valor de fechamento inválido.");return}const r=await fetch("/api/cash/close",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({closingCash:counted})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}const diff=Number(d.difference||0);setMsg("Caixa fechado. Saldo esperado: "+money(d.expected)+" · Contado: "+money(counted)+" · Diferença: "+money(diff));await load()};
@@ -153,7 +165,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
     <div className="sales-form-grid">
      <label>Forma
       <select value={form.paymentCondition} onChange={e=>setForm({...form,paymentCondition:e.target.value})}>
-       <option value="AVISTA">À vista</option><option value="PIX">PIX</option><option value="CARTAO">Cartão</option><option value="CARNÊ">Crediário / Carnê</option>
+       <option value="AVISTA">À vista</option><option value="PIX">PIX</option><option value="CARTAO">Cartão</option><option value="MISTO">Misto — entrada + saldo / várias formas</option><option value="CARNÊ">Crediário / Carnê</option>
       </select>
      </label>
      <label>Meio de recebimento
@@ -161,6 +173,32 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
        <option value="">Não receber agora</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}{m.isCash?" · caixa":""}</option>)}
       </select>
      </label>
+     {form.paymentCondition==="MISTO"&&<div className="sales-wide" style={{border:"1px solid var(--line)",borderRadius:10,padding:12}}>
+       <div className="sales-payment-title"><b>Composição do pagamento</b><span>Permite receber parte agora e deixar o restante para outra data ou combinar várias formas de pagamento.</span></div>
+       <div style={{display:"grid",gap:8,marginTop:10}}>
+        {paymentParts.map((part,index)=><div key={part.id} style={{display:"grid",gridTemplateColumns:"minmax(180px,1fr) 150px minmax(160px,1fr) auto",gap:8,alignItems:"end"}}>
+          <label style={{margin:0}}>Meio de pagamento
+            <select value={part.methodId} onChange={e=>updatePaymentPart(part.id,{methodId:e.target.value})}><option value="">Selecione</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}{m.isCash?" · caixa":""}</option>)}</select>
+          </label>
+          <label style={{margin:0}}>Valor recebido<input type="number" min="0" step="0.01" value={part.amount} onChange={e=>updatePaymentPart(part.id,{amount:e.target.value})} placeholder="0,00"/></label>
+          <label style={{margin:0}}>Referência<input value={part.reference} onChange={e=>updatePaymentPart(part.id,{reference:e.target.value})} placeholder="NSU, comprovante..."/></label>
+          <button type="button" className="secondary" onClick={()=>removePaymentPart(part.id)}>Remover</button>
+        </div>)}
+       </div>
+       <div className="sales-actions" style={{justifyContent:"space-between",marginTop:10}}>
+        <button type="button" className="secondary" onClick={addPaymentPart}>+ Outra forma de pagamento</button>
+        <b>Recebido agora: {money(mixedPaid)} · Saldo a receber: {money(mixedReceivable)}</b>
+       </div>
+       {mixedReceivable>0&&<div className="sales-form-grid" style={{marginTop:10}}>
+         <label>Vencimento do saldo
+           <input type="date" value={form.firstDueDate} onChange={e=>setForm({...form,firstDueDate:e.target.value})}/>
+         </label>
+         <label>Meio previsto para o saldo
+           <select value={form.paymentMethodId} onChange={e=>setForm({...form,paymentMethodId:e.target.value})}><option value="">Definir depois</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select>
+         </label>
+         <div className="sales-total-box"><span>Saldo programado</span><strong>{money(mixedReceivable)}</strong></div>
+       </div>}
+      </div>}
      {form.paymentCondition==="CARNÊ"&&<><label>Parcelas
        <select value={form.installments} onChange={e=>setForm({...form,installments:e.target.value})}>{Array.from({length:24},(_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select>
       </label><label>Entrada
