@@ -119,7 +119,7 @@ export async function GET(){
       }),
       db.account.findMany({
         where:{type:"PAGAR",status:{in:["PENDENTE","PARCIAL"]},supplierId:{not:null}},
-        select:{supplierId:true,amount:true,paidAmount:true}
+        select:{supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true}
       })
     ]);
 
@@ -394,23 +394,40 @@ export async function GET(){
       return created>=today&&created<tomorrow;
     });
 
-    const supplierMap=new Map<string,{name:string,products:number,payable:number}>();
+    const supplierMap=new Map<string,{name:string,products:number,payable:number,overdue:number}>();
     suppliers.forEach(supplier=>{
       supplierMap.set(supplier.id,{
         name:supplier.name,
         products:supplier.products.length,
-        payable:0
+        payable:0,
+        overdue:0
       });
     });
     supplierAccounts.forEach(account=>{
       if(!account.supplierId)return;
       const current=supplierMap.get(account.supplierId);
-      if(current)current.payable+=Math.max(0,num(account.amount)-num(account.paidAmount));
+      if(!current)return;
+      const open=Math.max(0,num(account.amount)-num(account.paidAmount));
+      current.payable+=open;
+      if(new Date(account.dueDate)<today)current.overdue+=open;
     });
 
+    const totalSupplierPayable=Array.from(supplierMap.values()).reduce((sum,item)=>sum+item.payable,0);
     const supplierIndicators=Array.from(supplierMap.entries())
-      .map(([id,value])=>({id,...value,payable:money(value.payable)}))
+      .map(([id,value])=>({
+        id,
+        name:value.name,
+        products:value.products,
+        payable:money(value.payable),
+        overdue:money(value.overdue),
+        shareOfPayable:totalSupplierPayable>0?money((value.payable/totalSupplierPayable)*100):0
+      }))
       .sort((a,b)=>b.payable-a.payable);
+
+    const suppliersWithoutProducts=supplierIndicators.filter(item=>item.products===0);
+    const supplierPayable30=supplierAccounts.filter(account=>account.supplierId&&new Date(account.dueDate)>=today&&new Date(account.dueDate)<new Date(today.getTime()+30*86400000)).reduce((sum,account)=>sum+Math.max(0,num(account.amount)-num(account.paidAmount)),0);
+    const supplierPayable60=supplierAccounts.filter(account=>account.supplierId&&new Date(account.dueDate)>=new Date(today.getTime()+30*86400000)&&new Date(account.dueDate)<new Date(today.getTime()+60*86400000)).reduce((sum,account)=>sum+Math.max(0,num(account.amount)-num(account.paidAmount)),0);
+    const supplierPayable90=supplierAccounts.filter(account=>account.supplierId&&new Date(account.dueDate)>=new Date(today.getTime()+60*86400000)&&new Date(account.dueDate)<new Date(today.getTime()+90*86400000)).reduce((sum,account)=>sum+Math.max(0,num(account.amount)-num(account.paidAmount)),0);
 
     const alerts:Array<{
       severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";
@@ -466,6 +483,23 @@ export async function GET(){
         indicator:"estoque",
         message:`${lowStock.length} produto(s) estão no nível mínimo ou abaixo dele.`
       });
+    }
+    if(suppliersWithoutProducts.length>0){
+      alerts.push({
+        severity:"INFORMATIVO",
+        indicator:"fornecedores",
+        message:`${suppliersWithoutProducts.length} fornecedor(es) ativo(s) não possuem produtos vinculados.`
+      });
+    }
+    if(supplierIndicators.length>0&&totalSupplierPayable>0){
+      const topShare=supplierIndicators[0].shareOfPayable;
+      if(topShare>=50){
+        alerts.push({
+          severity:"ATENCAO",
+          indicator:"fornecedores",
+          message:`O maior fornecedor concentra ${topShare.toFixed(1).replace(".",",")}% dos compromissos em aberto vinculados a fornecedores.`
+        });
+      }
     }
     if(saleTotal>0&&grossMarginPercent<20){
       alerts.push({
@@ -568,7 +602,12 @@ export async function GET(){
       fornecedores:{
         ativos:suppliers.length,
         comProdutos:suppliers.filter(supplier=>supplier.products.length>0).length,
-        maioresCompromissos:supplierIndicators.slice(0,10)
+        semProdutos:suppliersWithoutProducts.length,
+        totalAPararFornecedores:money(totalSupplierPayable),
+        vencido:money(supplierIndicators.reduce((sum,item)=>sum+item.overdue,0)),
+        concentracao:supplierIndicators.slice(0,10),
+        maioresCompromissos:supplierIndicators.slice(0,10),
+        futuro:{ate30:money(supplierPayable30),de31a60:money(supplierPayable60),de61a90:money(supplierPayable90)}
       },
       vendas:{
         total:sales.length,
