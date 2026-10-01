@@ -71,6 +71,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/users": "usuarios",
   "/api/settings": "configuracoes",
   "/api/fiscal/configuracao": "configuracoes",
+  "/api/fiscal/certificado/verificar": "configuracoes",
   "/api/migration": "migracao",
   "/api/gestao/indicadores": "relatorios",
 };
@@ -91,7 +92,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/orders", "/api/payment-methods", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
     "/api/quotes", "/api/relatorios", "/api/gestao/indicadores", "/api/audit", "/api/users", "/api/settings",
-    "/api/service-orders", "/api/migration",
+    "/api/service-orders", "/api/migration", "/api/fiscal/configuracao", "/api/fiscal/certificado/verificar",
   ],
   VENDEDOR: [
     "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
