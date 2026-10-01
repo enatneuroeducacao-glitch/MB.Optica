@@ -21,12 +21,20 @@ const schema=z.object({
 
 export async function GET(req:Request){
   try{
-    const includeArchived=new URL(req.url).searchParams.get("includeArchived")==="1";
+    const url=new URL(req.url);
+    const includeArchived=url.searchParams.get("includeArchived")==="1";
+    const q=(url.searchParams.get("q")||"").trim();
     await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const data=await db.customer.findMany({
-      where:includeArchived?{}:{active:true},
+      where:{
+        ...(includeArchived?{}:{active:true}),
+        ...(q.length>=2?{OR:[
+          {name:{contains:q,mode:"insensitive"}},
+          {cpfCnpj:{contains:q,mode:"insensitive"}}
+        ]}:{}),
+      },
       orderBy:{name:"asc"},
-      take:500,
+      take:q.length>=2?50:500,
       include:{addresses:true,_count:{select:{orders:true,sales:true,prescriptions:true,accounts:true}}}
     });
     return NextResponse.json(data);
