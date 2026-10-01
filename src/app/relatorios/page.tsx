@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
-const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
+const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","VENDAS","ESTOQUE","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
  const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
@@ -185,6 +185,70 @@ export default function Relatorios(){
       {periodRows.map(([label,x]:any)=><div className="report-row" key={label}><span>{label}</span><span>{money(x?.receber)}</span><span>{money(x?.pagar)}</span><strong>{money(x?.saldoProjetado)}</strong></div>)}
      </div>
      <p style={{lineHeight:1.7,fontSize:13,marginTop:12}}>O saldo projetado representa a diferença entre valores a receber e a pagar em cada faixa. Valores vencidos mostram pressão financeira já existente; as demais faixas mostram compromissos previstos. Esta visão é gerencial e não substitui o fluxo de caixa operacional.</p>
+    </div>
+   </div>;
+ })()}
+ {tab==="INADIMPLÊNCIA"&&(()=>{
+   const i=management?.contas?.inadimplencia;
+   if(!i)return <div className="panel"><div className="panel-heading"><div><span className="eyebrow">FASE 6.8</span><h2>Inadimplência</h2><p>Carregando os indicadores centrais de inadimplência...</p></div></div></div>;
+   const faixas=i.faixas||{};
+   const concentracao=i.concentracaoClientes||[];
+   const evolucao=i.evolucaoPorVencimento||[];
+   const alertas=i.alertas||[];
+   const total=n(i.total);
+   const capitalAjustado=n(i.capitalDeGiroAjustado);
+   return <div className="report-grid-2">
+    <div className="panel full">
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.8</span><h2>Inteligência de inadimplência</h2><p>Análise gerencial dos títulos a receber vencidos, exposição por cliente, atraso, impacto no capital de giro e sinais de atenção.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="report-kpis compact">
+      <Card t="Inadimplência total" v={money(total)} d="contas a receber vencidas"/>
+      <Card t="Títulos vencidos" v={i.titulos} d="em aberto"/>
+      <Card t="% sobre A receber" v={n(i.percentualSobreReceber).toFixed(1)+"%"} d="exposição vencida"/>
+      <Card t="Média de atraso" v={n(i.mediaDiasAtraso).toFixed(1)+" dias"} d="ponderada pelo valor"/>
+      <Card t="Capital de giro ajustado" v={money(capitalAjustado)} d="descontando a inadimplência"/>
+      <Card t="Impacto no capital" v={i.impactoCapitalDeGiro===null?"sem base":n(i.impactoCapitalDeGiro).toFixed(1)+"%"} d="inadimplência / capital de giro"/>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Faixas de atraso</h2><p>Distribuição da carteira vencida por tempo de atraso.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Faixa</span><span>Títulos</span><span>Valor vencido</span><span>Participação</span></div>
+      {[
+       ["1–30 dias",faixas.ate30],
+       ["31–60 dias",faixas.de31a60],
+       ["61–90 dias",faixas.de61a90],
+       ["> 90 dias",faixas.acima90]
+      ].map(([label,x]:any)=><div className="report-row" key={label}><span>{label}</span><span>{x?.quantidade||0}</span><span>{money(x?.valor)}</span><strong>{total>0?((n(x?.valor)/total)*100).toFixed(1)+"%":"—"}</strong></div>)}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Clientes com maior exposição</h2><p>Concentração do valor atualmente vencido por cliente.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Cliente</span><span>Títulos</span><span>Valor vencido</span><span>Participação</span></div>
+      {concentracao.length?concentracao.map((x:any)=><div className="report-row" key={x.customerId||x.customerName}><span>{x.customerName}</span><span>{x.quantidade}</span><span>{money(x.valor)}</span><strong>{total>0?((n(x.valor)/total)*100).toFixed(1)+"%":"—"}</strong></div>):<div className="empty-state">✓ Nenhuma exposição vencida por cliente.</div>}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Alertas de inadimplência</h2><p>Sinais gerenciais derivados da carteira vencida atual.</p></div><span className={alertas.length?"alert-badge":"good-badge"}>{alertas.length} alerta(s)</span></div>
+     <div className="report-table">{alertas.length?alertas.map((x:any,idx:number)=><div className="report-row" key={idx}><strong>{x.severity}</strong><span>{x.indicator}</span><span>{x.message}</span><span>acompanhar</span></div>):<div className="empty-state">✓ Nenhum alerta específico de inadimplência.</div>}</div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Evolução por mês de vencimento</h2><p>Carteira vencida atual agrupada pelo mês em que os títulos venceram.</p></div></div>
+     <div className="report-table"><div className="report-row head"><span>Mês de vencimento</span><span>Títulos</span><span>Valor vencido</span><span>Participação</span></div>
+      {evolucao.map((x:any)=><div className="report-row" key={x.month}><strong>{x.month}</strong><span>{x.quantidade}</span><span>{money(x.valor)}</span><strong>{total>0?((n(x.valor)/total)*100).toFixed(1)+"%":"—"}</strong></div>)}
+     </div>
+     <p style={{lineHeight:1.7,fontSize:13,marginTop:12}}>Esta série mostra a composição atual da inadimplência por mês de vencimento. Ela não representa um histórico diário/mensal de saldos de inadimplência, porque o sistema ainda não mantém snapshots históricos da carteira.</p>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Impacto sobre o capital de giro</h2><p>Leitura gerencial derivada dos valores atualmente em aberto.</p></div></div>
+     <div className="funnel">
+      <div><span>Capital de giro antes da inadimplência</span><strong>{money(n(i.total)+capitalAjustado)}</strong></div>
+      <div><span>Inadimplência descontada</span><strong>{money(total)}</strong></div>
+      <div><span>Capital de giro ajustado</span><strong>{money(capitalAjustado)}</strong></div>
+      <div><span>Impacto percentual</span><strong>{i.impactoCapitalDeGiro===null?"sem base":n(i.impactoCapitalDeGiro).toFixed(1)+"%"}</strong></div>
+     </div>
+    </div>
+    <div className="panel full">
+     <div className="panel-heading"><div><h2>Leitura gerencial</h2><p>Como transformar os indicadores em acompanhamento de gestão.</p></div></div>
+     <p style={{lineHeight:1.8,fontSize:13}}>A inadimplência deve ser acompanhada pelo valor vencido, quantidade de títulos, tempo de atraso e concentração por cliente. Títulos acima de 90 dias representam uma exposição mais antiga e devem ser analisados individualmente. A concentração mostra onde uma cobrança pode ter maior efeito sobre o saldo vencido. O capital de giro ajustado demonstra quanto do saldo líquido de contas deixa de ser tratado como recurso disponível enquanto a carteira vencida permanece sem liquidação.</p>
     </div>
    </div>;
  })()}
