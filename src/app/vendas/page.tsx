@@ -20,7 +20,7 @@ const tlv=(id:string,value:string)=>id+String(value.length).padStart(2,"0")+valu
 const pixPayload=(p:PixKey,amount:number)=>{const merchant=(p.holderName||"MB OPTICA").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,25);const city=(p.city||"JOINVILLE").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,15);let body=tlv("00","01")+tlv("01","12")+tlv("26",tlv("00","BR.GOV.BCB.PIX")+tlv("01",p.key)+(amount>0?tlv("02",money(amount).replace(/[^0-9,]/g,"").replace(",",".")):""))+tlv("52","0000")+tlv("53","986")+tlv("58","BR")+tlv("59",merchant)+tlv("60",city)+tlv("62",tlv("05","***"));const crc=crc16(body+"6304");return body+"6304"+crc};
 
 export default function Vendas(){
- const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]);
+ const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[customerResults,setCustomerResults]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]);
  const [legacy,setLegacy]=useState<LegacyFinancial|null>(null);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
@@ -30,11 +30,23 @@ export default function Vendas(){
  const load=async()=>{
   const [s,c,p,o,m,pk,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
   const [sd,cd,pd,od,md,pkd,ud,csd,lfd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),u.json(),cs.json(),lf.json()]);
-  if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok)setCustomers(Array.isArray(cd)?cd:[]);if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
+  if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok){setCustomers(Array.isArray(cd)?cd:[]);setCustomerResults(Array.isArray(cd)?cd:[]);}if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
   if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);if(lf.ok&&lfd?.ok)setLegacy(lfd);
  };
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
+ useEffect(()=>{
+  const q=customerQuery.trim();
+  if(q.length<2){setCustomerResults(customers);return}
+  const timer=setTimeout(async()=>{
+    try{
+      const r=await fetch("/api/customers?q="+encodeURIComponent(q),{cache:"no-store"});
+      const data=await r.json();
+      if(r.ok&&Array.isArray(data))setCustomerResults(data);
+    }catch{}
+  },180);
+  return ()=>clearTimeout(timer);
+ },[customerQuery,customers]);
  const product=products.find(p=>p.id===form.productId);
  const subtotal=saleItems.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity||0)*Number(item.unitPrice||0)),0);
  const total=Math.max(0,subtotal-Number(form.discount||0)+Number(form.surcharge||0));
@@ -131,7 +143,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
     <label>Cliente
       <input required value={customerQuery} onChange={e=>{const value=e.target.value;setCustomerQuery(value);if(form.customerId&&value!==customers.find(c=>c.id===form.customerId)?.name){setForm({...form,customerId:"",orderId:""});setSaleItems([])}}} placeholder="Pesquisar nome ou CPF/CNPJ..." autoComplete="off"/>
       {customerQuery&&!form.customerId&&<div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:180,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:10}}>
-       {customers.filter(c=>(c.name+" "+(c.cpfCnpj||"")).toLowerCase().includes(customerQuery.toLowerCase())).slice(0,10).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:9,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
+       {customerResults.filter(c=>(c.name+" "+(c.cpfCnpj||"")).toLowerCase().includes(customerQuery.toLowerCase())).slice(0,10).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:9,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
       </div>}
      </label>
     {form.saleType==="PEDIDO_OPTICO"&&<label>Pedido óptico<select required value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Selecione o pedido</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>}
