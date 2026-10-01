@@ -1,6 +1,5 @@
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
-import {Prisma} from "@prisma/client";
 
 const money=(v:any)=>Number(v||0);
 
@@ -13,11 +12,11 @@ export async function GET(){
       db.paymentMethod.findMany({where:{active:true},orderBy:{name:"asc"}})
     ]);
     const today=new Date(); today.setHours(0,0,0,0);
-    const received=sales.flatMap(s=>s.payments).reduce((a,p)=>a+money(p.amount),0);
+    const received=sales.flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
     const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const payable=accounts.filter(a=>a.type==="PAGAR"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO");
-    const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).reduce((a,p)=>a+money(p.amount),0);
+    const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
     const cashOut=cashMovements.filter(m=>["SAIDA","SANGRIA"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
@@ -37,14 +36,75 @@ export async function POST(req:Request){
     if(b.action==="SETTLE_ACCOUNT"){
       const accountId=String(b.accountId||""); const amount=Number(b.amount);
       if(!accountId||!Number.isFinite(amount)||amount<=0) throw new Error("Conta e valor são obrigatórios");
-      const account=await db.account.findUnique({where:{id:accountId}});
-      if(!account) throw new Error("Conta não encontrada");
-      const remaining=Math.max(0,Number(account.amount)-Number(account.paidAmount));
-      if(amount>remaining+0.01) throw new Error("Valor superior ao saldo da conta");
+
       const result=await db.$transaction(async tx=>{
-        const settlement=await tx.accountSettlement.create({data:{accountId,amount,method:b.method||undefined,methodId:b.methodId||undefined,reference:b.reference||undefined,notes:b.notes||undefined}});
-        const paid=Number(account.paidAmount)+amount;
-        const updated=await tx.account.update({where:{id:accountId},data:{paidAmount:paid,status:paid+0.001>=Number(account.amount)?"PAGO":"PARCIAL"}});
+        const account=await tx.account.findUnique({where:{id:accountId}});
+        if(!account) throw new Error("Conta não encontrada");
+        const remaining=Math.max(0,Number(account.amount)-Number(account.paidAmount));
+        if(amount>remaining+0.01) throw new Error("Valor superior ao saldo da conta");
+
+        let payment:any=null;
+        let movement:any=null;
+        if(account.type==="RECEBER"&&account.saleId){
+          const sale=await tx.sale.findUnique({where:{id:account.saleId}});
+          if(!sale||sale.canceled) throw new Error("Venda vinculada não encontrada ou cancelada");
+
+          const methodName=String(b.method||"").trim();
+          const method=b.methodId
+            ? await tx.paymentMethod.findUnique({where:{id:String(b.methodId)}})
+            : methodName
+              ? await tx.paymentMethod.findFirst({where:{active:true,name:{equals:methodName,mode:"insensitive"}}})
+              : null;
+          if(!method||!method.active) throw new Error("Meio de recebimento inválido para a parcela");
+
+          const paid=await tx.payment.aggregate({where:{saleId:sale.id,reversedAt:null},_sum:{amount:true}});
+          const saleRemaining=Number(sale.total)-Number(paid._sum.amount||0);
+          if(amount>saleRemaining+0.01) throw new Error("Recebimento superior ao saldo financeiro da venda");
+
+          payment=await tx.payment.create({
+            data:{
+              saleId:sale.id,
+              methodId:method.id,
+              amount,
+              reference:b.reference||undefined
+            }
+          });
+
+          if(method.isCash){
+            const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
+            if(!session) throw new Error("Não há caixa aberto para receber esta parcela");
+            movement=await tx.cashMovement.create({
+              data:{
+                sessionId:session.id,
+                kind:"ENTRADA",
+                amount,
+                description:"Recebimento da parcela da venda #"+sale.number,
+                referenceId:sale.id
+              }
+            });
+          }
+
+          const settlement=await tx.accountSettlement.create({
+            data:{
+              accountId,
+              amount,
+              method:method.name,
+              methodId:method.id,
+              reference:b.reference||undefined,
+              notes:b.notes||undefined,
+              payment:{connect:{id:payment.id}}
+            }
+          });
+          const paidAmount=Number(account.paidAmount)+amount;
+          const updated=await tx.account.update({where:{id:accountId},data:{paidAmount,status:paidAmount+0.001>=Number(account.amount)?"PAGO":"PARCIAL"}});
+          return {settlement,account:updated,payment,movement};
+        }
+
+        const settlement=await tx.accountSettlement.create({
+          data:{accountId,amount,method:b.method||undefined,methodId:b.methodId||undefined,reference:b.reference||undefined,notes:b.notes||undefined}
+        });
+        const paidAmount=Number(account.paidAmount)+amount;
+        const updated=await tx.account.update({where:{id:accountId},data:{paidAmount,status:paidAmount+0.001>=Number(account.amount)?"PAGO":"PARCIAL"}});
         return {settlement,account:updated};
       });
       return NextResponse.json(result);
