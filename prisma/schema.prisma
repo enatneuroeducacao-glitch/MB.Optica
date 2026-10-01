@@ -368,6 +368,7 @@ id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String?
 sellerId String
+saleType String @default("BALCAO")
 orderId String? @unique
 subtotal Decimal @default(0) @db.Decimal(12,2)
 discount Decimal @default(0) @db.Decimal(12,2)
