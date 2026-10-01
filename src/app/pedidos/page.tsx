@@ -294,7 +294,7 @@ export default function Pedidos(){
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr auto",gap:10,alignItems:"end"}}>
        <label>Produto
         <input required value={q} onChange={e=>{setProductQueries({...productQueries,[index]:e.target.value});setItems(items.map((x:any,i:number)=>i===index?{...x,productId:"",description:e.target.value}:x))}} placeholder="Pesquisar código ou descrição..." autoComplete="off"/>
-        {q&&<div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:150,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:4}}>
+        {q&&!item.productId&&<div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:150,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:4}}>
          {matches.map(p=><button type="button" key={p.id} onClick={()=>chooseProduct(index,p)} style={{display:"block",width:"100%",textAlign:"left",padding:8,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}
         </div>}
        </label>
