@@ -90,7 +90,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/orders", "/api/payment-methods", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
     "/api/quotes", "/api/relatorios", "/api/gestao/indicadores", "/api/audit", "/api/users", "/api/settings",
-    "/api/service-orders", "/api/migration", "/api/gestao/indicadores",
+    "/api/service-orders", "/api/migration",
   ],
   VENDEDOR: [
     "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
