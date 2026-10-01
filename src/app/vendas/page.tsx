@@ -45,6 +45,11 @@ export default function Vendas(){
  const stats=useMemo(()=>{const active=sales.filter(s=>!s.canceled);const gross=active.reduce((a,s)=>a+Number(s.total),0);const paid=active.reduce((a,s)=>a+Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((x:number,p:any)=>x+Number(p.amount),0)||0),0);const today=new Date().toDateString();return {count:active.length,today:active.filter(s=>new Date(s.createdAt).toDateString()===today).reduce((a,s)=>a+Number(s.total),0),paid,pending:Math.max(0,gross-paid)}},[sales]);
  const filtered=sales.filter(s=>{const paid=Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0);const q=(s.number+" "+(s.customer?.name||"")+" "+(s.customer?.cpfCnpj||"")).toLowerCase().includes(search.toLowerCase());const f=filter==="TODAS"||(filter==="ABERTAS"&&!s.canceled&&paid<Number(s.total))||(filter==="PAGAS"&&!s.canceled&&paid>=Number(s.total))||(filter==="CANCELADAS"&&s.canceled);return q&&f});
  const remaining=paying?Math.max(0,Number(paying.total)-Number(paying.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0)):0;
+ const mixedPaid=paymentParts.reduce((sum,p)=>sum+Math.max(0,Number(p.amount||0)),0);
+ const mixedReceivable=Math.max(0,total-mixedPaid);
+ const addPaymentPart=()=>setPaymentParts(prev=>[...prev,{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]);
+ const updatePaymentPart=(id:string,patch:Partial<{methodId:string;amount:string;reference:string}>)=>setPaymentParts(prev=>prev.map(p=>p.id===id?{...p,...patch}:p));
+ const removePaymentPart=(id:string)=>setPaymentParts(prev=>prev.length>1?prev.filter(p=>p.id!==id):prev.map(p=>p.id===id?{...p,methodId:"",amount:"",reference:""}:p));
 
  const submit=async(e:React.FormEvent)=>{
 e.preventDefault();setMsg("");
@@ -53,11 +58,6 @@ if(!form.customerId){setMsg("Cliente é obrigatório.");return}
 if(!saleItems.length){setMsg("Adicione pelo menos um produto/serviço à venda.");return}
 const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
 const selectedPix=form.paymentCondition==="PIX"?pixKeys.find(k=>k.id===form.pixPayload):undefined;
-const mixedPaid=paymentParts.reduce((sum,p)=>sum+Math.max(0,Number(p.amount||0)),0);
-const mixedReceivable=Math.max(0,total-mixedPaid);
-const addPaymentPart=()=>setPaymentParts(prev=>[...prev,{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]);
-const updatePaymentPart=(id:string,patch:Partial<{methodId:string;amount:string;reference:string}>)=>setPaymentParts(prev=>prev.map(p=>p.id===id?{...p,...patch}:p));
-const removePaymentPart=(id:string)=>setPaymentParts(prev=>prev.length>1?prev.filter(p=>p.id!==id):prev.map(p=>p.id===id?{...p,methodId:"",amount:"",reference:""}:p));
 const pixCode=selectedPix?pixPayload(selectedPix,total):form.pixPayload;
 if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
 if(form.paymentCondition==="MISTO"){
