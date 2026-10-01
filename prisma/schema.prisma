@@ -190,6 +190,7 @@ notes String?
 originalText String?
 customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
 orders OpticalOrder[]
+quotes Quote[]
 }
 model Category {
 id String @id @default(cuid())
