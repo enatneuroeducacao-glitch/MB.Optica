@@ -190,7 +190,6 @@ notes String?
 originalText String?
 customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
 orders OpticalOrder[]
-quotes Quote[]
 }
 model Category {
 id String @id @default(cuid())
@@ -361,7 +360,7 @@ orderId String
 status OrderStatus
 message String
 createdAt DateTime @default(now())
-order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
+order OpticalOrder @relation(fields:[orderId],references:[id])
 }
 model Sale {
 id String @id @default(cuid())
@@ -410,7 +409,6 @@ isCash Boolean @default(true)
 payments Payment[]
 settlements AccountSettlement[]
 }
-
 model PixKey {
   id String @id @default(cuid())
   type String
@@ -431,8 +429,10 @@ reference String?
 reversedAt DateTime?
 reversalReference String?
 paidAt DateTime @default(now())
+accountSettlementId String? @unique
 sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
 method PaymentMethod @relation(fields:[methodId],references:[id])
+accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
 }
 model Account {
 id String @id @default(cuid())
@@ -460,8 +460,10 @@ method String?
 methodId String?
 reference String?
 notes String?
+reversedAt DateTime?
 account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
 paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id])
+payment Payment?
 @@index([accountId,paidAt])
 }
 model CashSession {
@@ -508,7 +510,6 @@ model MigrationRun {
   completedAt DateTime?
   legacyRecords LegacyRecord[]
 }
-
 model LegacyRecord {
   id String @id @default(cuid())
   source String @default("BEEPSTART")
@@ -530,8 +531,6 @@ model LegacyRecord {
   @@index([migrationRunId])
   @@index([targetEntity,targetId])
 }
-
-
 model StoreSettings {
   id String @id @default(cuid())
   legalName String?
@@ -554,7 +553,6 @@ model StoreSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
 model Appointment {
   id String @id @default(cuid())
   customerId String
