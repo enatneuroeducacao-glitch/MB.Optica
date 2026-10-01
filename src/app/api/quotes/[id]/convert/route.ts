@@ -12,7 +12,7 @@ export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){
    const quote=await tx.quote.findUnique({where:{id},include:{items:true,order:true}});
    if(!quote)throw new Error("Orçamento não encontrado.");
    if(quote.order)return quote.order;
-   if(quote.status==="CANCELADO"||quote.status==="RECUSADO")throw new Error("Este orçamento não pode ser convertido.");
+   if(quote.status!=="APROVADO")throw new Error("O orçamento precisa estar APROVADO antes de ser convertido em O.S.");
    const order=await tx.opticalOrder.create({
     data:{
      customerId:quote.customerId,prescriptionId:quote.prescriptionId||undefined,sellerId:quote.sellerId||actor.id,
