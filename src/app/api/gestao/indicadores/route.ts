@@ -243,6 +243,45 @@ export async function GET(){
     const payableFuture90=periodAmount(openPayable,90)-periodAmount(openPayable,60);
     const receivableConcentration=openReceivable.slice(0,10);
     const payableConcentration=openPayable.slice(0,10);
+
+    const receivablePending=receivables.filter(account=>account.status==="PENDENTE");
+    const receivablePartial=receivables.filter(account=>account.status==="PARCIAL");
+    const payablePending=payables.filter(account=>account.status==="PENDENTE");
+    const payablePartial=payables.filter(account=>account.status==="PARCIAL");
+
+    const periodBucket=(rows:any[])=>{
+      const buckets={
+        vencido:{receber:0,pagar:0},
+        ate30:{receber:0,pagar:0},
+        de31a60:{receber:0,pagar:0},
+        de61a90:{receber:0,pagar:0}
+      };
+      rows.forEach(row=>{
+        if(!row.dueDate)return;
+        const outstandingAmount=Math.max(0,num(row.amount)-num(row.paidAmount));
+        if(outstandingAmount<=0)return;
+        const days=Math.floor((startOfDay(new Date(row.dueDate)).getTime()-accountNow)/86400000);
+        const side=row.type==="RECEBER"?"receber":"pagar";
+        if(days<0)buckets.vencido[side]+=outstandingAmount;
+        else if(days<=30)buckets.ate30[side]+=outstandingAmount;
+        else if(days<=60)buckets.de31a60[side]+=outstandingAmount;
+        else if(days<=90)buckets.de61a90[side]+=outstandingAmount;
+      });
+      return Object.fromEntries(Object.entries(buckets).map(([key,value])=>[
+        key,
+        {
+          receber:money(value.receber),
+          pagar:money(value.pagar),
+          saldoProjetado:money(value.receber-value.pagar)
+        }
+      ]));
+    };
+
+    const situacaoPorPeriodo=periodBucket([
+      ...receivables.map(row=>({...row,type:"RECEBER"})),
+      ...payables.map(row=>({...row,type:"PAGAR"}))
+    ]);
+
     const receivable=outstanding(receivables);
     const payable=outstanding(payables);
     const overdueReceivable=overdueAccounts
@@ -391,10 +430,19 @@ export async function GET(){
         titulosVencidos:overdueAccounts.length,
         titulosReceber:openReceivable.length,
         titulosPagar:openPayable.length,
+        pendentesReceber:receivablePending.length,
+        parciaisReceber:receivablePartial.length,
+        pendentesPagar:payablePending.length,
+        parciaisPagar:payablePartial.length,
+        valorPendentesReceber:money(outstanding(receivablePending)),
+        valorParciaisReceber:money(outstanding(receivablePartial)),
+        valorPendentesPagar:money(outstanding(payablePending)),
+        valorParciaisPagar:money(outstanding(payablePartial)),
         futuro:{
           receber30:money(receivableFuture30),receber60:money(receivableFuture60),receber90:money(receivableFuture90),
           pagar30:money(payableFuture30),pagar60:money(payableFuture60),pagar90:money(payableFuture90)
         },
+        situacaoPorPeriodo,
         concentracaoReceber:receivableConcentration,
         concentracaoPagar:payableConcentration
       },
