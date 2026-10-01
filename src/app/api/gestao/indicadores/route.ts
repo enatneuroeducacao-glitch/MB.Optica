@@ -105,7 +105,7 @@ export async function GET(){
           status:{in:["PENDENTE","PARCIAL"]},
           dueDate:{lt:today}
         },
-        select:{type:true,amount:true,paidAmount:true,dueDate:true,customerId:true,customer:{select:{name:true}}}
+        select:{id:true,description:true,type:true,amount:true,paidAmount:true,dueDate:true,status:true,customerId:true,customer:{select:{name:true}}}
       }),
       db.cashSession.findMany({
         where:{closedAt:null},
