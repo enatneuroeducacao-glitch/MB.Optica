@@ -141,6 +141,62 @@ async function main() {
   finance = await api("/api/financeiro", { headers });
   assert(Math.abs(money(finance.body.summary.received)) < .01, "saldo financeiro após estornos finais");
 
+  const partialSale = await api("/api/sales", {
+    method: "POST", headers, body: JSON.stringify({
+      customerId: customer.id, sellerId: user.id,
+      items: [{ productId: product.id, description: product.description, quantity: 2, unitPrice: 120, unitCost: 40 }],
+      stock: [{ productId: product.id, quantity: 2 }]
+    })
+  });
+  const partialItemId = partialSale.body.items?.[0]?.id;
+  assert(partialItemId, "item da venda para devolução parcial");
+
+  await api("/api/payments", {
+    method: "POST", headers, body: JSON.stringify({
+      saleId: partialSale.body.id, amount: 240, methodId: cash.id, reference: "CI-PARTIAL-RETURN"
+    })
+  });
+
+  currentLot = await db.stockLot.findUnique({ where: { id: lot.id } });
+  assert(money(currentLot?.quantity) === 8, "baixa de estoque da devolução parcial");
+
+  const partialReturn = await api("/api/sales/" + partialSale.body.id + "/return", {
+    method: "POST", headers, body: JSON.stringify({
+      reason: "Teste integrado de devolução parcial",
+      refundMethodId: cash.id,
+      items: [{ saleItemId: partialItemId, quantity: 1 }]
+    })
+  });
+  assert(Math.abs(money(partialReturn.body.returnAmount) - 120) < .01, "valor da devolução parcial");
+  assert(partialReturn.body.refund?.status === "REEMBOLSADO", "reembolso em dinheiro da devolução parcial");
+
+  currentLot = await db.stockLot.findUnique({ where: { id: lot.id } });
+  assert(money(currentLot?.quantity) === 9, "recomposição parcial do lote original");
+
+  const partialMovement = await db.stockMovement.findFirst({
+    where: { reference: "DEVOLUCAO_PARCIAL", referenceId: partialItemId, type: "DEVOLUCAO" }
+  });
+  assert(partialMovement && Math.abs(money(partialMovement.quantity) - 1) < .01, "movimento de devolução parcial");
+
+  const partialCash = await db.cashSession.findUnique({ where: { id: opened.body.id }, include: { movements: true } });
+  const partialRefundOut = partialCash?.movements.find(m => m.referenceId === partialSale.body.id && m.kind === "SAIDA" && m.description.includes("Reembolso de devolução parcial"));
+  assert(partialRefundOut && Math.abs(money(partialRefundOut.amount) - 120) < .01, "saída de caixa do reembolso parcial");
+
+  let partialOverReturnFailed = false;
+  try {
+    await api("/api/sales/" + partialSale.body.id + "/return", {
+      method: "POST", headers, body: JSON.stringify({
+        reason: "Teste de bloqueio de quantidade",
+        refundMethodId: cash.id,
+        items: [{ saleItemId: partialItemId, quantity: 2 }]
+      })
+    });
+  } catch {
+    partialOverReturnFailed = true;
+  }
+  assert(partialOverReturnFailed, "bloqueio de devolução acima do saldo do item");
+
+
   console.log("INTEGRATION_FINANCIAL_CYCLE: PASS");
   console.log(JSON.stringify({ sale: sale.body.id, stock: money(currentLot?.quantity), received: money(finance.body.summary.received) }));
 }
