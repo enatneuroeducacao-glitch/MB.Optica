@@ -64,6 +64,7 @@ export async function GET(){
           id:true,
           total:true,
           discount:true,
+          surcharge:true,
           createdAt:true,
           sellerId:true,
           items:{select:{quantity:true,unitCost:true,total:true}}
@@ -73,7 +74,9 @@ export async function GET(){
         where:{canceled:false,createdAt:{gte:previousMonthStart,lt:monthStart}},
         select:{
           total:true,
-          items:{select:{quantity:true,unitCost:true,total:true}}
+          discount:true,
+          surcharge:true,
+          items:{select:{quantity:true,unitCost:true,total:true,product:{select:{id:true,code:true,description:true}}}}
         }
       }),
       db.product.findMany({
@@ -130,6 +133,9 @@ export async function GET(){
     );
     const grossMargin=saleTotal-saleCost;
     const grossMarginPercent=saleTotal>0?(grossMargin/saleTotal)*100:0;
+    const discountTotal=sales.reduce((sum,sale)=>sum+num(sale.discount),0);
+    const grossSalesBeforeDiscount=sales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((lineSum,item)=>lineSum+num(item.total),0)+num(sale.surcharge),0);
+    const discountPercent=grossSalesBeforeDiscount>0?(discountTotal/grossSalesBeforeDiscount)*100:0;
 
     const previousTotal=previousMonthSales.reduce((sum,sale)=>sum+num(sale.total),0);
     const previousCost=previousMonthSales.reduce(
@@ -140,6 +146,33 @@ export async function GET(){
       0
     );
     const previousMargin=previousTotal-previousCost;
+    const previousDiscountTotal=previousMonthSales.reduce((sum,sale)=>sum+num(sale.discount),0);
+    const previousGrossSalesBeforeDiscount=previousMonthSales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((lineSum,item)=>lineSum+num(item.total),0)+num(sale.surcharge),0);
+    const previousMarginPercent=previousTotal>0?(previousMargin/previousTotal)*100:0;
+    const marginVariationPoints=grossMarginPercent-previousMarginPercent;
+    const marginVariationPercent=previousMarginPercent!==0?(marginVariationPoints/Math.abs(previousMarginPercent))*100:null;
+
+    const productMarginMap=new Map<string,{id:string,code:string,description:string,revenue:number,cost:number,quantity:number}>();
+    sales.forEach(sale=>{
+      (sale.items||[]).forEach(item=>{
+        const product=item.product;
+        if(!product?.id)return;
+        const current=productMarginMap.get(product.id)||{id:product.id,code:product.code,description:product.description,revenue:0,cost:0,quantity:0};
+        current.revenue+=num(item.total);
+        current.cost+=num(item.unitCost)*num(item.quantity);
+        current.quantity+=num(item.quantity);
+        productMarginMap.set(product.id,current);
+      });
+    });
+    const productMargins=Array.from(productMarginMap.values()).map(item=>({
+      ...item,
+      margin:money(item.revenue-item.cost),
+      marginPercent:money(item.revenue>0?((item.revenue-item.cost)/item.revenue)*100:0)
+    }));
+    const insufficientMarginProducts=productMargins
+      .filter(item=>item.revenue>0&&item.marginPercent<20)
+      .sort((a,b)=>a.marginPercent-b.marginPercent)
+      .slice(0,50);
 
     const stock=products.map(product=>{
       const quantity=stockQuantity(product);
@@ -158,6 +191,10 @@ export async function GET(){
     });
 
     const lowStock=stock.filter(item=>item.quantity>0&&item.quantity<=item.minimumStock);
+    const belowCostProducts=stock
+      .filter(item=>item.salePrice>0&&item.salePrice<item.cost)
+      .map(item=>({id:item.id,code:item.code,description:item.description,cost:item.cost,salePrice:item.salePrice,difference:money(item.salePrice-item.cost)}))
+      .slice(0,50);
     const zeroStock=stock.filter(item=>item.quantity<=0);
     const negativeStock=stock.filter(item=>item.quantity<0);
 
@@ -279,7 +316,15 @@ export async function GET(){
         custo:money(saleCost),
         margemBruta:money(grossMargin),
         margemBrutaPercentual:money(grossMarginPercent),
-        margemMesAnterior:money(previousMargin)
+        margemMesAnterior:money(previousMargin),
+        margemMesAnteriorPercentual:money(previousMarginPercent),
+        variacaoPontosPercentuais:money(marginVariationPoints),
+        variacaoPercentual:marginVariationPercent===null?null:money(marginVariationPercent),
+        descontos:money(discountTotal),
+        descontoPercentual:money(discountPercent),
+        descontoMesAnterior:money(previousDiscountTotal),
+        produtosInsuficientes:insufficientMarginProducts,
+        produtosAbaixoDoCusto:belowCostProducts
       },
       estoque:{
         produtosAtivos:stock.length,
