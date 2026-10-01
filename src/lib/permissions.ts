@@ -71,6 +71,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/users": "usuarios",
   "/api/settings": "configuracoes",
   "/api/migration": "migracao",
+  "/api/gestao/indicadores": "relatorios",
 };
 
 export const API_PUBLIC_AUTHENTICATED = new Set([
