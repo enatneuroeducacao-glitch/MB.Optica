@@ -28,8 +28,14 @@ export async function POST(request:Request){
     ]);
     const cpfMap=new Map<string,string[]>(), namePhoneMap=new Map<string,string[]>(), nameMap=new Map<string,string[]>();
     for(const c of existingCustomers){if(c.cpfCnpj)add(cpfMap,norm(c.cpfCnpj),c.id);if(c.phone)add(namePhoneMap,norm(c.name)+"|"+norm(c.phone),c.id);if(c.name)add(nameMap,norm(c.name),c.id);}
+    const customerIds=new Set(existingCustomers.map(c=>c.id));
+    const productIds=new Set(existingProducts.map(p=>p.id));
     const reconciledMap=new Map<string,{targetEntity:string|null;targetId:string|null;status:string}>();
-    for(const l of existingLegacyRecords){if(l.collectionKey&&l.legacyId)reconciledMap.set(String(l.collectionKey)+":"+String(l.legacyId),{targetEntity:l.targetEntity,targetId:l.targetId,status:l.status});}
+    for(const l of existingLegacyRecords){
+      if(!l.collectionKey||!l.legacyId||!l.targetId)continue;
+      const targetExists=l.targetEntity==="Customer"?customerIds.has(String(l.targetId)):l.targetEntity==="Product"?productIds.has(String(l.targetId)):true;
+      if(targetExists)reconciledMap.set(String(l.collectionKey)+":"+String(l.legacyId),{targetEntity:l.targetEntity,targetId:l.targetId,status:l.status});
+    }
     const codeMap=new Map<string,string[]>(), barcodeMap=new Map<string,string[]>(), identityMap=new Map<string,string[]>(), descBrandMap=new Map<string,string[]>();
     for(const p of existingProducts){if(p.code)add(codeMap,norm(p.code),p.id);if(p.barcode)add(barcodeMap,norm(p.barcode),p.id);add(identityMap,norm(p.description)+"|"+norm(p.brand)+"|"+norm(p.model),p.id);add(descBrandMap,norm(p.description)+"|"+norm(p.brand),p.id);}
     const sourceCpf=new Map<string,number>(),sourceBarcode=new Map<string,number>(),sourceCode=new Map<string,number>();
