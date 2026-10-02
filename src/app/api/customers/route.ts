@@ -24,7 +24,7 @@ export async function GET(req:Request){
     const url=new URL(req.url);
     const includeArchived=url.searchParams.get("includeArchived")==="1";
     const q=(url.searchParams.get("q")||"").trim();
-    await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
+    await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]);
     const data=await db.customer.findMany({
       where:{
         ...(includeArchived?{}:{active:true}),
