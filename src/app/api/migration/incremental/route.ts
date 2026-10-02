@@ -119,9 +119,13 @@ export async function POST(request: Request) {
       }
 
       const existingLegacySet = new Set(existingLegacy.map(x => x.legacyKey));
+      const customerIds = new Set(existingCustomers.map(x => x.id));
+      const productIds = new Set(existingProducts.map(x => x.id));
       const existingLegacyIdentity = new Map<string, { entity: string | null; id: string | null; status: string }>();
       for (const x of existingLegacy) {
-        if (x.collectionKey && x.legacyId) existingLegacyIdentity.set(String(x.collectionKey) + ":" + String(x.legacyId), { entity: x.targetEntity, id: x.targetId, status: x.status });
+        if (!x.collectionKey || !x.legacyId || !x.targetId) continue;
+        const targetExists = x.targetEntity === "Customer" ? customerIds.has(String(x.targetId)) : x.targetEntity === "Product" ? productIds.has(String(x.targetId)) : true;
+        if (targetExists) existingLegacyIdentity.set(String(x.collectionKey) + ":" + String(x.legacyId), { entity: x.targetEntity, id: x.targetId, status: x.status });
       }
       const target = new Map<string, { entity: string; id: string; status: string }>();
       const warnings: string[] = [];
