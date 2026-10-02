@@ -38,13 +38,34 @@ export default function Vendas(){
  useEffect(()=>{
   const q=customerQuery.trim();
   if(q.length<2){setCustomerError("");setCustomerResults(customers);return}
+
+  // Mostra imediatamente os clientes já carregados no navegador e, em seguida,
+  // confirma a busca no banco. Isso evita que uma falha momentânea da API deixe
+  // o PDV com a mensagem "Nenhum cliente encontrado" quando o cliente existe.
+  const normalized=q.toLocaleLowerCase("pt-BR");
+  const localMatches=customers.filter(c=>{
+    const name=String(c.name||"").toLocaleLowerCase("pt-BR");
+    const document=String(c.cpfCnpj||"").toLocaleLowerCase("pt-BR");
+    return name.includes(normalized)||document.includes(normalized);
+  });
+  setCustomerError("");
+  setCustomerResults(localMatches);
+
   const timer=setTimeout(async()=>{
     try{
-      const r=await fetch("/api/customers?q="+encodeURIComponent(q),{cache:"no-store"});
+      const r=await fetch("/api/customers?q="+encodeURIComponent(q),{cache:"no-store",credentials:"same-origin"});
       const data=await r.json();
-      if(r.ok&&Array.isArray(data)){setCustomerError("");setCustomerResults(data)}else setCustomerError(data?.error||"Não foi possível consultar os clientes.");
-    }catch{}
-  },180);
+      if(r.ok&&Array.isArray(data)){
+        // Se o servidor retornar vazio por uma falha de sincronização/cache,
+        // preserva os resultados locais que já foram encontrados.
+        if(data.length>0||localMatches.length===0)setCustomerResults(data);
+      }else{
+        setCustomerError(data?.error||"Não foi possível consultar os clientes.");
+      }
+    }catch(error){
+      if(localMatches.length===0)setCustomerError("Não foi possível consultar os clientes agora.");
+    }
+  },250);
   return ()=>clearTimeout(timer);
  },[customerQuery,customers]);
  const product=products.find(p=>p.id===form.productId);
