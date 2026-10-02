@@ -140,10 +140,11 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
        <option value="PRODUTOS">Venda de produtos</option>
       </select>
     </label>
-    <label>Cliente
+    <label style={{position:"relative"}}>Cliente
       <input required value={customerQuery} onChange={e=>{const value=e.target.value;setCustomerQuery(value);if(form.customerId&&value!==customers.find(c=>c.id===form.customerId)?.name){setForm({...form,customerId:"",orderId:""});setSaleItems([])}}} placeholder="Pesquisar nome ou CPF/CNPJ..." autoComplete="off"/>
-      {customerQuery&&!form.customerId&&<div style={{border:"1px solid var(--line)",borderRadius:8,maxHeight:180,overflowY:"auto",background:"var(--surface)",position:"relative",zIndex:10}}>
-       {customerResults.filter(c=>(c.name+" "+(c.cpfCnpj||"")).toLowerCase().includes(customerQuery.toLowerCase())).slice(0,10).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:9,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
+      {customerQuery.trim().length>=2&&!form.customerId&&<div style={{position:"absolute",left:0,right:0,top:"calc(100% + 4px)",border:"1px solid var(--line)",borderRadius:8,maxHeight:220,overflowY:"auto",background:"var(--surface)",zIndex:1000,boxShadow:"0 10px 30px rgba(15,23,42,.16)"}}>
+       {customerResults.slice(0,10).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:10,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
+       {!customerResults.length&&<div style={{padding:10,color:"var(--muted)",fontSize:12}}>Nenhum cliente encontrado.</div>}
       </div>}
      </label>
     {form.saleType==="PEDIDO_OPTICO"&&<label>Pedido óptico<select required value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Selecione o pedido</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>}
