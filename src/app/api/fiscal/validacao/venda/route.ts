@@ -5,8 +5,25 @@ import {apiError} from "@/lib/api-error";
 
 const ENVIRONMENTS=["HOMOLOGACAO","PRODUCAO"];
 const MODES=["NFF","NFAE_SAT","PAF_NFCE","MANUAL"];
+const TAX_REGIMES=["SIMEI","SIMPLES_NACIONAL","LUCRO_PRESUMIDO","LUCRO_REAL"];
+const CERTIFICATE_TYPES=["A1","A3","SE-S","SE-H"];
 
 function digits(value:any){return String(value??"").replace(/\D/g,"");}
+
+function isValidCnpj(value:string){
+  const cnpj=digits(value);
+  if(cnpj.length!==14||/^([0-9])\\1{13}$/.test(cnpj))return false;
+  let sum=0;
+  let weight=5;
+  for(let i=0;i<12;i++){sum+=Number(cnpj[i])*weight;weight=weight===2?9:weight-1;}
+  let digit=sum%11<2?0:11-(sum%11);
+  if(digit!==Number(cnpj[12]))return false;
+  sum=0;
+  weight=6;
+  for(let i=0;i<13;i++){sum+=Number(cnpj[i])*weight;weight=weight===2?9:weight-1;}
+  digit=sum%11<2?0:11-(sum%11);
+  return digit===Number(cnpj[13]);
+}
 
 function addIssue(list:any[],code:string,message:string,blocking=true){
   list.push({code,message,blocking});
@@ -24,17 +41,21 @@ function validateSale(sale:any,config:any,certificate:any,store:any){
     const cnpj=digits(config.cnpj);
     if(!cnpj) add("EMITENTE_CNPJ","CNPJ do emitente não informado.");
     else if(cnpj.length!==14) add("EMITENTE_CNPJ_INVALIDO","CNPJ do emitente deve conter 14 dígitos.");
+    else if(!isValidCnpj(cnpj)) add("EMITENTE_CNPJ_INVALIDO","CNPJ do emitente possui dígitos verificadores inválidos.");
     if(!config.stateRegistration) add("EMITENTE_IE","Inscrição estadual não informada.");
     if(!config.uf||!/^[A-Z]{2}$/.test(String(config.uf).toUpperCase())) add("EMITENTE_UF","UF do emitente não informada ou inválida.");
     if(!config.city) add("EMITENTE_CIDADE","Município do emitente não informado.");
     if(!config.taxRegime) add("REGIME_TRIBUTARIO","Regime tributário não informado.");
+    else if(!TAX_REGIMES.includes(String(config.taxRegime))) add("REGIME_TRIBUTARIO_INVALIDO","Regime tributário informado não é reconhecido pelo cadastro fiscal.");
     if(!MODES.includes(String(config.integrationMode))) add("MODO_INTEGRACAO","Modo de integração fiscal inválido.");
     if(!config.series) add("SERIE","Série fiscal não informada.");
+    else if(!/^\\d{1,3}$/.test(String(config.series).trim()) || Number(config.series)<1) add("SERIE_INVALIDA","Série fiscal deve ser numérica e estar entre 1 e 999.");
     if(!ENVIRONMENTS.includes(String(config.environment))) add("AMBIENTE","Ambiente fiscal inválido.");
   }
 
   if(!certificate?.secretReference) add("CERT_REFERENCIA","Referência do certificado/segredo não cadastrada.");
   if(!certificate?.certificateType) add("CERT_TIPO","Tipo do certificado não cadastrado.");
+  else if(!CERTIFICATE_TYPES.includes(String(certificate.certificateType))) add("CERT_TIPO_INVALIDO","Tipo do certificado não é reconhecido.");
   if(!certificate?.certificateExpiresAt) add("CERT_VALIDADE","Validade do certificado não cadastrada.");
   if(certificate?.certificateExpiresAt){
     const days=Math.ceil((new Date(certificate.certificateExpiresAt).getTime()-Date.now())/86400000);
@@ -62,16 +83,19 @@ function validateSale(sale:any,config:any,certificate:any,store:any){
     if(!Number.isFinite(subtotal)||subtotal<0) add("SUBTOTAL","Subtotal da venda é inválido.");
     if(!Number.isFinite(discount)||discount<0) add("DESCONTO","Desconto da venda é inválido.");
     if(!Number.isFinite(surcharge)||surcharge<0) add("ACRESCIMO","Acréscimo da venda é inválido.");
+    if(Number.isFinite(subtotal)&&Number.isFinite(discount)&&discount>subtotal) add("DESCONTO_EXCEDE_SUBTOTAL","Desconto da venda não pode exceder o subtotal.");
     if(Number.isFinite(subtotal)&&Number.isFinite(discount)&&Number.isFinite(surcharge)&&Number.isFinite(total)){
       const expected=Math.max(0,subtotal-discount+surcharge);
       if(Math.abs(expected-total)>0.01) add("TOTAL_INCONSISTENTE","Total da venda não corresponde ao subtotal, desconto e acréscimo.");
     }
 
     if(!sale.items?.length) add("ITENS","A venda não possui itens.");
+    let itemsTotal=0;
     for(const [index,item] of (sale.items||[]).entries()){
       const prefix="ITEM_"+(index+1);
       const quantity=Number(item.quantity);
       const unitPrice=Number(item.unitPrice);
+      const itemDiscount=Number(item.discount);
       const lineTotal=Number(item.total);
       if(!item.product) add(prefix+"_PRODUTO","Item "+(index+1)+" não está vinculado a um produto fiscal.");
       else{
@@ -92,8 +116,16 @@ function validateSale(sale:any,config:any,certificate:any,store:any){
       }
       if(!Number.isFinite(quantity)||quantity<=0) add(prefix+"_QUANTIDADE","Quantidade do item "+(index+1)+" deve ser maior que zero.");
       if(!Number.isFinite(unitPrice)||unitPrice<0) add(prefix+"_VALOR_UNITARIO","Valor unitário do item "+(index+1)+" é inválido.");
+      if(!Number.isFinite(itemDiscount)||itemDiscount<0) add(prefix+"_DESCONTO","Desconto do item "+(index+1)+" é inválido.");
+      if(Number.isFinite(quantity)&&quantity>0&&Number.isFinite(unitPrice)&&unitPrice>=0&&Number.isFinite(itemDiscount)&&itemDiscount>=0&&itemDiscount>quantity*unitPrice) add(prefix+"_DESCONTO_EXCEDE_ITEM","Desconto do item "+(index+1)+" não pode exceder o valor bruto do item.");
       if(!Number.isFinite(lineTotal)||lineTotal<0) add(prefix+"_TOTAL_ITEM","Total do item "+(index+1)+" é inválido.");
+      if(Number.isFinite(quantity)&&quantity>0&&Number.isFinite(unitPrice)&&unitPrice>=0&&Number.isFinite(itemDiscount)&&itemDiscount>=0&&Number.isFinite(lineTotal)){
+        const expectedLine=Math.max(0,quantity*unitPrice-itemDiscount);
+        if(Math.abs(expectedLine-lineTotal)>0.01) add(prefix+"_TOTAL_ITEM_INCONSISTENTE","Total do item "+(index+1)+" não corresponde à quantidade, valor unitário e desconto.");
+      }
+      if(Number.isFinite(lineTotal)&&lineTotal>=0) itemsTotal+=lineTotal;
     }
+    if((sale.items||[]).length&&Number.isFinite(subtotal)&&Math.abs(itemsTotal-subtotal)>0.01) add("SUBTOTAL_INCONSISTENTE","Subtotal da venda não corresponde à soma dos itens.");
   }
 
   if(store){
