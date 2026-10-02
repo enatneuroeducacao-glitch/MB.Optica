@@ -12,7 +12,7 @@ function digits(value:any){return String(value??"").replace(/\D/g,"");}
 
 function isValidCnpj(value:string){
   const cnpj=digits(value);
-  if(cnpj.length!==14||/^([0-9])\\1{13}$/.test(cnpj))return false;
+  if(cnpj.length!==14||/^([0-9])\1{13}$/.test(cnpj))return false;
   let sum=0;
   let weight=5;
   for(let i=0;i<12;i++){sum+=Number(cnpj[i])*weight;weight=weight===2?9:weight-1;}
@@ -49,7 +49,7 @@ function validateSale(sale:any,config:any,certificate:any,store:any){
     else if(!TAX_REGIMES.includes(String(config.taxRegime))) add("REGIME_TRIBUTARIO_INVALIDO","Regime tributário informado não é reconhecido pelo cadastro fiscal.");
     if(!MODES.includes(String(config.integrationMode))) add("MODO_INTEGRACAO","Modo de integração fiscal inválido.");
     if(!config.series) add("SERIE","Série fiscal não informada.");
-    else if(!/^\\d{1,3}$/.test(String(config.series).trim()) || Number(config.series)<1) add("SERIE_INVALIDA","Série fiscal deve ser numérica e estar entre 1 e 999.");
+    else if(!/^\d{1,3}$/.test(String(config.series).trim()) || Number(config.series)<1) add("SERIE_INVALIDA","Série fiscal deve ser numérica e estar entre 1 e 999.");
     if(!ENVIRONMENTS.includes(String(config.environment))) add("AMBIENTE","Ambiente fiscal inválido.");
   }
 
