@@ -5,7 +5,7 @@ type Candidate={legacyKey:string;legacyId:string|null;name?:string;document?:str
 type Preview={fingerprint:string;totalRecords:number;customerSource:number;productSource:number;otherRecords:number;customers:Candidate[];products:Candidate[];customerCounts:Record<string,number>;productCounts:Record<string,number>};
 type Result={fingerprint:string;backupFingerprint?:string;selectionFingerprint?:string;totalRecords:number;customerSource:number;customerCreated:number;customerMatched:number;productSource:number;productCreated:number;productMatched:number;legacyCreated:number};
 
-const statusLabel=(s:string)=>s==="RECONCILED"?"✓ Produto já reconciliado":s==="MATCHED"?"Correspondência segura":s==="REVIEW"?"Revisar":"Sem correspondência";
+const statusLabel=(s:string)=>s==="RECONCILED"?"✓ Já reconciliado":s==="MATCHED"?"Correspondência segura":s==="REVIEW"?"Revisar":"Sem correspondência";
 const statusTone=(s:string)=>s==="RECONCILED"?"#0b6b57":s==="MATCHED"?"#087f73":s==="REVIEW"?"#9a6500":"#17324d";
 
 export default function Page(){
