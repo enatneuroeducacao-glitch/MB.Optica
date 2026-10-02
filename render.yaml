@@ -1,0 +1,21 @@
+# Render Blueprint for MB Óptica Gestão Inteligente
+# Production service definition. Secrets are intentionally not stored here.
+services:
+  - type: web
+    name: mb-optica-gestao
+    runtime: docker
+    plan: free
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    domains:
+      - gestao.mboptica.com.br
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
