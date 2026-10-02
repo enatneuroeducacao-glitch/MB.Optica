@@ -235,7 +235,7 @@ export async function POST(req:Request){
 
       await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
       return {...sale,accounts:createdAccounts,entryPayment};
-    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+    },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:20000});
 
     return NextResponse.json(result,{status:201});
   }catch(error){
