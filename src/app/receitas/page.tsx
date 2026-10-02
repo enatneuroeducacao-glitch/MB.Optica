@@ -32,8 +32,8 @@ async function printManualOS(){
  <div class="field full">Endereço: __________________________________________________________________________________________</div>
  </div></div>
  <div class="section"><h2>Receita / Medidas</h2><div class="rx">
- <div class="eye"><h3>OE — OLHO ESQUERDO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
  <div class="eye"><h3>OD — OLHO DIREITO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
+ <div class="eye"><h3>OE — OLHO ESQUERDO</h3><div class="line"><div class="field">ESF: __________</div><div class="field">CIL: __________</div><div class="field">AX: __________</div><div class="field">ADD: __________</div><div class="field">PRISMA: _______</div><div class="field">BASE: _________</div><div class="field">DNP: __________</div><div class="field">ALTURA: _______</div></div></div>
  </div><div class="fields" style="margin-top:7px"><div class="field">DP TOTAL: __________________</div><div class="field">PROFISSIONAL: ______________________________</div></div></div>
  <div class="section"><h2>Venda / Serviço</h2><div class="sale">
  <div class="field">O.S. Nº: ${osNumber}</div><div class="field">Pedido Nº: ________________</div><div class="field">Vendedor: __________________</div>
