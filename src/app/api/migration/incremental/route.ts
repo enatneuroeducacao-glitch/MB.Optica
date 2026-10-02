@@ -252,7 +252,7 @@ export async function POST(request: Request) {
           source: "BEEPSTART",
           collectionKey: String(r.collection_key ?? "SEM_COLLECTION"),
           legacyId: idOf(r),
-          legacyKey: legacyKey(r, fingerprint),
+          legacyKey: legacyKey(r, backupFingerprint),
           payload: r,
           customerId: t?.entity === "Customer" && t.id ? t.id : null,
           migrationRunId: run.id,
