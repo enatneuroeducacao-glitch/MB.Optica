@@ -128,6 +128,7 @@ mustChangePassword Boolean @default(false)
 sessionVersion Int @default(0)
 lastLoginAt DateTime?
 permissions Json?
+passwordResetTokens PasswordResetToken[]
 sales Sale[]
 orders OpticalOrder[]
 quotes Quote[]
