@@ -82,6 +82,8 @@ export const API_PUBLIC_AUTHENTICATED = new Set([
   "/api/health",
   "/api/auth/me",
   "/api/auth/change-password",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
   "/api/branding",
   "/api/version",
 ]);
