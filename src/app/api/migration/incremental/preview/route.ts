@@ -47,7 +47,13 @@ export async function POST(request:Request){
       const cpfHits=cpf?(cpfMap.get(norm(cpf))??[]):[],npHits=phone?(namePhoneMap.get(norm(name)+"|"+norm(phone))??[]):[],nameHits=name?(nameMap.get(norm(name))??[]):[];
       let status="NEW",method="",matchedId="",reason="Nenhuma correspondência segura encontrada.";
       const reconciled=reconciledMap.get("Cliente:"+(c.id==null?"":String(c.id)));
-      if(reconciled){status="RECONCILED";method="Reconciliação já concluída";matchedId=reconciled.targetId||"";reason="Este registro já foi reconciliado anteriormente e não será incluído novamente."}
+      const historicalTarget=reconciled?.targetId||"";
+      const historicalMatches=historicalTarget && (
+        cpfHits.includes(historicalTarget) ||
+        npHits.includes(historicalTarget) ||
+        (nameHits.includes(historicalTarget) && !cpf && !phone)
+      );
+      if(historicalMatches){status="RECONCILED";method="Reconciliação já concluída";matchedId=historicalTarget;reason="O registro foi reconciliado anteriormente e o destino histórico ainda corresponde ao cadastro atual."}
       else if(cpf&&(sourceCpf.get(norm(cpf))??0)>1){status="REVIEW";method="CPF/CNPJ duplicado no backup";reason="O mesmo documento aparece em mais de um registro do backup.";}
       else if(cpfHits.length===1){status="MATCHED";method="CPF/CNPJ exato";matchedId=cpfHits[0];reason="Correspondência segura.";}
       else if(cpfHits.length>1){status="REVIEW";method="CPF/CNPJ ambíguo";reason="Há mais de um cadastro atual com este documento.";}
