@@ -10,9 +10,11 @@ function hashToken(token: string) {
 }
 
 function appUrl(request: Request) {
-  return (process.env.APP_URL || new URL(request.url).origin).replace(/\/$/, "");
+  const configured = process.env.APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  if (process.env.NODE_ENV === "production") return "https://gestao.mboptica.com.br";
+  return new URL(request.url).origin.replace(/\/$/, "");
 }
-
 async function sendResetEmail(to: string, resetUrl: string) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM;
