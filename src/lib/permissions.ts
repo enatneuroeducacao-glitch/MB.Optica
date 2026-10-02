@@ -74,6 +74,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/fiscal/certificado/verificar": "configuracoes",
   "/api/fiscal/produtos/diagnostico": "produtos",
   "/api/fiscal/validacao/venda": "vendas",
+  "/api/fiscal/homologacao": "configuracoes",
   "/api/migration": "migracao",
   "/api/gestao/indicadores": "relatorios",
 };
@@ -97,7 +98,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
     "/api/quotes", "/api/relatorios", "/api/gestao/indicadores", "/api/audit", "/api/users", "/api/settings",
     "/api/service-orders", "/api/migration", "/api/fiscal/configuracao", "/api/fiscal/certificado/verificar",
-    "/api/fiscal/produtos/diagnostico", "/api/fiscal/validacao/venda",
+    "/api/fiscal/produtos/diagnostico", "/api/fiscal/validacao/venda", "/api/fiscal/homologacao",
   ],
   VENDEDOR: [
     "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
@@ -138,6 +139,7 @@ export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/cash", ["ADMIN", "GERENTE", "FINANCEIRO"]],
   ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
   ["/api/migration", ["ADMIN"]],
+  ["/api/fiscal/homologacao", ["ADMIN", "GERENTE"]],
 ];
 
 export function effectivePermissions(role: string, explicit: unknown) {
