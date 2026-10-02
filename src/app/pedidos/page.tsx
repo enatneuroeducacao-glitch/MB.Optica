@@ -60,11 +60,11 @@ function printLabAndOS(o:Order){
    <div class="full"><b>Receita / profissional</b><br>${esc(r?.professional||"—")} — Receita de ${esc(dateBR(r?.date))} — Validade: ${esc(dateBR(r?.validUntil))}</div>
   </div>
   <div class="section"><h2>Especificação óptica</h2><div style="font-size:8.5px;color:#555;margin-bottom:6px">Referência: OD = olho direito do cliente · OE = olho esquerdo do cliente. Ordem apresentada: OD → OE.</div><div class="rx">
-   <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table>
-    <tr><td>Esférico (ESF)</td><td>${esc(eye("oe","Sphere"))}</td></tr><tr><td>Cilíndrico (CIL)</td><td>${esc(eye("oe","Cylinder"))}</td></tr><tr><td>Eixo (AX)</td><td>${esc(eye("oe","Axis"))}</td></tr><tr><td>Adição (ADD)</td><td>${esc(eye("oe","Add"))}</td></tr><tr><td>Prisma</td><td>${esc(eye("oe","Prism"))}</td></tr><tr><td>Base</td><td>${esc(eye("oe","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("oe","Dnp"))}</td></tr><tr><td>Altura</td><td>${esc(eye("oe","Height"))}</td></tr>
-   </table></div>
    <div class="eye"><h3>OD — OLHO DIREITO</h3><table>
     <tr><td>Esférico (ESF)</td><td>${esc(eye("od","Sphere"))}</td></tr><tr><td>Cilíndrico (CIL)</td><td>${esc(eye("od","Cylinder"))}</td></tr><tr><td>Eixo (AX)</td><td>${esc(eye("od","Axis"))}</td></tr><tr><td>Adição (ADD)</td><td>${esc(eye("od","Add"))}</td></tr><tr><td>Prisma</td><td>${esc(eye("od","Prism"))}</td></tr><tr><td>Base</td><td>${esc(eye("od","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("od","Dnp"))}</td></tr><tr><td>Altura</td><td>${esc(eye("od","Height"))}</td></tr>
+   </table></div>
+   <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table>
+    <tr><td>Esférico (ESF)</td><td>${esc(eye("oe","Sphere"))}</td></tr><tr><td>Cilíndrico (CIL)</td><td>${esc(eye("oe","Cylinder"))}</td></tr><tr><td>Eixo (AX)</td><td>${esc(eye("oe","Axis"))}</td></tr><tr><td>Adição (ADD)</td><td>${esc(eye("oe","Add"))}</td></tr><tr><td>Prisma</td><td>${esc(eye("oe","Prism"))}</td></tr><tr><td>Base</td><td>${esc(eye("oe","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("oe","Dnp"))}</td></tr><tr><td>Altura</td><td>${esc(eye("oe","Height"))}</td></tr>
    </table></div>
   </div><div style="margin-top:6px"><b>DP Total:</b> ${esc(r?.pdTotal)}</div></div>
   <div class="section"><h2>Itens enviados ao laboratório</h2><table class="items"><tr><th>Descrição</th><th>Tipo</th><th>Olho</th><th>Qtd.</th><th>Valor</th></tr>
@@ -83,11 +83,11 @@ function printLabAndOS(o:Order){
    <div><b>Laboratório</b><br>${esc(o.laboratory||"—")}</div><div><b>Previsão</b><br>${esc(dateBR(o.dueDate))}</div><div><b>Status</b><br>${esc(String(o.status||"").replaceAll("_"," "))}</div>
   </div>
   <div class="section"><h2>Receita / medidas</h2><div style="font-size:8.5px;color:#555;margin-bottom:6px">Referência: OD = olho direito do cliente · OE = olho esquerdo do cliente. Ordem apresentada: OD → OE.</div><div class="rx">
-   <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table><tr><th>Campo</th><th>Valor</th></tr>
-    <tr><td>ESF</td><td>${esc(eye("oe","Sphere"))}</td></tr><tr><td>CIL</td><td>${esc(eye("oe","Cylinder"))}</td></tr><tr><td>AX</td><td>${esc(eye("oe","Axis"))}</td></tr><tr><td>ADD</td><td>${esc(eye("oe","Add"))}</td></tr><tr><td>PRISMA</td><td>${esc(eye("oe","Prism"))}</td></tr><tr><td>BASE</td><td>${esc(eye("oe","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("oe","Dnp"))}</td></tr><tr><td>ALTURA</td><td>${esc(eye("oe","Height"))}</td></tr>
-   </table></div>
    <div class="eye"><h3>OD — OLHO DIREITO</h3><table><tr><th>Campo</th><th>Valor</th></tr>
     <tr><td>ESF</td><td>${esc(eye("od","Sphere"))}</td></tr><tr><td>CIL</td><td>${esc(eye("od","Cylinder"))}</td></tr><tr><td>AX</td><td>${esc(eye("od","Axis"))}</td></tr><tr><td>ADD</td><td>${esc(eye("od","Add"))}</td></tr><tr><td>PRISMA</td><td>${esc(eye("od","Prism"))}</td></tr><tr><td>BASE</td><td>${esc(eye("od","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("od","Dnp"))}</td></tr><tr><td>ALTURA</td><td>${esc(eye("od","Height"))}</td></tr>
+   </table></div>
+   <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table><tr><th>Campo</th><th>Valor</th></tr>
+    <tr><td>ESF</td><td>${esc(eye("oe","Sphere"))}</td></tr><tr><td>CIL</td><td>${esc(eye("oe","Cylinder"))}</td></tr><tr><td>AX</td><td>${esc(eye("oe","Axis"))}</td></tr><tr><td>ADD</td><td>${esc(eye("oe","Add"))}</td></tr><tr><td>PRISMA</td><td>${esc(eye("oe","Prism"))}</td></tr><tr><td>BASE</td><td>${esc(eye("oe","Base"))}</td></tr><tr><td>DNP</td><td>${esc(eye("oe","Dnp"))}</td></tr><tr><td>ALTURA</td><td>${esc(eye("oe","Height"))}</td></tr>
    </table></div>
   </div><div style="margin-top:6px"><b>DP Total:</b> ${esc(r?.pdTotal)} &nbsp;&nbsp; <b>Profissional:</b> ${esc(r?.professional)}</div></div>
   <div class="section"><h2>Produtos / serviço</h2><table class="items"><tr><th>Descrição</th><th>Tipo</th><th>Qtd.</th><th>Unitário</th><th>Total</th></tr>
