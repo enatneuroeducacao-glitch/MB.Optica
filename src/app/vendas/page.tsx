@@ -25,7 +25,7 @@ export default function Vendas(){
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
  const [saleItems,setSaleItems]=useState<SaleItemForm[]>([]);
- const [customerQuery,setCustomerQuery]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:""}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
+ const [customerQuery,setCustomerQuery]=useState(""),[customerError,setCustomerError]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:""}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
   const [s,c,p,o,m,pk,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
@@ -37,12 +37,12 @@ export default function Vendas(){
  useRealtimeRefresh(load,15000);
  useEffect(()=>{
   const q=customerQuery.trim();
-  if(q.length<2){setCustomerResults(customers);return}
+  if(q.length<2){setCustomerError("");setCustomerResults(customers);return}
   const timer=setTimeout(async()=>{
     try{
       const r=await fetch("/api/customers?q="+encodeURIComponent(q),{cache:"no-store"});
       const data=await r.json();
-      if(r.ok&&Array.isArray(data))setCustomerResults(data);
+      if(r.ok&&Array.isArray(data)){setCustomerError("");setCustomerResults(data)}else setCustomerError(data?.error||"Não foi possível consultar os clientes.");
     }catch{}
   },180);
   return ()=>clearTimeout(timer);
@@ -144,7 +144,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
       <input required value={customerQuery} onChange={e=>{const value=e.target.value;setCustomerQuery(value);if(form.customerId&&value!==customers.find(c=>c.id===form.customerId)?.name){setForm({...form,customerId:"",orderId:""});setSaleItems([])}}} placeholder="Pesquisar nome ou CPF/CNPJ..." autoComplete="off"/>
       {customerQuery.trim().length>=2&&!form.customerId&&<div style={{position:"absolute",left:0,right:0,top:"calc(100% + 4px)",border:"1px solid var(--line)",borderRadius:8,maxHeight:220,overflowY:"auto",background:"var(--surface)",zIndex:1000,boxShadow:"0 10px 30px rgba(15,23,42,.16)"}}>
        {customerResults.slice(0,10).map(c=><button type="button" key={c.id} onClick={()=>chooseCustomer(c)} style={{display:"block",width:"100%",textAlign:"left",padding:10,border:0,borderBottom:"1px solid var(--line)",background:"transparent",cursor:"pointer"}}>{c.name}{c.cpfCnpj?" — "+c.cpfCnpj:""}</button>)}
-       {!customerResults.length&&<div style={{padding:10,color:"var(--muted)",fontSize:12}}>Nenhum cliente encontrado.</div>}
+       {customerError?<div style={{padding:10,color:"#a33",fontSize:12,fontWeight:600}}>{customerError}</div>:!customerResults.length&&<div style={{padding:10,color:"var(--muted)",fontSize:12}}>Nenhum cliente encontrado.</div>}
       </div>}
      </label>
     {form.saleType==="PEDIDO_OPTICO"&&<label>Pedido óptico<select required value={form.orderId} onChange={e=>chooseOrder(e.target.value)}><option value="">Selecione o pedido</option>{orderChoices.map(o=><option key={o.id} value={o.id}>#{o.number} · {o.status} · {money(o.total)}</option>)}</select></label>}
