@@ -10,6 +10,22 @@ function hashToken(token: string) {
 }
 
 function appUrl(request: Request) {
+  if (process.env.NODE_ENV === "production") return "https://gestao.mboptica.com.br";
+  const configured = process.env.APP_URL?.trim();
+  if (configured) return configured.replace(/\/$/, "");
+  return new URL(request.url).origin.replace(/\/$/, "");
+}port { NextResponse } from "next/server";
+import { randomBytes, createHash } from "node:crypto";
+import { z } from "zod";
+import { db } from "@/lib/db";
+
+const schema = z.object({ email: z.string().trim().email().max(160) });
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function appUrl(request: Request) {
   const configured = process.env.APP_URL?.trim();
   if (configured) return configured.replace(/\/$/, "");
   if (process.env.NODE_ENV === "production") return "https://gestao.mboptica.com.br";
