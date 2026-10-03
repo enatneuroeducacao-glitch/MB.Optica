@@ -217,22 +217,66 @@ export default function Mensagens(){
       {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum contato com e-mail cadastrado encontrado.</div>:<div className="table"><div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span></span></div>{filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button></div>)}</div>}
     </div>
 
-    {compose&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",display:"grid",placeItems:"center",zIndex:50,padding:20}}>
-      <div className="panel" style={{width:"min(780px,100%)",maxHeight:"92vh",overflowY:"auto",padding:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><span className="eyebrow">NOVA MENSAGEM</span><h2 style={{margin:"4px 0 14px"}}>Novo e-mail</h2></div><button className="secondary" onClick={()=>setCompose(false)}>✕</button></div>
-        <label>Para<input value={form.to} onChange={e=>setForm({...form,to:e.target.value})} placeholder="cliente@exemplo.com, outro@exemplo.com"/></label>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><label>Cc<input value={form.cc} onChange={e=>setForm({...form,cc:e.target.value})} placeholder="Opcional"/></label><label>Cco<input value={form.bcc} onChange={e=>setForm({...form,bcc:e.target.value})} placeholder="Opcional"/></label></div>
-        <label>Assunto<input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/></label>
-        <label>Mensagem<textarea rows={10} value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Escreva sua mensagem..."/></label>
-
-        <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files)}} style={{border:"1px dashed var(--line)",borderRadius:8,padding:14,marginTop:8}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}><div><strong>📎 Anexos</strong><div style={{fontSize:12,color:"var(--muted)"}}>Até 10 arquivos, 10 MB por arquivo e 30 MB no total.</div></div><button className="secondary" type="button" onClick={()=>fileRef.current?.click()}>Adicionar arquivos</button></div>
-          <input ref={fileRef} type="file" multiple style={{display:"none"}} onChange={e=>{if(e.target.files)addFiles(e.target.files);e.currentTarget.value=""}}/>
-          {files.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>{files.map((f,i)=><span key={i} style={{border:"1px solid var(--line)",borderRadius:8,padding:"6px 8px",display:"inline-flex",gap:8,alignItems:"center"}}>📄 {f.name} <small>{bytes(f.size)}</small><button type="button" className="secondary" onClick={()=>setFiles(files.filter((_,n)=>n!==i))}>✕</button></span>)}</div>}
+    {compose&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.58)",backdropFilter:"blur(4px)",display:"grid",placeItems:"center",zIndex:50,padding:16}}>
+      <div className="panel" style={{width:"min(860px,100%)",maxHeight:"94vh",overflowY:"auto",padding:0,borderRadius:18,boxShadow:"0 24px 70px rgba(0,0,0,.24)"}}>
+        <div style={{padding:"20px 24px 18px",borderBottom:"1px solid var(--line)",display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,background:"linear-gradient(135deg,var(--surface-soft),var(--surface))"}}>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:44,height:44,borderRadius:12,display:"grid",placeItems:"center",background:"var(--primary)",color:"#fff",fontSize:20}}>✉</div>
+            <div><span className="eyebrow">COMUNICAÇÃO MB ÓPTICA</span><h2 style={{margin:"3px 0 0",fontSize:22}}>Novo e-mail</h2><div style={{fontSize:12,color:"var(--muted)",marginTop:3}}>Mensagem profissional · envio pelo endereço MB</div></div>
+          </div>
+          <button className="secondary" aria-label="Fechar" onClick={()=>setCompose(false)} style={{width:38,height:38,borderRadius:10,fontSize:18}}>✕</button>
         </div>
 
-        <div style={{display:"flex",justifyContent:"space-between",gap:8,marginTop:14,flexWrap:"wrap"}}><span style={{fontSize:12,color:"var(--muted)"}}>O envio usa o endereço MB do usuário e suporta anexos, Cc, Cco e respostas encadeadas.</span><div style={{display:"flex",gap:8}}><button className="secondary" onClick={()=>setCompose(false)}>Cancelar</button><button className="primary" disabled={sending} onClick={send}>{sending?"Enviando...":"✈ Enviar"}</button></div></div>
+        <div style={{padding:"20px 24px"}}>
+          <div style={{border:"1px solid var(--line)",borderRadius:14,overflow:"hidden",background:"var(--surface)"}}>
+            <div style={{display:"grid",gridTemplateColumns:"72px 1fr",alignItems:"center",borderBottom:"1px solid var(--line)"}}>
+              <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>PARA</span>
+              <input value={form.to} onChange={e=>setForm({...form,to:e.target.value})} placeholder="cliente@exemplo.com, outro@exemplo.com" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"72px 1fr 72px 1fr",alignItems:"center",borderBottom:"1px solid var(--line)"}}>
+              <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>CC</span>
+              <input value={form.cc} onChange={e=>setForm({...form,cc:e.target.value})} placeholder="Opcional" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
+              <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>CCO</span>
+              <input value={form.bcc} onChange={e=>setForm({...form,bcc:e.target.value})} placeholder="Opcional" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"72px 1fr",alignItems:"center"}}>
+              <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>ASSUNTO</span>
+              <input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Assunto da mensagem" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
+            </div>
+          </div>
+
+          <div style={{marginTop:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}><span style={{fontSize:13,fontWeight:700,color:"var(--muted)"}}>MENSAGEM</span><span style={{height:1,background:"var(--line)",flex:1}}/></div>
+            <textarea rows={11} value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Escreva sua mensagem..." style={{minHeight:230,resize:"vertical",borderRadius:14,padding:14}}/>
+          </div>
+
+          <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files)}} style={{border:"1px dashed var(--line)",borderRadius:14,padding:14,marginTop:14,background:"var(--surface-soft)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:38,height:38,borderRadius:10,display:"grid",placeItems:"center",background:"var(--surface)",border:"1px solid var(--line)"}}>📎</div>
+                <div><strong style={{display:"block"}}>Anexos</strong><span style={{fontSize:12,color:"var(--muted)"}}>Arraste arquivos aqui ou selecione no computador · até 10 MB por arquivo</span></div>
+              </div>
+              <button className="secondary" type="button" onClick={()=>fileRef.current?.click()}>＋ Adicionar arquivos</button>
+            </div>
+            <input ref={fileRef} type="file" multiple style={{display:"none"}} onChange={e=>{if(e.target.files)addFiles(e.target.files);e.currentTarget.value=""}}/>
+            {files.length>0&&<div style={{display:"grid",gap:7,marginTop:12}}>
+              {files.map((f,i)=><div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"9px 10px",borderRadius:10,background:"var(--surface)",border:"1px solid var(--line)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:9,minWidth:0}}><span>📄</span><div style={{minWidth:0}}><strong style={{display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</strong><small style={{color:"var(--muted)"}}>{bytes(f.size)}</small></div></div>
+                <button type="button" className="secondary" aria-label={"Remover "+f.name} onClick={()=>setFiles(files.filter((_,n)=>n!==i))} style={{padding:"5px 9px"}}>✕</button>
+              </div>)}
+            </div>}
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:9}}>Máximo de 10 arquivos · 30 MB no total.</div>
+          </div>
+        </div>
+
+        <div style={{padding:"14px 24px 18px",borderTop:"1px solid var(--line)",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap",background:"var(--surface-soft)"}}>
+          <div style={{fontSize:12,color:"var(--muted)"}}>Remetente: <strong>{mbEmail||"E-mail MB não configurado"}</strong></div>
+          <div style={{display:"flex",gap:8}}>
+            <button className="secondary" onClick={()=>setCompose(false)}>Cancelar</button>
+            <button className="primary" disabled={sending} onClick={send} style={{minWidth:112}}>{sending?"Enviando...":"✈ Enviar e-mail"}</button>
+          </div>
+        </div>
       </div>
-    </div>}
+    </div>
   </section>;
 }
