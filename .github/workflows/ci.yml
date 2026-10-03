@@ -28,6 +28,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +54,6 @@ jobs:
       - name: Production build
         run: npm run build
 
-
   docker:
     runs-on: ubuntu-latest
     needs: verify
@@ -76,7 +76,7 @@ jobs:
       - name: Build migrator
         run: docker build --target migrator -t mb-optica-migrator .
       - name: Run migrations
-        run: docker run --rm --network host -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public mb-optica-migrator
+        run: docker run --rm --network host -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public -e DIRECT_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public mb-optica-migrator
       - name: Build application
         run: docker build --target runner -t mb-optica-app .
       - name: Start application
