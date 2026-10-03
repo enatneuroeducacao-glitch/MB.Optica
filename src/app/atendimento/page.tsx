@@ -21,7 +21,8 @@ export default function Atendimento(){
  const todayISO=new Date().toISOString().slice(0,10);
  const [rx,setRx]=useState({...emptyRx}),[rxProfessional,setRxProfessional]=useState("");
  const [quoteRx,setQuoteRx]=useState(""),[quoteItems,setQuoteItems]=useState<any[]>([newItem()]),[quoteDiscount,setQuoteDiscount]=useState("0"),[quoteSurcharge,setQuoteSurcharge]=useState("0"),[quoteEntry,setQuoteEntry]=useState("0"),[quotePayment,setQuotePayment]=useState(""),[quoteNotes,setQuoteNotes]=useState("");
- const [orderRx,setOrderRx]=useState(""),[orderItems,setOrderItems]=useState<any[]>([newItem()]),[laboratory,setLaboratory]=useState(""),[dueDate,setDueDate]=useState(""),[orderNotes,setOrderNotes]=useState("");\n const [manualOSOpen,setManualOSOpen]=useState(false),[manualOSQuantity,setManualOSQuantity]=useState("1");
+ const [orderRx,setOrderRx]=useState(""),[orderItems,setOrderItems]=useState<any[]>([newItem()]),[laboratory,setLaboratory]=useState(""),[dueDate,setDueDate]=useState(""),[orderNotes,setOrderNotes]=useState("");
+ const [manualOSOpen,setManualOSOpen]=useState(false),[manualOSQuantity,setManualOSQuantity]=useState("1");
 
  const load=async()=>{setLoading(true);try{const [p,r,o]=await Promise.all([fetch("/api/products"),fetch("/api/prescriptions"),fetch("/api/orders")]);const [pd,rd,od]=await Promise.all([p.json(),r.json(),o.json()]);if(p.ok)setProducts(pd);if(r.ok)setPrescriptions(rd);if(o.ok)setOrders(od)}catch{setMsg("Erro ao carregar o fluxo.")}finally{setLoading(false)}};
  useEffect(()=>{load()},[]);
@@ -81,7 +82,8 @@ export default function Atendimento(){
 
  return <section className="page">
   <div className="page-heading"><div><span className="eyebrow">ÓPTICA</span><h1>Atendimento</h1><p>Receita → orçamento → pedido → laboratório em uma única tela.</p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><button className="secondary" onClick={()=>{setManualOSQuantity("1");setManualOSOpen(true)}}>▣ Imprimir O.S. manual</button><button className="secondary" onClick={load}>↻ Atualizar</button></div></div>
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}\n  {manualOSOpen&&<div className="panel" style={{position:"fixed",inset:"0",zIndex:50,background:"rgba(0,0,0,.35)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
+  {manualOSOpen&&<div className="panel" style={{position:"fixed",inset:"0",zIndex:50,background:"rgba(0,0,0,.35)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
    <div className="panel" style={{width:"min(440px,100%)",padding:22,background:"var(--surface)",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
     <div className="panel-heading" style={{padding:0,marginBottom:16}}><div><span className="eyebrow">IMPRESSÃO</span><h2>O.S. manuais sequenciais</h2><p>O sistema reservará uma numeração diferente para cada O.S.</p></div><button className="secondary" onClick={()=>setManualOSOpen(false)}>Fechar</button></div>
     <label style={{display:"block"}}>Quantidade de O.S.
