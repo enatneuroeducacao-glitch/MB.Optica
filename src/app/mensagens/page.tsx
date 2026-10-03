@@ -247,7 +247,7 @@ export default function Mensagens(){
 
           <div style={{marginTop:14}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}><span style={{fontSize:13,fontWeight:700,color:"var(--muted)"}}>MENSAGEM</span><span style={{height:1,background:"var(--line)",flex:1}}/></div>
-            <textarea rows={11} value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Escreva sua mensagem..." style={{minHeight:230,resize:"vertical",borderRadius:14,padding:14}}/>
+            <textarea rows={11} value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Escreva sua mensagem..." style={{display:"block",width:"100%",boxSizing:"border-box",minHeight:230,resize:"vertical",borderRadius:14,padding:14,margin:0}}/>
           </div>
 
           <div onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();addFiles(e.dataTransfer.files)}} style={{border:"1px dashed var(--line)",borderRadius:14,padding:14,marginTop:14,background:"var(--surface-soft)"}}>
