@@ -84,7 +84,7 @@ jobs:
         run: docker build --target runner -t mb-optica-app .
       - name: Start application
         run: |
-          docker run -d --name mb-optica-app --network host -e HOSTNAME=0.0.0.0 -e PORT=3000 -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public -e AUTH_SECRET=local-development-secret-change-me-32-characters -e BOOTSTRAP_TOKEN=local-bootstrap-token-change-me-32-characters mb-optica-app
+          docker run -d --name mb-optica-app --network host -e HOSTNAME=0.0.0.0 -e PORT=3000 -e DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public -e DIRECT_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public -e AUTH_SECRET=local-development-secret-change-me-32-characters -e BOOTSTRAP_TOKEN=local-bootstrap-token-change-me-32-characters mb-optica-app
           for i in {1..180}; do
             if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then exit 0; fi
             sleep 2
