@@ -202,7 +202,7 @@ export default function Mensagens(){
             </div>
           </div>
 
-          {body?.attachments&&body.attachments.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:"12px 0"}}>{body.attachments.map((a,i)=><a key={a.id||i} href={a.download_url||"#"} target="_blank" rel="noreferrer" download style={{border:"1px solid var(--line)",borderRadius:8,padding:"8px 10px",textDecoration:"none",color:"inherit",display:"inline-flex",gap:8,alignItems:"center"}}>📎 <span><strong>{a.filename||"Anexo"}</strong><small style={{display:"block",color:"var(--muted)"}}>{a.content_type||"arquivo"}{a.size?\` · ${bytes(a.size)}\`:""}</small></span></a>)}</div>}
+          {body?.attachments&&body.attachments.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:"12px 0"}}>{body.attachments.map((a,i)=><a key={a.id||i} href={a.download_url||"#"} target="_blank" rel="noreferrer" download style={{border:"1px solid var(--line)",borderRadius:8,padding:"8px 10px",textDecoration:"none",color:"inherit",display:"inline-flex",gap:8,alignItems:"center"}}>📎 <span><strong>{a.filename||"Anexo"}</strong><small style={{display:"block",color:"var(--muted)"}}>{a.content_type||"arquivo"}{a.size?" · "+bytes(a.size):""}</small></span></a>)}</div>}
 
           {body?.html?<iframe title="Conteúdo do e-mail" sandbox="" style={{width:"100%",height:380,border:"1px solid var(--line)",borderRadius:8}} srcDoc={body.html}/>:<div style={{whiteSpace:"pre-wrap",padding:14,border:"1px solid var(--line)",borderRadius:8,minHeight:220}}>{body?.text||"Carregando conteúdo..."}</div>}
           </>}
