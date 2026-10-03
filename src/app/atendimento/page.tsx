@@ -37,31 +37,41 @@ export default function Atendimento(){
  const saveQuote=async()=>{if(!customerId||!quoteItems.length){setMsg("Selecione o cliente e informe os itens.");return}const r=await fetch("/api/quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId,prescriptionId:quoteRx||null,discount:quoteDiscount,surcharge:quoteSurcharge,entryAmount:quoteEntry,paymentMethod:quotePayment||null,notes:quoteNotes||null,items:quoteItems.map(i=>({...i,productId:i.productId||null}))})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao criar orçamento.");return}setMsg("ORC-"+String(d.number).padStart(6,"0")+" criado. Itens carregados no pedido para evitar redigitação.");setOrderItems(quoteItems.map(i=>({...i,eye:i.eye||""})));setOrderRx(quoteRx);await load();setStage("PEDIDO");setOpen(true)};
  const saveOrder=async()=>{if(!customerId||!laboratory.trim()||!orderItems.length){setMsg("Cliente, laboratório e itens são obrigatórios.");return}const me=await fetch("/api/auth/me").then(r=>r.json()),sellerId=me.user?.id||me.id;const r=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId,prescriptionId:orderRx||undefined,sellerId,laboratory,dueDate:dueDate||undefined,notes:orderNotes,items:orderItems.map(i=>({productId:i.productId||undefined,description:i.description,kind:i.kind,eye:i.eye||undefined,quantity:Number(i.quantity),unitPrice:Number(i.unitPrice||0)}))})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao criar pedido.");return}setMsg("Pedido #"+d.number+" criado.");await load();setStage("LABORATORIO");setOpen(true)};
  const advance=async(o:Order)=>{const n=next[o.status];if(!n)return;const r=await fetch("/api/orders/"+o.id+"/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:n,message:"Atualização pelo fluxo óptico"})});const d=await r.json();if(!r.ok){setMsg(d.error||d.detail||"Erro ao atualizar.");return}setMsg("Pedido #"+o.number+" → "+labels[n]);load()};
- const printManualOS=()=>{
+ const printManualOS=async()=>{
   const win=window.open("","_blank","width=950,height=1100");
   if(!win){alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");return}
-  win.document.write(`<!doctype html><html><head><title>O.S. Manual — MB Óptica</title>
-  <style>
-  @page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:10px}
-  .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}.brand{font-size:20px;font-weight:700}.title{font-size:15px;font-weight:700}
-  .box{border:1px solid #777;padding:7px;margin-bottom:7px}.head{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
-  .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.field{border-bottom:1px solid #777;min-height:24px;padding:3px}.wide{grid-column:1/-1}
-  .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:11px}
-  table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:center}th{font-size:8px}.line{height:22px;border-bottom:1px solid #777}
-  .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}.sign div{border-top:1px solid #555;text-align:center;padding-top:4px}
-  </style></head><body>
-  <div class="top"><div><div class="brand">MB Óptica</div><div>Gestão inteligente</div></div><div class="title">ORDEM DE SERVIÇO — PREENCHIMENTO MANUAL</div></div>
-  <div class="box"><div class="head">Cliente</div><div class="grid"><div class="field"><b>Nome:</b></div><div class="field"><b>CPF/CNPJ:</b></div><div class="field"><b>Telefone:</b></div><div class="field wide"><b>Endereço:</b></div></div></div>
-  <div class="box"><div class="head">Serviço / Pedido</div><div class="grid"><div class="field"><b>O.S. nº:</b></div><div class="field"><b>Data:</b></div><div class="field"><b>Entrega:</b></div><div class="field wide"><b>Laboratório:</b></div></div></div>
-  <div class="box"><div class="head">Receita / Especificação óptica</div><div class="rx">
-   <div class="eye"><h3>OD — OLHO DIREITO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
-   <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
-  </div><div class="grid" style="margin-top:7px"><div class="field"><b>DP Total:</b></div><div class="field"><b>Profissional:</b></div><div class="field"><b>Validade:</b></div></div></div>
-  <div class="box"><div class="head">Produtos / Montagem</div><div class="line">Armação / referência: </div><div class="line">Lente / material: </div><div class="line">Tratamentos: </div><div class="line">Montagem / observações: </div></div>
-  <div class="box"><div class="head">Observações</div><div class="line"></div><div class="line"></div><div class="line"></div></div>
-  <div class="sign"><div>Responsável / vendedor</div><div>Cliente</div></div>
-  <script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
-  win.document.close();
+  try{
+    const response=await fetch("/api/service-orders/next-number",{method:"POST"});
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.detail||data.error||"Não foi possível gerar o número da O.S.");
+    const osNumber=String(data.number).padStart(6,"0");
+    win.document.write(`<!doctype html><html><head><title>O.S. Manual #${osNumber} — MB Óptica</title>
+    <style>
+    @page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:10px}
+    .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}.brand{font-size:20px;font-weight:700}.title{font-size:15px;font-weight:700}
+    .box{border:1px solid #777;padding:7px;margin-bottom:7px}.head{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
+    .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.field{border-bottom:1px solid #777;min-height:24px;padding:3px}.wide{grid-column:1/-1}
+    .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:11px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:center}th{font-size:8px}.line{height:22px;border-bottom:1px solid #777}
+    .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}.sign div{border-top:1px solid #555;text-align:center;padding-top:4px}
+    .cut{border-top:2px dashed #777;margin:12px 0 8px;padding-top:6px;text-align:center;font-size:8px;color:#555}
+    .stub{border:1px solid #777;padding:7px}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.stub-field{min-height:22px;border-bottom:1px solid #777;padding:3px}.stub-title{text-align:center;font-weight:700;font-size:11px;margin-bottom:6px}
+    </style></head><body>
+    <div class="top"><div><div class="brand">MB Óptica</div><div>Gestão inteligente</div></div><div class="title">ORDEM DE SERVIÇO — PREENCHIMENTO MANUAL<br><span style="font-size:10px">O.S. Nº ${osNumber}</span></div></div>
+    <div class="box"><div class="head">Cliente</div><div class="grid"><div class="field"><b>Nome:</b></div><div class="field"><b>CPF/CNPJ:</b></div><div class="field"><b>Telefone:</b></div><div class="field wide"><b>Endereço:</b></div></div></div>
+    <div class="box"><div class="head">Serviço / Pedido</div><div class="grid"><div class="field"><b>O.S. nº:</b> ${osNumber}</div><div class="field"><b>Data:</b></div><div class="field"><b>Entrega:</b></div><div class="field wide"><b>Laboratório:</b></div></div></div>
+    <div class="box"><div class="head">Receita / Especificação óptica</div><div class="rx">
+      <div class="eye"><h3>OD — OLHO DIREITO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
+      <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
+    </div><div class="grid" style="margin-top:7px"><div class="field"><b>DP Total:</b></div><div class="field"><b>Profissional:</b></div><div class="field"><b>Validade:</b></div></div></div>
+    <div class="box"><div class="head">Produtos / Montagem</div><div class="line">Armação / referência: </div><div class="line">Lente / material: </div><div class="line">Tratamentos: </div><div class="line">Montagem / observações: </div></div>
+    <div class="box"><div class="head">Observações</div><div class="line"></div><div class="line"></div><div class="line"></div></div>
+    <div class="sign"><div>Responsável / vendedor</div><div>Cliente</div></div>
+    <div class="cut">✂ ——————————————————— DESTACAR E ENTREGAR AO CLIENTE ———————————————————</div>
+    <div class="stub"><div class="stub-title">CANHOTO DO CLIENTE — MB ÓPTICA</div><div class="stub-grid"><div class="stub-field"><b>Cliente:</b></div><div class="stub-field"><b>O.S. Nº:</b> ${osNumber}</div><div class="stub-field"><b>Data:</b></div><div class="stub-field"><b>Previsão de entrega:</b></div><div class="stub-field"><b>Telefone:</b></div><div class="stub-field"><b>Valor:</b></div><div class="stub-field" style="grid-column:1/-1"><b>Observação:</b></div></div><div style="margin-top:8px;font-size:8px">Apresente este canhoto para retirada do serviço. Guarde-o até a entrega.</div></div>
+    <script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
+    win.document.close();
+  }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar a O.S. manual.")}
  }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
  const productField=(items:any,setter:any,i:number)=><label>Produto<input value={items[i].description} placeholder="Pesquisar código ou descrição..." onChange={e=>updateItem(setter,items,i,{...items[i],productId:"",description:e.target.value})}/>{items[i].description&&!items[i].productId&&matches(items[i].description).map(p=><button type="button" key={p.id} className="workflow-suggestion" onClick={()=>updateItem(setter,items,i,{...items[i],productId:p.id,description:p.description,unitPrice:String(p.salePrice)})}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}</label>;
 
