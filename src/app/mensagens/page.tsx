@@ -239,9 +239,9 @@ export default function Mensagens(){
               <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>CCO</span>
               <input value={form.bcc} onChange={e=>setForm({...form,bcc:e.target.value})} placeholder="Opcional" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"72px 1fr",alignItems:"center"}}>
-              <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>ASSUNTO</span>
-              <input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Assunto da mensagem" style={{border:0,borderRadius:0,margin:0,boxShadow:"none",width:"100%",minWidth:0}}/>
+            <div style={{padding:"10px 14px 12px",borderTop:"1px solid var(--line)"}}>
+              <div style={{fontSize:12,fontWeight:700,color:"var(--muted)",marginBottom:5}}>ASSUNTO</div>
+              <input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Assunto da mensagem" style={{display:"block",width:"100%",boxSizing:"border-box",border:"1px solid var(--line)",borderRadius:8,margin:0,boxShadow:"none",minWidth:0}}/>
             </div>
           </div>
 
