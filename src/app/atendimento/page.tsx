@@ -77,7 +77,7 @@ export default function Atendimento(){
     </style></head><body>${pages}<script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
     win.document.close();
   }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar as O.S. manuais.")}
- } }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
+ }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
  const productField=(items:any,setter:any,i:number)=><label>Produto<input value={items[i].description} placeholder="Pesquisar código ou descrição..." onChange={e=>updateItem(setter,items,i,{...items[i],productId:"",description:e.target.value})}/>{items[i].description&&!items[i].productId&&matches(items[i].description).map(p=><button type="button" key={p.id} className="workflow-suggestion" onClick={()=>updateItem(setter,items,i,{...items[i],productId:p.id,description:p.description,unitPrice:String(p.salePrice)})}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}</label>;
 
  return <section className="page">
