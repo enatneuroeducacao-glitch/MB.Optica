@@ -10,7 +10,7 @@ function cleanAddress(value: unknown) {
 
 export async function POST(req: Request){
   try{
-    await requireRole(allowedRoles);
+    const user=await requireRole(allowedRoles);
     const key=process.env.RESEND_API_KEY;
     if(!key) return NextResponse.json({error:"RESEND_API_KEY não configurada no ambiente do MB Gestão."},{status:503});
     const payload=await req.json().catch(()=>null);
@@ -22,7 +22,8 @@ export async function POST(req: Request){
     if(!subject)return NextResponse.json({error:"Informe o assunto."},{status:400});
     if(!text)return NextResponse.json({error:"Informe a mensagem."},{status:400});
     if(to.length>20||cc.length>20)return NextResponse.json({error:"Limite de 20 destinatários por campo."},{status:400});
-    const from=process.env.RESEND_FROM?.trim()||"MB Óptica <atendimentoMB@mboptica.com.br>";
+    const sender=user.mbEmail || process.env.RESEND_FROM?.trim() || "MB Óptica <atendimentoMB@mboptica.com.br>";
+    const from=sender.includes("<") ? sender : `${user.name} <${sender}>`;
     const html=text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
     const r=await fetch(resendBase+"/emails",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({from,to,...(cc.length?{cc}:{}),subject,text,html}),cache:"no-store"});
     const data=await r.json().catch(()=>({}));

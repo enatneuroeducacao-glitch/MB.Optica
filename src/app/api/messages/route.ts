@@ -5,9 +5,9 @@ const resendBase="https://api.resend.com";
 
 export async function GET(){
   try{
-    await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]);
+    const user=await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]);
     const key=process.env.RESEND_API_KEY;
-    const inboxAddress=process.env.RESEND_INBOX_ADDRESS?.trim() || "atendimentoMB@mboptica.com.br";
+    const inboxAddress=user.mbEmail || process.env.RESEND_INBOX_ADDRESS?.trim() || "atendimentoMB@mboptica.com.br";
     if(!key) return NextResponse.json({configured:false,data:[],inboxAddress,error:"RESEND_API_KEY não configurada no ambiente do MB Gestão."},{status:200});
     const r=await fetch(resendBase+"/emails/receiving?limit=50",{headers:{Authorization:"Bearer "+key,Accept:"application/json"},cache:"no-store"});
     const data=await r.json().catch(()=>({}));
