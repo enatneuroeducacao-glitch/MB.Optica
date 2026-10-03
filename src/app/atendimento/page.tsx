@@ -21,7 +21,7 @@ export default function Atendimento(){
  const todayISO=new Date().toISOString().slice(0,10);
  const [rx,setRx]=useState({...emptyRx}),[rxProfessional,setRxProfessional]=useState("");
  const [quoteRx,setQuoteRx]=useState(""),[quoteItems,setQuoteItems]=useState<any[]>([newItem()]),[quoteDiscount,setQuoteDiscount]=useState("0"),[quoteSurcharge,setQuoteSurcharge]=useState("0"),[quoteEntry,setQuoteEntry]=useState("0"),[quotePayment,setQuotePayment]=useState(""),[quoteNotes,setQuoteNotes]=useState("");
- const [orderRx,setOrderRx]=useState(""),[orderItems,setOrderItems]=useState<any[]>([newItem()]),[laboratory,setLaboratory]=useState(""),[dueDate,setDueDate]=useState(""),[orderNotes,setOrderNotes]=useState("");
+ const [orderRx,setOrderRx]=useState(""),[orderItems,setOrderItems]=useState<any[]>([newItem()]),[laboratory,setLaboratory]=useState(""),[dueDate,setDueDate]=useState(""),[orderNotes,setOrderNotes]=useState("");\n const [manualOSOpen,setManualOSOpen]=useState(false),[manualOSQuantity,setManualOSQuantity]=useState("1");
 
  const load=async()=>{setLoading(true);try{const [p,r,o]=await Promise.all([fetch("/api/products"),fetch("/api/prescriptions"),fetch("/api/orders")]);const [pd,rd,od]=await Promise.all([p.json(),r.json(),o.json()]);if(p.ok)setProducts(pd);if(r.ok)setPrescriptions(rd);if(o.ok)setOrders(od)}catch{setMsg("Erro ao carregar o fluxo.")}finally{setLoading(false)}};
  useEffect(()=>{load()},[]);
@@ -37,26 +37,18 @@ export default function Atendimento(){
  const saveQuote=async()=>{if(!customerId||!quoteItems.length){setMsg("Selecione o cliente e informe os itens.");return}const r=await fetch("/api/quotes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId,prescriptionId:quoteRx||null,discount:quoteDiscount,surcharge:quoteSurcharge,entryAmount:quoteEntry,paymentMethod:quotePayment||null,notes:quoteNotes||null,items:quoteItems.map(i=>({...i,productId:i.productId||null}))})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao criar orçamento.");return}setMsg("ORC-"+String(d.number).padStart(6,"0")+" criado. Itens carregados no pedido para evitar redigitação.");setOrderItems(quoteItems.map(i=>({...i,eye:i.eye||""})));setOrderRx(quoteRx);await load();setStage("PEDIDO");setOpen(true)};
  const saveOrder=async()=>{if(!customerId||!laboratory.trim()||!orderItems.length){setMsg("Cliente, laboratório e itens são obrigatórios.");return}const me=await fetch("/api/auth/me").then(r=>r.json()),sellerId=me.user?.id||me.id;const r=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({customerId,prescriptionId:orderRx||undefined,sellerId,laboratory,dueDate:dueDate||undefined,notes:orderNotes,items:orderItems.map(i=>({productId:i.productId||undefined,description:i.description,kind:i.kind,eye:i.eye||undefined,quantity:Number(i.quantity),unitPrice:Number(i.unitPrice||0)}))})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao criar pedido.");return}setMsg("Pedido #"+d.number+" criado.");await load();setStage("LABORATORIO");setOpen(true)};
  const advance=async(o:Order)=>{const n=next[o.status];if(!n)return;const r=await fetch("/api/orders/"+o.id+"/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:n,message:"Atualização pelo fluxo óptico"})});const d=await r.json();if(!r.ok){setMsg(d.error||d.detail||"Erro ao atualizar.");return}setMsg("Pedido #"+o.number+" → "+labels[n]);load()};
- const printManualOS=async()=>{
+ const printManualOS=async(quantity:number)=>{
+  if(!Number.isInteger(quantity)||quantity<1||quantity>100){alert("Informe uma quantidade entre 1 e 100 O.S.");return}
   const win=window.open("","_blank","width=950,height=1100");
   if(!win){alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");return}
   try{
-    const response=await fetch("/api/service-orders/next-number",{method:"POST"});
+    const response=await fetch("/api/service-orders/next-number",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quantity})});
     const data=await response.json();
-    if(!response.ok) throw new Error(data.detail||data.error||"Não foi possível gerar o número da O.S.");
-    const osNumber=String(data.number).padStart(6,"0");
-    win.document.write(`<!doctype html><html><head><title>O.S. Manual #${osNumber} — MB Óptica</title>
-    <style>
-    @page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:10px}
-    .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}.brand{font-size:20px;font-weight:700}.title{font-size:15px;font-weight:700}
-    .box{border:1px solid #777;padding:7px;margin-bottom:7px}.head{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
-    .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.field{border-bottom:1px solid #777;min-height:24px;padding:3px}.wide{grid-column:1/-1}
-    .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:11px}
-    table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:center}th{font-size:8px}.line{height:22px;border-bottom:1px solid #777}
-    .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}.sign div{border-top:1px solid #555;text-align:center;padding-top:4px}
-    .cut{border-top:2px dashed #777;margin:12px 0 8px;padding-top:6px;text-align:center;font-size:8px;color:#555}
-    .stub{border:1px solid #777;padding:7px}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.stub-field{min-height:22px;border-bottom:1px solid #777;padding:3px}.stub-title{text-align:center;font-weight:700;font-size:11px;margin-bottom:6px}
-    </style></head><body>
+    if(!response.ok) throw new Error(data.detail||data.error||"Não foi possível gerar a numeração das O.S.");
+    const numbers=Array.isArray(data.numbers)?data.numbers:[data.number];
+    const pages=numbers.map((number:number)=>{
+      const osNumber=String(number).padStart(6,"0");
+      return `
     <div class="top"><div><div class="brand">MB Óptica</div><div>Gestão inteligente</div></div><div class="title">ORDEM DE SERVIÇO — PREENCHIMENTO MANUAL<br><span style="font-size:10px">O.S. Nº ${osNumber}</span></div></div>
     <div class="box"><div class="head">Cliente</div><div class="grid"><div class="field"><b>Nome:</b></div><div class="field"><b>CPF/CNPJ:</b></div><div class="field"><b>Telefone:</b></div><div class="field wide"><b>Endereço:</b></div></div></div>
     <div class="box"><div class="head">Serviço / Pedido</div><div class="grid"><div class="field"><b>O.S. nº:</b> ${osNumber}</div><div class="field"><b>Data:</b></div><div class="field"><b>Entrega:</b></div><div class="field wide"><b>Laboratório:</b></div></div></div>
@@ -69,15 +61,36 @@ export default function Atendimento(){
     <div class="sign"><div>Responsável / vendedor</div><div>Cliente</div></div>
     <div class="cut">✂ ——————————————————— DESTACAR E ENTREGAR AO CLIENTE ———————————————————</div>
     <div class="stub"><div class="stub-title">CANHOTO DO CLIENTE — MB ÓPTICA</div><div class="stub-grid"><div class="stub-field"><b>Cliente:</b></div><div class="stub-field"><b>O.S. Nº:</b> ${osNumber}</div><div class="stub-field"><b>Data:</b></div><div class="stub-field"><b>Previsão de entrega:</b></div><div class="stub-field"><b>Telefone:</b></div><div class="stub-field"><b>Valor:</b></div><div class="stub-field" style="grid-column:1/-1"><b>Observação:</b></div></div><div style="margin-top:8px;font-size:8px">Apresente este canhoto para retirada do serviço. Guarde-o até a entrega.</div></div>
-    <script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
+    `;
+    }).join("");
+    win.document.write(`<!doctype html><html><head><title>O.S. Manuais — MB Óptica</title><style>
+    @page{size:A4;margin:10mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0;font-size:10px}
+    .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}.brand{font-size:20px;font-weight:700}.title{font-size:15px;font-weight:700}
+    .box{border:1px solid #777;padding:7px;margin-bottom:7px}.head{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
+    .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.field{border-bottom:1px solid #777;min-height:24px;padding:3px}.wide{grid-column:1/-1}
+    .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:11px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:center}th{font-size:8px}.line{height:22px;border-bottom:1px solid #777}
+    .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}.sign div{border-top:1px solid #555;text-align:center;padding-top:4px}
+    .cut{border-top:2px dashed #777;margin:12px 0 8px;padding-top:6px;text-align:center;font-size:8px;color:#555}
+    .stub{border:1px solid #777;padding:7px}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.stub-field{min-height:22px;border-bottom:1px solid #777;padding:3px}.stub-title{text-align:center;font-weight:700;font-size:11px;margin-bottom:6px}
+    </style></head><body>${pages}<script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
     win.document.close();
-  }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar a O.S. manual.")}
- }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
+  }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar as O.S. manuais.")}
+ } }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
  const productField=(items:any,setter:any,i:number)=><label>Produto<input value={items[i].description} placeholder="Pesquisar código ou descrição..." onChange={e=>updateItem(setter,items,i,{...items[i],productId:"",description:e.target.value})}/>{items[i].description&&!items[i].productId&&matches(items[i].description).map(p=><button type="button" key={p.id} className="workflow-suggestion" onClick={()=>updateItem(setter,items,i,{...items[i],productId:p.id,description:p.description,unitPrice:String(p.salePrice)})}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}</label>;
 
  return <section className="page">
-  <div className="page-heading"><div><span className="eyebrow">ÓPTICA</span><h1>Atendimento</h1><p>Receita → orçamento → pedido → laboratório em uma única tela.</p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><button className="secondary" onClick={printManualOS}>▣ Imprimir O.S. manual</button><button className="secondary" onClick={load}>↻ Atualizar</button></div></div>
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
+  <div className="page-heading"><div><span className="eyebrow">ÓPTICA</span><h1>Atendimento</h1><p>Receita → orçamento → pedido → laboratório em uma única tela.</p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><button className="secondary" onClick={()=>{setManualOSQuantity("1");setManualOSOpen(true)}}>▣ Imprimir O.S. manual</button><button className="secondary" onClick={load}>↻ Atualizar</button></div></div>
+  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}\n  {manualOSOpen&&<div className="panel" style={{position:"fixed",inset:"0",zIndex:50,background:"rgba(0,0,0,.35)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+   <div className="panel" style={{width:"min(440px,100%)",padding:22,background:"var(--surface)",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+    <div className="panel-heading" style={{padding:0,marginBottom:16}}><div><span className="eyebrow">IMPRESSÃO</span><h2>O.S. manuais sequenciais</h2><p>O sistema reservará uma numeração diferente para cada O.S.</p></div><button className="secondary" onClick={()=>setManualOSOpen(false)}>Fechar</button></div>
+    <label style={{display:"block"}}>Quantidade de O.S.
+      <input autoFocus type="number" min="1" max="100" step="1" value={manualOSQuantity} onChange={e=>setManualOSQuantity(e.target.value)} />
+    </label>
+    <div className="panel" style={{marginTop:12,padding:12,background:"var(--surface-soft)"}}><b>Exemplo</b><div style={{marginTop:5,color:"var(--muted)"}}>Se forem 5 O.S., serão impressas em sequência: 000125, 000126, 000127, 000128 e 000129.</div></div>
+    <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:16}}><button className="secondary" onClick={()=>setManualOSOpen(false)}>Cancelar</button><button className="primary" onClick={()=>{const q=Number(manualOSQuantity);if(!Number.isInteger(q)||q<1||q>100){alert("Informe uma quantidade entre 1 e 100 O.S.");return}setManualOSOpen(false);void printManualOS(q)}}>Imprimir O.S. sequenciais</button></div>
+   </div>
+  </div>}
   <div className="panel workflow-client"><label>Buscar cliente no cadastro<input value={query} onChange={e=>{setQuery(e.target.value);setCustomerId("");setMsg("")}} placeholder="Digite pelo menos 3 letras, nome ou CPF/CNPJ..." autoComplete="off"/>{!customerId&&query.trim().length>0&&query.trim().length<3&&<small className="workflow-search-hint">Digite mais {3-query.trim().length} caractere(s) para pesquisar no cadastro.</small>}{!customerId&&query.trim().length>=3&&<div className="workflow-suggestions-box">{customers.length?customers.slice(0,8).map(c=><button type="button" className="workflow-suggestion" key={c.id} onClick={()=>selectCustomer(c)}><strong>{c.name}</strong>{c.cpfCnpj?" — "+c.cpfCnpj:""}{c.phone?<small>{c.phone}</small>:null}</button>):<div className="workflow-search-empty">Nenhum cliente encontrado no cadastro.</div>}</div>}</label><div className="sales-total-box"><span>Cliente selecionado</span><strong>{customer?.name||"Nenhum"}</strong>{customer?.cpfCnpj&&<small>{customer.cpfCnpj}</small>}</div></div>
   <div className="workflow-tabs">{[["RECEITA","Receita","Cadastro OD/OE"],["ORCAMENTO","Orçamento","Itens e valores"],["PEDIDO","Pedido","Produção e entrega"],["LABORATORIO","Laboratório","Acompanhamento"]].map(x=><button key={x[0]} className={"workflow-tab "+(stage===x[0]?"active":"")} onClick={()=>{setStage(x[0]);setOpen(true)}}><b>{x[1]}</b><span>{x[2]}</span></button>)}</div>
 
