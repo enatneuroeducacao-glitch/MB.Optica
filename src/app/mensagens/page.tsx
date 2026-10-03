@@ -18,6 +18,10 @@ export default function Mensagens(){
   const [compose,setCompose]=useState(false);
   const [sending,setSending]=useState(false);
   const [form,setForm]=useState({to:"",subject:"",text:""});
+  const [contactType,setContactType]=useState<"clientes"|"fornecedores">("clientes");
+  const [contacts,setContacts]=useState<Array<{id:string;name:string;email:string;phone?:string|null}>>([]);
+  const [contactSearch,setContactSearch]=useState("");
+  const [contactsLoading,setContactsLoading]=useState(false);
 
   const load=async(nextFolder=folder)=>{
     setLoading(true);setError("");setSelected(null);setBody(null);
@@ -30,6 +34,19 @@ export default function Mensagens(){
     finally{setLoading(false);}
   };
   useEffect(()=>{load(folder)},[folder]);
+  const loadContacts=async(type=contactType)=>{
+    setContactsLoading(true);
+    try{
+      const r=await fetch("/api/messages/contacts?type="+type,{cache:"no-store"});
+      const d=await r.json();
+      setContacts(Array.isArray(d.data)?d.data:[]);
+      if(!r.ok)setError(d.error||"Não foi possível carregar os contatos.");
+    }catch{setError("Não foi possível carregar os contatos.");}
+    finally{setContactsLoading(false);}
+  };
+  useEffect(()=>{loadContacts(contactType)},[contactType]);
+  const filteredContacts=contacts.filter(c=>(c.name+" "+c.email+" "+(c.phone||"")).toLowerCase().includes(contactSearch.toLowerCase()));
+  const useContact=(email:string)=>{setForm({...form,to:email});setCompose(true)};
 
   const action=async(actionName:string,id:string)=>{
     setError("");
@@ -159,6 +176,23 @@ export default function Mensagens(){
           </div>
         </div>
       )}
+    </div>
+
+    <div className="panel" style={{padding:16,marginTop:12}}>
+      <div className="panel-heading" style={{padding:0,marginBottom:12}}>
+        <div><span className="eyebrow">CONTATOS</span><h2 style={{margin:"4px 0"}}>Lista de contatos</h2><p style={{margin:0,color:"var(--muted)"}}>E-mails cadastrados no MB Gestão. Somente registros com e-mail são exibidos.</p></div>
+        <button className="secondary" onClick={()=>loadContacts(contactType)}>↻ Atualizar</button>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        <button className={contactType==="clientes"?"primary":"secondary"} onClick={()=>{setContactType("clientes");setContactSearch("")}}>👥 Clientes</button>
+        <button className={contactType==="fornecedores"?"primary":"secondary"} onClick={()=>{setContactType("fornecedores");setContactSearch("")}}>🏢 Fornecedores</button>
+      </div>
+      <input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder={contactType==="clientes"?"Buscar cliente ou e-mail...":"Buscar fornecedor ou e-mail..."} style={{marginBottom:10}} />
+      {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum {contactType==="clientes"?"cliente":"fornecedor"} com e-mail cadastrado encontrado.</div>:
+        <div className="table">
+          <div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span></span></div>
+          {filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button></div>)}
+        </div>}
     </div>
 
     {compose&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",display:"grid",placeItems:"center",zIndex:50,padding:20}}><div className="panel" style={{width:"min(720px,100%)",padding:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><span className="eyebrow">NOVA MENSAGEM</span><h2 style={{margin:"4px 0 14px"}}>Enviar e-mail</h2></div><button className="secondary" onClick={()=>setCompose(false)}>✕</button></div><label>Para<input type="email" value={form.to} onChange={e=>setForm({...form,to:e.target.value})} placeholder="destinatario@exemplo.com"/></label><label>Assunto<input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/></label><label>Mensagem<textarea rows={10} value={form.text} onChange={e=>setForm({...form,text:e.target.value})}/></label><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:12}}><button className="secondary" onClick={()=>setCompose(false)}>Cancelar</button><button className="primary" disabled={sending} onClick={send}>{sending?"Enviando...":"✈ Enviar"}</button></div></div></div>}
