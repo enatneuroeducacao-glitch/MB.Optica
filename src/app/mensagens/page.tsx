@@ -11,7 +11,7 @@ type Folder="inbox"|"unread"|"sent"|"archive"|"trash";
 type Contact={id:string;name:string;email:string;phone?:string|null};
 
 const dateBR=(v?:string)=>v?new Date(v).toLocaleString("pt-BR"):"—";
-const bytes=(n=0)=>n<1024?\`${n} B\`:n<1024*1024?\`${(n/1024).toFixed(1)} KB\`:\`${(n/1024/1024).toFixed(1)} MB\`;
+const bytes=(n=0)=>n<1024?n+" B":n<1024*1024?(n/1024).toFixed(1)+" KB":(n/1024/1024).toFixed(1)+" MB";
 const addressList=(v:string)=>v.split(/[;,\\n]+/).map(x=>x.trim()).filter(Boolean);
 
 export default function Mensagens(){
