@@ -241,7 +241,7 @@ export default function Mensagens(){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"72px 1fr",alignItems:"center"}}>
               <span style={{padding:"12px 14px",fontSize:13,fontWeight:700,color:"var(--muted)"}}>ASSUNTO</span>
-              <input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Assunto da mensagem" style={{border:0,borderRadius:0,margin:0,boxShadow:"none"}}/>
+              <input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})} placeholder="Assunto da mensagem" style={{border:0,borderRadius:0,margin:0,boxShadow:"none",width:"100%",minWidth:0}}/>
             </div>
           </div>
 
