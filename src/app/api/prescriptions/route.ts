@@ -49,6 +49,11 @@ export async function POST(req:Request){
     const raw=String(b.validUntil).trim();
     validUntil=new Date(raw+"T12:00:00");
     if(Number.isNaN(validUntil.getTime())) throw new Error("Validade da receita inválida");
+    const today=new Date();
+    today.setHours(0,0,0,0);
+    const validityDay=new Date(validUntil);
+    validityDay.setHours(0,0,0,0);
+    if(validityDay < today) throw new Error("A validade da receita não pode ser anterior à data atual.");
   }
 
   const values:Record<string,Prisma.Decimal>={};
