@@ -97,19 +97,68 @@ export default function Mensagens(){
 
     <div className="panel" style={{padding:0,overflow:"hidden"}}>
       <div style={{display:"flex",gap:6,padding:10,borderBottom:"1px solid var(--line)",flexWrap:"wrap"}}>
-        {([["inbox","📥 Entrada"],["sent","📤 Enviados"],["archive","🗄 Arquivados"],["trash","🗑 Lixeira"]] as [Folder,string][]).map(([id,label])=><button key={id} className={folder===id?"primary":"secondary"} onClick={()=>setFolder(id)}>{label}</button>)}
+        {([["inbox","📥 Entrada"],["sent","📤 Enviados"],["archive","🗄 Arquivados"],["trash","🗑 Lixeira"]] as [Folder,string][]).map(([id,label])=>(
+          <button key={id} className={folder===id?"primary":"secondary"} onClick={()=>setFolder(id)}>{label}</button>
+        ))}
       </div>
-      {loading?<div style={{padding:24,textAlign:"center",color:"var(--muted)"}}>Carregando {title.toLowerCase()}...</div>:
-      !configured?<div style={{padding:30,textAlign:"center"}}><h3>Caixa aguardando configuração</h3><p style={{color:"var(--muted)"}}>Configure o Resend para habilitar o envio e recebimento.</p></div>:
-      rows.length===0?<div style={{padding:30,textAlign:"center",color:"var(--muted)"}}>Nenhuma mensagem em {title.toLowerCase()}.</div>:
-      <div style={{display:"grid",gridTemplateColumns:"minmax(320px,1fr) 1.5fr",minHeight:500}}>
-        <div style={{borderRight:"1px solid var(--line)",overflowY:"auto"}}>{rows.map(e=><button key={e.id} onClick={()=>open(e)} style={{display:"block",width:"100%",textAlign:"left",padding:14,border:0,borderBottom:"1px solid var(--line)",background:selected?.id===e.id?"var(--surface-soft)":"transparent",cursor:"pointer",fontWeight:e._state?.read?400:700}}><strong>{e.subject||"(sem assunto)"}</strong><div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{folder==="sent"?"Para: ":"De: "}{folder==="sent"?(e.to||[]).join(", "):(e.from||"Remetente desconhecido")}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{dateBR(e.created_at)}</div></button>)}</div>
-        <div style={{padding:20}}>{!selected?<div style={{height:"100%",display:"grid",placeItems:"center",color:"var(--muted)"}}>Selecione uma mensagem.</div>:
-          <><div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}><div><span className="eyebrow">MENSAGEM</span><h2 style={{margin:"5px 0"}}>{body?.subject||selected.subject||"(sem assunto)"}</h2><p style={{margin:"4px 0",color:"var(--muted)"}}>De: {body?.from||selected.from||"—"}</p><p style={{margin:"4px 0",color:"var(--muted)"}}>Para: {(body?.to||selected.to||[]).join(", ")}</p><p style={{margin:"4px 0 14px",color:"var(--muted)"}}>{dateBR(body?.created_at||selected.created_at)}</p></div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>{folder!=="sent"&&<><button className="secondary" title="Responder" onClick={reply}>↩ Responder</button><button className="secondary" title="Encaminhar" onClick={forward}>↪ Encaminhar</button></>}<button className="secondary" onClick={print}>🖨 Imprimir</button>{folder==="archive"?<button className="secondary" onClick={()=>action("unarchive",selected.id)}>Desarquivar</button>:folder==="trash"?<button className="secondary" onClick={()=>action("restore",selected.id)}>Restaurar</button>:<><button className="secondary" onClick={()=>action("archive",selected.id)}>🗄 Arquivar</button><button className="secondary" onClick={()=>action("delete",selected.id)}>🗑 Excluir</button></>}</div></div>
-          {body?.html?<iframe title="Conteúdo do e-mail" sandbox="" style={{width:"100%",height:330,border:"1px solid var(--line)",borderRadius:8}} srcDoc={body.html}/>:<div style={{whiteSpace:"pre-wrap",padding:14,border:"1px solid var(--line)",borderRadius:8,minHeight:220}}>{body?.text||"Carregando conteúdo..."}</div>}
-          </>}
-      </div>}
+
+      {loading && <div style={{padding:24,textAlign:"center",color:"var(--muted)"}}>Carregando {title.toLowerCase()}...</div>}
+      {!loading && !configured && <div style={{padding:30,textAlign:"center"}}><h3>Caixa aguardando configuração</h3><p style={{color:"var(--muted)"}}>Configure o Resend para habilitar o envio e recebimento.</p></div>}
+      {!loading && configured && rows.length===0 && <div style={{padding:30,textAlign:"center",color:"var(--muted)"}}>Nenhuma mensagem em {title.toLowerCase()}.</div>}
+
+      {!loading && configured && rows.length>0 && (
+        <div style={{display:"grid",gridTemplateColumns:"minmax(320px,1fr) 1.5fr",minHeight:500}}>
+          <div style={{borderRight:"1px solid var(--line)",overflowY:"auto"}}>
+            {rows.map(e=>(
+              <button key={e.id} onClick={()=>open(e)} style={{display:"block",width:"100%",textAlign:"left",padding:14,border:0,borderBottom:"1px solid var(--line)",background:selected?.id===e.id?"var(--surface-soft)":"transparent",cursor:"pointer",fontWeight:e._state?.read?400:700}}>
+                <strong>{e.subject||"(sem assunto)"}</strong>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{folder==="sent"?"Para: ":"De: "}{folder==="sent"?(e.to||[]).join(", "):(e.from||"Remetente desconhecido")}</div>
+                <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{dateBR(e.created_at)}</div>
+              </button>
+            ))}
+          </div>
+          <div style={{padding:20}}>
+            {!selected && <div style={{height:"100%",display:"grid",placeItems:"center",color:"var(--muted)"}}>Selecione uma mensagem.</div>}
+            {selected && (
+              <>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start"}}>
+                  <div>
+                    <span className="eyebrow">MENSAGEM</span>
+                    <h2 style={{margin:"5px 0"}}>{body?.subject||selected.subject||"(sem assunto)"}</h2>
+                    <p style={{margin:"4px 0",color:"var(--muted)"}}>De: {body?.from||selected.from||"—"}</p>
+                    <p style={{margin:"4px 0",color:"var(--muted)"}}>Para: {(body?.to||selected.to||[]).join(", ")}</p>
+                    <p style={{margin:"4px 0 14px",color:"var(--muted)"}}>{dateBR(body?.created_at||selected.created_at)}</p>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    {folder!=="sent" && (
+                      <>
+                        <button className="secondary" title="Responder" onClick={reply}>↩ Responder</button>
+                        <button className="secondary" title="Encaminhar" onClick={forward}>↪ Encaminhar</button>
+                      </>
+                    )}
+                    <button className="secondary" onClick={print}>🖨 Imprimir</button>
+                    {folder==="archive" ? (
+                      <button className="secondary" onClick={()=>action("unarchive",selected.id)}>Desarquivar</button>
+                    ) : folder==="trash" ? (
+                      <button className="secondary" onClick={()=>action("restore",selected.id)}>Restaurar</button>
+                    ) : (
+                      <>
+                        <button className="secondary" onClick={()=>action("archive",selected.id)}>🗄 Arquivar</button>
+                        <button className="secondary" onClick={()=>action("delete",selected.id)}>🗑 Excluir</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {body?.html ? (
+                  <iframe title="Conteúdo do e-mail" sandbox="" style={{width:"100%",height:330,border:"1px solid var(--line)",borderRadius:8}} srcDoc={body.html}/>
+                ) : (
+                  <div style={{whiteSpace:"pre-wrap",padding:14,border:"1px solid var(--line)",borderRadius:8,minHeight:220}}>{body?.text||"Carregando conteúdo..."}</div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
 
     {compose&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",display:"grid",placeItems:"center",zIndex:50,padding:20}}><div className="panel" style={{width:"min(720px,100%)",padding:20}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><span className="eyebrow">NOVA MENSAGEM</span><h2 style={{margin:"4px 0 14px"}}>Enviar e-mail</h2></div><button className="secondary" onClick={()=>setCompose(false)}>✕</button></div><label>Para<input type="email" value={form.to} onChange={e=>setForm({...form,to:e.target.value})} placeholder="destinatario@exemplo.com"/></label><label>Assunto<input value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}/></label><label>Mensagem<textarea rows={10} value={form.text} onChange={e=>setForm({...form,text:e.target.value})}/></label><div style={{display:"flex",justifyContent:"flex-end",gap:8,marginTop:12}}><button className="secondary" onClick={()=>setCompose(false)}>Cancelar</button><button className="primary" disabled={sending} onClick={send}>{sending?"Enviando...":"✈ Enviar"}</button></div></div></div>}
