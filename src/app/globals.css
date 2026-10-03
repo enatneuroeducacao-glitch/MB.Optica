@@ -89,3 +89,27 @@
 .brand-mark img{width:100%;height:100%;object-fit:contain;border-radius:inherit}
 
 .version-badge{font-size:11px;font-weight:700;color:#56647a;background:#f3f6fa;border:1px solid var(--line);border-radius:8px;padding:7px 9px;white-space:nowrap}.version-control{border:1px solid var(--line);background:#fff;color:#17324d;border-radius:8px;padding:8px 11px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}.version-control:hover{background:#f3f6fa}.version-control.update-available{color:#fff;background:#0f8b83;border-color:#0f8b83}.version-control.update-available:hover{background:#0b756e}
+
+.workflow-client{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px;padding:16px}
+.workflow-client label{display:grid;gap:6px;font-size:10px;font-weight:700;color:#4d5a6d}
+.workflow-client input{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:11px;background:#fff;outline:none}
+.workflow-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.workflow-tab{position:relative;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer}
+.workflow-tab b,.workflow-tab span{display:block}
+.workflow-tab b{font-size:11px;color:#253247}.workflow-tab span{font-size:9px;color:var(--muted);margin-top:3px}.workflow-tab.active{border-color:#1b8a78;box-shadow:0 0 0 2px rgba(27,138,120,.08);background:#f7fcfa}.workflow-tab.active b{color:#146b5d}
+.workflow-panel{padding:0;overflow:visible}
+.workflow-section-head{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:15px 18px;border:0;background:#fff;cursor:pointer;border-radius:10px}
+.workflow-section-head b,.workflow-section-head small{display:block}.workflow-section-head b{font-size:12px}.workflow-section-head small{font-size:9px;color:var(--muted);margin-top:3px}.workflow-section-head strong{font-size:18px;color:#1b8a78}
+.workflow-body{padding:0 18px 18px}
+.workflow-eyes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.workflow-eye{padding:14px;border:1px solid var(--line)}.workflow-eye h3{text-align:center;margin:0 0 12px;font-size:11px}
+.workflow-items{margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+.workflow-items-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.workflow-items-head b{font-size:11px}
+.workflow-item{position:relative;display:grid;grid-template-columns:2fr 1fr .7fr .9fr auto;gap:8px;align-items:end;padding:9px 0;border-top:1px solid #eef1f5}
+.workflow-item label{display:grid;gap:5px;font-size:10px;font-weight:700;color:#4d5a6d;position:relative}.workflow-item input,.workflow-item select{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:11px;background:#fff;outline:none}
+.workflow-suggestion{display:block;width:100%;text-align:left;padding:8px 10px;border:0;border-bottom:1px solid var(--line);background:#fff;cursor:pointer;font-size:10px;color:#253247}
+.workflow-suggestion:hover{background:#f5f8fa}
+.workflow-commercial{display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-top:12px}.workflow-commercial label{display:grid;gap:5px;font-size:10px;font-weight:700;color:#4d5a6d}.workflow-commercial input,.workflow-commercial textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px;font-size:11px;background:#fff}
+.workflow-order{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-top:1px solid #eef1f5}.workflow-order h3{margin:4px 0;font-size:12px}.workflow-order p{margin:0;color:var(--muted);font-size:10px}.workflow-order-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:900px){.workflow-tabs{grid-template-columns:1fr 1fr}.workflow-eyes{grid-template-columns:1fr}.workflow-item{grid-template-columns:1fr 1fr}.workflow-item label:first-child{grid-column:1/-1}.workflow-commercial{grid-template-columns:1fr 1fr}.workflow-client{grid-template-columns:1fr}}
+@media(max-width:600px){.workflow-tabs{grid-template-columns:1fr}.workflow-item{grid-template-columns:1fr}.workflow-commercial{grid-template-columns:1fr}.workflow-order{align-items:flex-start;flex-direction:column}.workflow-order-side{justify-content:flex-start}.workflow-client{grid-template-columns:1fr}}
