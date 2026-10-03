@@ -12,6 +12,7 @@ CMD ["npx","prisma","migrate","deploy"]
 FROM deps AS builder
 WORKDIR /app
 COPY . .
+ENV DIRECT_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
 RUN npx prisma generate
 RUN npm run build
 
