@@ -3,7 +3,7 @@ import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
 import {ReactNode,useEffect,useState} from "react";
 
-const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Receitas","/receitas"],["Orçamentos","/orcamentos"],["Pedidos","/pedidos"],["Laboratório","/laboratorio"]]},{label:"Operação",items:[["Produtos","/produtos"],["Estoque","/estoque"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Relatórios","/relatorios"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
+const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Atendimento","/atendimento"]]},{label:"Operação",items:[["Produtos","/produtos"],["Estoque","/estoque"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Relatórios","/relatorios"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
 
 type User={name:string;email:string;role:string;mustChangePassword?:boolean}|null;
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
