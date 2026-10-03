@@ -9,6 +9,7 @@ import { apiError } from "@/lib/api-error";
 const schema = z.object({
   name: z.string().trim().min(2).max(120).optional(),
   email: z.string().trim().email().max(160).optional(),
+  mbEmail: z.string().trim().email().max(160).optional().or(z.literal("")),
   role: z.enum(["ADMIN", "GERENTE", "VENDEDOR", "FINANCEIRO", "LABORATORIO"]).optional(),
   active: z.boolean().optional(),
   permissions: z.record(z.string(), z.boolean()).optional(),
@@ -42,6 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         data: {
           name: body.name,
           email: body.email?.toLowerCase(),
+          mbEmail: body.mbEmail?.trim().toLowerCase() || null,
           role: body.role,
           active: body.active,
           passwordHash,
@@ -49,7 +51,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           permissions: body.permissions,
           ...(body.password || body.active !== undefined || body.role || body.permissions ? { sessionVersion: { increment: 1 } } : {}),
         },
-        select: { id: true, name: true, email: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true, mustChangePassword: true },
+        select: { id: true, name: true, email: true, mbEmail: true, role: true, active: true, lastLoginAt: true, createdAt: true, permissions: true, mustChangePassword: true },
       });
 
       await tx.auditLog.create({
