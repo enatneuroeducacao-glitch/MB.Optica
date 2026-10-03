@@ -39,9 +39,9 @@ export async function getCurrentUser() {
   try {
     const payload = await verifySessionToken(token);
     if (!payload.userId || typeof payload.version !== "number") return null;
-    const user = await db.user.findUnique({ where: { id: payload.userId } });
+    const user = await db.user.findUnique({\n      where: { id: payload.userId },\n      select: { id: true, name: true, email: true, role: true, active: true, mustChangePassword: true, sessionVersion: true, permissions: true },\n    });
     if (!user || !user.active || user.sessionVersion !== payload.version) return null;
-    return { id: user.id, name: user.name, email: user.email, mbEmail: user.mbEmail, role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, permissions: effectivePermissions(user.role, user.permissions) };
+    return { id: user.id, name: user.name, email: user.email, role: user.role, active: user.active, mustChangePassword: user.mustChangePassword, permissions: effectivePermissions(user.role, user.permissions) };
   } catch {
     return null;
   }
