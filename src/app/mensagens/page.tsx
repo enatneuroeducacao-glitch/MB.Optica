@@ -2,6 +2,7 @@
 import {useEffect,useState} from "react";
 
 type Email={id:string;to?:string[];from?:string;subject?:string;created_at?:string;attachments?:any[]};
+type Compose={to:string;cc:string;subject:string;text:string};
 
 const dateBR=(v?:string)=>v?new Date(v).toLocaleString("pt-BR"):"—";
 
@@ -12,6 +13,11 @@ export default function Mensagens(){
   const [configured,setConfigured]=useState(false);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
+  const [composeOpen,setComposeOpen]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState("");
+  const [compose,setCompose]=useState<Compose>({to:"",cc:"",subject:"",text:""});
+  const [showCc,setShowCc]=useState(false);
 
   const load=async()=>{
     setLoading(true);setError("");
@@ -24,39 +30,145 @@ export default function Mensagens(){
     }catch{setError("Não foi possível carregar a caixa de mensagens.")}
     finally{setLoading(false)}
   };
+
   useEffect(()=>{load()},[]);
 
   const open=async(e:Email)=>{
-    setSelected(e);setBody(null);
+    setSelected(e);setBody(null);setSent("");
     try{
       const r=await fetch("/api/messages/"+encodeURIComponent(e.id),{cache:"no-store"});
-      const d=await r.json();if(r.ok)setBody(d);else setError(d.error||"Não foi possível abrir a mensagem.");
+      const d=await r.json();
+      if(r.ok)setBody(d);else setError(d.error||"Não foi possível abrir a mensagem.");
     }catch{setError("Não foi possível abrir a mensagem.")}
+  };
+
+  const newMessage=()=>{
+    setSelected(null);setBody(null);setSent("");setError("");
+    setCompose({to:"",cc:"",subject:"",text:""});
+    setShowCc(false);setComposeOpen(true);
+  };
+
+  const reply=()=>{
+    const from=body?.from||selected?.from||"";
+    const subject=body?.subject||selected?.subject||"";
+    const original=body?.text||"";
+    setCompose({
+      to:from,
+      cc:"",
+      subject:subject.toLowerCase().startsWith("re:")?subject:"Re: "+subject,
+      text:original?"\n\n--- Mensagem original ---\nDe: "+from+"\nData: "+dateBR(body?.created_at||selected?.created_at)+"\n\n"+original:""
+    });
+    setShowCc(false);setSent("");setError("");setComposeOpen(true);
+  };
+
+  const forward=()=>{
+    const subject=body?.subject||selected?.subject||"";
+    const original=body?.text||"";
+    const from=body?.from||selected?.from||"";
+    setCompose({
+      to:"",
+      cc:"",
+      subject:subject.toLowerCase().startsWith("fwd:")?subject:"Fwd: "+subject,
+      text:"\n\n--- Mensagem encaminhada ---\nDe: "+from+"\nPara: "+(body?.to||selected?.to||[]).join(", ")+"\nData: "+dateBR(body?.created_at||selected?.created_at)+"\n\n"+original
+    });
+    setShowCc(false);setSent("");setError("");setComposeOpen(true);
+  };
+
+  const send=async(e:React.FormEvent)=>{
+    e.preventDefault();setSending(true);setError("");setSent("");
+    try{
+      const to=compose.to.split(/[;,\n]+/).map(v=>v.trim()).filter(Boolean);
+      const cc=compose.cc.split(/[;,\n]+/).map(v=>v.trim()).filter(Boolean);
+      const r=await fetch("/api/messages/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...compose,to,cc})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||"Não foi possível enviar o e-mail.");
+      setSent("Mensagem enviada com sucesso.");
+      setCompose({to:"",cc:"",subject:"",text:""});
+      setShowCc(false);
+    }catch(e:any){setError(e.message||"Não foi possível enviar o e-mail.")}
+    finally{setSending(false)}
   };
 
   return <section className="page">
     <div className="page-heading">
-      <div><span className="eyebrow">COMUNICAÇÃO</span><h1>Caixa de mensagens</h1><p>Receba e acompanhe os e-mails da MB Óptica diretamente no Gestão.</p></div>
-      <div style={{display:"flex",gap:8}}><button className="secondary" onClick={load}>↻ Atualizar</button></div>
+      <div><span className="eyebrow">COMUNICAÇÃO</span><h1>Caixa de mensagens</h1><p>Receba, responda e envie os e-mails da MB Óptica diretamente no Gestão.</p></div>
+      <div style={{display:"flex",gap:8}}>
+        <button className="secondary" onClick={load}>↻ Atualizar</button>
+        <button className="primary" onClick={newMessage}>✉ Nova mensagem</button>
+      </div>
     </div>
 
     <div className="panel" style={{padding:16,marginBottom:12}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"center",flexWrap:"wrap"}}>
-        <div><span className="eyebrow">CAIXA DE ENTRADA</span><h2 style={{margin:"4px 0"}}>nome@mboptica.com.br</h2><p style={{margin:0,color:"var(--muted)"}}>Endereço planejado para receber mensagens no MB Gestão via Resend.</p></div>
+        <div><span className="eyebrow">CAIXA DE ENTRADA</span><h2 style={{margin:"4px 0"}}>nome@mboptica.com.br</h2><p style={{margin:0,color:"var(--muted)"}}>Recebimento via Resend e envio pelo remetente configurado no MB Gestão.</p></div>
         <span className="status-badge">{configured?"Resend conectado":"Aguardando configuração do Resend"}</span>
       </div>
     </div>
 
     {error&&<div className="panel" style={{padding:12,marginBottom:12}}>{error}</div>}
+    {sent&&<div className="panel" style={{padding:12,marginBottom:12}}>{sent}</div>}
 
     <div className="panel" style={{padding:0,overflow:"hidden"}}>
       {loading?<div style={{padding:24,textAlign:"center",color:"var(--muted)"}}>Carregando mensagens...</div>:
-      !configured?<div style={{padding:30,textAlign:"center"}}><h3>Caixa criada, integração pendente</h3><p style={{color:"var(--muted)",maxWidth:620,margin:"8px auto"}}>O menu e a caixa já estão prontos. Falta configurar a chave da Resend no Render e habilitar o recebimento do domínio para que os e-mails apareçam aqui.</p></div>:
-      rows.length===0?<div style={{padding:30,textAlign:"center",color:"var(--muted)"}}>Nenhuma mensagem recebida.</div>:
+      !configured?<div style={{padding:30,textAlign:"center"}}><h3>Caixa criada, integração pendente</h3><p style={{color:"var(--muted)",maxWidth:620,margin:"8px auto"}}>Falta configurar a chave da Resend no ambiente do MB Gestão e habilitar o recebimento do domínio.</p></div>:
+      rows.length===0?<div style={{padding:30,textAlign:"center",color:"var(--muted)"}}>Nenhuma mensagem recebida.<div style={{marginTop:12}}><button className="primary" onClick={newMessage}>✉ Nova mensagem</button></div></div>:
       <div style={{display:"grid",gridTemplateColumns:"minmax(360px,1fr) 1.5fr",minHeight:460}}>
-        <div style={{borderRight:"1px solid var(--line)"}}>{rows.map(e=><button key={e.id} onClick={()=>open(e)} style={{display:"block",width:"100%",textAlign:"left",padding:14,border:0,borderBottom:"1px solid var(--line)",background:selected?.id===e.id?"var(--surface-soft)":"transparent",cursor:"pointer"}}><strong>{e.subject||"(sem assunto)"}</strong><div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{e.from||"Remetente desconhecido"}</div><div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{dateBR(e.created_at)}</div></button>)}</div>
-        <div style={{padding:20}}>{!selected?<div style={{height:"100%",display:"grid",placeItems:"center",color:"var(--muted)"}}>Selecione uma mensagem.</div>:<><div><span className="eyebrow">MENSAGEM</span><h2 style={{margin:"5px 0"}}>{body?.subject||selected.subject||"(sem assunto)"}</h2><p style={{margin:"4px 0",color:"var(--muted)"}}>De: {body?.from||selected.from||"—"}</p><p style={{margin:"4px 0",color:"var(--muted)"}}>Para: {(body?.to||selected.to||[]).join(", ")}</p><p style={{margin:"4px 0 14px",color:"var(--muted)"}}>{dateBR(body?.created_at||selected.created_at)}</p></div>{body?.html?<iframe title="Conteúdo do e-mail" sandbox="" style={{width:"100%",height:320,border:"1px solid var(--line)",borderRadius:8}} srcDoc={body.html}/>:<div style={{whiteSpace:"pre-wrap",padding:14,border:"1px solid var(--line)",borderRadius:8}}>{body?.text||"Carregando conteúdo..."}</div>}</>}</div>
+        <div style={{borderRight:"1px solid var(--line)"}}>
+          {rows.map(e=><button key={e.id} onClick={()=>open(e)} style={{display:"block",width:"100%",textAlign:"left",padding:14,border:0,borderBottom:"1px solid var(--line)",background:selected?.id===e.id?"var(--surface-soft)":"transparent",cursor:"pointer"}}>
+            <strong>{e.subject||"(sem assunto)"}</strong>
+            <div style={{fontSize:11,color:"var(--muted)",marginTop:4}}>{e.from||"Remetente desconhecido"}</div>
+            <div style={{fontSize:10,color:"var(--muted)",marginTop:3}}>{dateBR(e.created_at)}</div>
+          </button>)}
+        </div>
+        <div style={{padding:20}}>
+          {!selected?<div style={{height:"100%",display:"grid",placeItems:"center",color:"var(--muted)"}}>Selecione uma mensagem ou clique em “Nova mensagem”.</div>:
+          <><div>
+            <span className="eyebrow">MENSAGEM</span>
+            <h2 style={{margin:"5px 0"}}>{body?.subject||selected.subject||"(sem assunto)"}</h2>
+            <p style={{margin:"4px 0",color:"var(--muted)"}}>De: {body?.from||selected.from||"—"}</p>
+            <p style={{margin:"4px 0",color:"var(--muted)"}}>Para: {(body?.to||selected.to||[]).join(", ")}</p>
+            <p style={{margin:"4px 0 14px",color:"var(--muted)"}}>{dateBR(body?.created_at||selected.created_at)}</p>
+            <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+              <button className="primary" onClick={reply}>↩ Responder</button>
+              <button className="secondary" onClick={forward}>↗ Encaminhar</button>
+            </div>
+          </div>
+          {body?.html?<iframe title="Conteúdo do e-mail" sandbox="" style={{width:"100%",height:320,border:"1px solid var(--line)",borderRadius:8}} srcDoc={body.html}/>:<div style={{whiteSpace:"pre-wrap",padding:14,border:"1px solid var(--line)",borderRadius:8}}>{body?.text||"Carregando conteúdo..."}</div>}
+          </>}
+        </div>
       </div>}
     </div>
+
+    {composeOpen&&<div role="dialog" aria-modal="true" style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.42)",display:"grid",placeItems:"center",padding:20}}>
+      <div className="panel" style={{width:"min(760px,100%)",maxHeight:"90vh",overflow:"auto",padding:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:16}}>
+          <div><span className="eyebrow">COMUNICAÇÃO</span><h2 style={{margin:"4px 0"}}>Nova mensagem</h2><p style={{margin:0,color:"var(--muted)"}}>Envie pelo endereço configurado da MB Óptica.</p></div>
+          <button className="secondary" type="button" onClick={()=>setComposeOpen(false)}>Fechar</button>
+        </div>
+        <form onSubmit={send} className="form-grid">
+          <label className="wide">Para
+            <input value={compose.to} onChange={e=>setCompose({...compose,to:e.target.value})} placeholder="cliente@email.com" required />
+          </label>
+          <label className="wide">Assunto
+            <input value={compose.subject} onChange={e=>setCompose({...compose,subject:e.target.value})} placeholder="Assunto do e-mail" required />
+          </label>
+          <div className="wide" style={{display:"flex",justifyContent:"flex-end",marginTop:-8}}>
+            <button className="secondary" type="button" onClick={()=>setShowCc(v=>!v)}>{showCc?"Ocultar Cc":"Adicionar Cc"}</button>
+          </div>
+          {showCc&&<label className="wide">Cc
+            <input value={compose.cc} onChange={e=>setCompose({...compose,cc:e.target.value})} placeholder="outro@email.com" />
+          </label>}
+          <label className="wide">Mensagem
+            <textarea rows={10} value={compose.text} onChange={e=>setCompose({...compose,text:e.target.value})} placeholder="Digite sua mensagem..." required />
+          </label>
+          {error&&<div className="wide" style={{padding:10,border:"1px solid var(--line)",borderRadius:8}}>{error}</div>}
+          {sent&&<div className="wide" style={{padding:10,border:"1px solid var(--line)",borderRadius:8}}>{sent}</div>}
+          <div className="wide" style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+            <button className="secondary" type="button" onClick={()=>setComposeOpen(false)}>Cancelar</button>
+            <button className="primary" type="submit" disabled={sending}>{sending?"Enviando...":"Enviar mensagem"}</button>
+          </div>
+        </form>
+      </div>
+    </div>}
   </section>;
 }
