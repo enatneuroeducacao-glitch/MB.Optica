@@ -1,5 +1,6 @@
 export const PAGE_PERMISSIONS: Record<string, string> = {
   "/agenda": "agenda",
+  "/mensagens": "mensagens",
   "/clientes": "clientes",
   "/receitas": "receitas",
   "/orcamentos": "orcamentos",
@@ -17,6 +18,7 @@ export const PAGE_PERMISSIONS: Record<string, string> = {
 
 export const PERMISSION_GROUPS = [
   ["dashboard"],
+  ["mensagens"],
   ["agenda"],
   ["clientes"],
   ["receitas"],
@@ -38,17 +40,18 @@ export const PERMISSION_GROUPS = [
 export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ADMIN: [...PERMISSION_GROUPS],
   GERENTE: [
-    "dashboard", "agenda", "clientes", "receitas", "orcamentos", "pedidos",
+    "dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos",
     "laboratorio", "produtos", "estoque", "fornecedores", "vendas",
     "financeiro", "relatorios", "configuracoes", "usuarios", "auditoria",
   ],
-  VENDEDOR: ["dashboard", "agenda", "clientes", "receitas", "orcamentos", "pedidos", "vendas", "produtos"],
-  FINANCEIRO: ["dashboard", "vendas", "financeiro", "relatorios"],
-  LABORATORIO: ["dashboard", "pedidos", "laboratorio", "produtos", "estoque"],
+  VENDEDOR: ["dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos", "vendas", "produtos"],
+  FINANCEIRO: ["dashboard", "mensagens", "vendas", "financeiro", "relatorios"],
+  LABORATORIO: ["dashboard", "mensagens", "pedidos", "laboratorio", "produtos", "estoque"],
 };
 
 export const API_PERMISSIONS: Record<string, string> = {
   "/api/appointments": "agenda",
+  "/api/messages": "mensagens",
   "/api/audit": "auditoria",
   "/api/categories": "produtos",
   "/api/customers": "clientes",
@@ -92,7 +95,7 @@ export const API_PUBLIC_AUTHENTICATED = new Set([
 export const ROLE_API_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
   GERENTE: [
-    "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers",
     "/api/orders", "/api/payment-methods", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
@@ -101,18 +104,18 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/fiscal/produtos/diagnostico", "/api/fiscal/validacao/venda", "/api/fiscal/homologacao",
   ],
   VENDEDOR: [
-    "/api/auth/me", "/api/dashboard", "/api/appointments", "/api/customers",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/orders",
     "/api/payment-methods", "/api/payments", "/api/pix-keys", "/api/sales",
     "/api/quotes",
   ],
   FINANCEIRO: [
-    "/api/auth/me", "/api/dashboard", "/api/payment-methods", "/api/payments",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/payment-methods", "/api/payments",
     "/api/pix-keys", "/api/finance", "/api/financeiro", "/api/cash", "/api/sales",
     "/api/gestao/indicadores",
   ],
   LABORATORIO: [
-    "/api/auth/me", "/api/dashboard", "/api/customers", "/api/prescriptions",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/prescriptions",
     "/api/products", "/api/categories", "/api/orders", "/api/stock",
   ],
 };
