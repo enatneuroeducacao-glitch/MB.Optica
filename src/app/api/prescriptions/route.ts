@@ -11,8 +11,11 @@ const NUMERIC=["odSphere","odCylinder","odAxis","odAdd","odPrism","odDnp","odHei
 
 function parseDecimal(value: unknown, field: string): Prisma.Decimal | undefined {
   if (value===undefined || value===null || value==="") return undefined;
-  const normalized=String(value).trim().replace(",",".");
-  if (!normalized) return undefined;
+  const raw=String(value).trim();
+  if (!raw) return undefined;
+  // Em receitas ópticas, PL/PLANO significa grau zero (plano).
+  if (/^pl(?:ano)?$/i.test(raw)) return new Prisma.Decimal(0);
+  const normalized=raw.replace(",",".");
   const number=Number(normalized);
   if (!Number.isFinite(number)) throw new Error("Valor inválido na receita: "+field);
   return new Prisma.Decimal(normalized);
