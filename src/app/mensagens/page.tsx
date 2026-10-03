@@ -277,6 +277,6 @@ export default function Mensagens(){
           </div>
         </div>
       </div>
-    </div>
+    </div>}
   </section>;
 }
