@@ -1,0 +1,11 @@
+ALTER TABLE "Product" ADD COLUMN "publishedOnSite" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Product" ADD COLUMN "siteCollectionSlug" TEXT;
+ALTER TABLE "Product" ADD COLUMN "siteFeatured" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Product" ADD COLUMN "siteSortOrder" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Product" ADD COLUMN "siteDescription" TEXT;
+ALTER TABLE "Product" ADD COLUMN "sitePrice" DECIMAL(12,2);
+ALTER TABLE "Product" ADD COLUMN "siteProductId" TEXT;
+ALTER TABLE "Product" ADD COLUMN "siteSyncedAt" TIMESTAMP(3);
+ALTER TABLE "Product" ADD COLUMN "siteSyncStatus" TEXT;
+ALTER TABLE "Product" ADD COLUMN "siteSyncError" TEXT;
+CREATE UNIQUE INDEX "Product_siteProductId_key" ON "Product"("siteProductId");
