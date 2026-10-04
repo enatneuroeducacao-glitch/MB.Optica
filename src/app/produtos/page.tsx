@@ -108,7 +108,7 @@ const reconcileBeepStart=async()=>{
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
   const shouldPublish=Boolean(form.publishedOnSite);\n  const wasPublished=Boolean(selected?.publishedOnSite);\n  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),initialStock:selected?0:Number(form.initialStock||0),stockControlled:Boolean(form.stockControlled),photoData:form.photoData||null,
-   categoryId:form.categoryId||null,supplierId:form.supplierId||null,siteCollectionSlug:form.siteCollectionSlug||null,siteFeatured:Boolean(form.siteFeatured),siteSortOrder:Number(form.siteSortOrder||0),siteDescription:form.siteDescription||null,sitePrice:form.sitePrice===""||form.sitePrice==null?null:Number(form.sitePrice),
+   categoryId:form.categoryId||null,supplierId:form.supplierId||null,siteCollectionSlug:form.siteCollectionSlug||null,siteFeatured:Boolean(form.siteFeatured),siteSortOrder:Number(form.siteSortOrder||0),siteDescription:form.siteDescription||null,sitePrice:form.sitePrice===""||form.sitePrice==null?null:Number(form.sitePrice),publishedOnSite:wasPublished,
    lensWidth:form.lensWidth?Number(form.lensWidth):null,bridgeWidth:form.bridgeWidth?Number(form.bridgeWidth):null,
    templeLength:form.templeLength?Number(form.templeLength):null
   };
