@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Candidate={legacyKey:string;legacyId:string|null;name?:string;document?:string;phone?:string;description?:string;brand?:string;model?:string;code?:string;barcode?:string;status:"MATCHED"|"NEW"|"REVIEW"|"RECONCILED";method:string;reason:string;matchedName?:string|null};
 type Preview={fingerprint:string;totalRecords:number;customerSource:number;productSource:number;otherRecords:number;customers:Candidate[];products:Candidate[];customerCounts:Record<string,number>;productCounts:Record<string,number>};
@@ -21,6 +21,18 @@ export default function Page(){
   const [status,setStatus]=useState<"ALL"|"NEW"|"REVIEW"|"MATCHED"|"RECONCILED">("NEW");
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(1);
+  const [migrationType,setMigrationType]=useState<"CLIENTES"|"PRODUTOS">("CLIENTES");
+
+  useEffect(()=>{
+    const type=new URLSearchParams(window.location.search).get("tipo");
+    if(type==="PRODUTOS"){
+      setMigrationType("PRODUTOS");
+      setKind("Produto");
+    }else{
+      setMigrationType("CLIENTES");
+      setKind("Cliente");
+    }
+  },[]);
 
   const candidates=kind==="Cliente"?(preview?.customers??[]):(preview?.products??[]);
   const filtered=useMemo(()=>candidates.filter(x=>{
@@ -59,7 +71,7 @@ export default function Page(){
     if(!window.confirm("CONFIRMAR RECONCILIAÇÃO SELETIVA\\n\\nRegistros selecionados: "+selected.size+"\\n\\nSomente os registros marcados serão considerados para inclusão. Correspondências existentes não serão substituídas.\\n\\nContinuar?"))return;
     setBusy(true);setMessage("");
     try{
-      const r=await fetch("/api/migration/incremental",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,selectedKeys:[...selected],nonStockProductKeys:[...nonStockProducts]})});
+      const r=await fetch("/api/migration/incremental",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records,migrationType,selectedKeys:[...selected],nonStockProductKeys:[...nonStockProducts]})});
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Falha na reconciliação seletiva.");
       setResult(d.result);setMessage("Reconciliação seletiva concluída. Nenhum registro fora da seleção foi incorporado.");
@@ -69,10 +81,14 @@ export default function Page(){
 
   return <section className="page">
     <div className="page-heading">
-      <div><span className="eyebrow">ADMINISTRAÇÃO · PESQUISA E RECONCILIAÇÃO</span><h1>Reconciliação seletiva do BeepStart</h1><p>Primeiro pesquisamos cada Cliente e Produto. Só depois você escolhe exatamente o que precisa entrar no MB Óptica.</p></div>
-      <div className="settings-status"><b>● MODO SEGURO</b><span>Pesquisa sem gravação</span></div>
+      <div><span className="eyebrow">ADMINISTRAÇÃO · MIGRAÇÃO SEGMENTADA</span><h1>{migrationType==="CLIENTES"?"Migrar somente clientes":"Migrar somente produtos"}</h1><p>Esta execução está limitada a um único tipo de cadastro. Depois de concluída, a migração fica bloqueada no servidor para impedir duplicidade.</p></div>
+      <div className="settings-status"><b>● {migrationType==="CLIENTES"?"CLIENTES":"PRODUTOS"}</b><span>Migração segmentada</span></div>
     </div>
     {message&&<div className="panel settings-message">{message}</div>}
+
+    <div className="panel" style={{marginBottom:16,borderLeft:"4px solid #087f73"}}>
+      <div className="panel-heading"><div><span className="eyebrow">TIPO SELECIONADO</span><h2>{migrationType==="CLIENTES"?"Somente clientes":"Somente produtos"}</h2><p>O servidor recusará qualquer registro de outra coleção nesta execução.</p></div><a className="secondary" href="/migracao">Voltar para Central de Migração</a></div>
+    </div>
 
     <div className="settings-grid">
       <div className="panel">

@@ -31,6 +31,14 @@ type Run = {
   warnings:number; errors:number; startedAt:string; completedAt:string|null;
 };
 type Operational = { customerTotal:number; activeCustomers:number; productTotal:number; activeProducts:number };
+type MigrationOption = {
+  key:"CLIENTES"|"PRODUTOS"|"FATURAMENTO";
+  label:string;
+  source:string;
+  completed:boolean;
+  blocked:boolean;
+  run?:{id:string;total:number;completedAt:string|null}|null;
+};
 
 function firstValue(payload:Record<string,unknown>, keys:string[]) {
   for (const key of keys) {
@@ -67,6 +75,7 @@ export default function Page(){
   const [message,setMessage]=useState("");
   const [selected,setSelected]=useState<LegacyRow|null>(null);
   const [financial,setFinancial]=useState<FinancialSummary|null>(null);
+  const [migrationOptions,setMigrationOptions]=useState<MigrationOption[]>([]);
 
   async function load(){
     try{
@@ -74,6 +83,7 @@ export default function Page(){
       const d=await r.json();
       if(!r.ok) throw new Error(d.error||"Não foi possível carregar a central.");
       setRuns(d.runs||[]);
+      setMigrationOptions(d.migrationOptions||[]);
       setLegacyStored(d.legacyStored||0);
       setOperational(d.operational||null);
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar a central.");}
@@ -175,6 +185,42 @@ export default function Page(){
           <span style={{fontSize:12,color:"var(--muted)"}}>{String(sub)}</span>
         </div>
       )}
+    </div>
+
+    <div className="panel" style={{marginBottom:16}}>
+      <div className="panel-heading">
+        <div>
+          <span className="eyebrow">MIGRAÇÃO CONTROLADA</span>
+          <h2>Escolha o que será migrado</h2>
+          <p>Cada tipo de migração possui seu próprio controle. Depois de concluída, a mesma migração fica bloqueada para evitar duplicidade.</p>
+        </div>
+        <b>● CONTROLE DE DUPLICIDADE</b>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:12}}>
+        {([
+          ["CLIENTES","Somente clientes","Clientes do BeepStart → cadastro MB","/migracao/segura?tipo=CLIENTES"],
+          ["PRODUTOS","Somente produtos","Produtos do BeepStart → cadastro e estoque MB","/migracao/segura?tipo=PRODUTOS"],
+          ["FATURAMENTO","Somente faturamento","Vendas históricas e seus vínculos financeiros",""]
+        ] as const).map(([key,title,description,href])=>{
+          const option=migrationOptions.find(x=>x.key===key);
+          const completed=Boolean(option?.completed);
+          const available=key!=="FATURAMENTO";
+          return <div key={key} style={{border:"1px solid var(--line)",borderRadius:14,padding:16,background:completed?"#f7f7f7":"#fff"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
+              <div><span className="eyebrow">{key}</span><h3 style={{margin:"4px 0 6px"}}>{title}</h3></div>
+              <span style={{fontSize:11,fontWeight:800,color:completed?"#7b1e1e":available?"#087f73":"#9a6500"}}>{completed?"🔒 CONCLUÍDA / BLOQUEADA":available?"● DISPONÍVEL":"EM PREPARAÇÃO"}</span>
+            </div>
+            <p style={{fontSize:13,color:"var(--muted)",minHeight:42}}>{description}</p>
+            {completed&&option?.run?.completedAt&&<small style={{display:"block",color:"var(--muted)",marginBottom:8}}>Concluída em {new Date(option.run.completedAt).toLocaleString("pt-BR")}</small>}
+            {available&&!completed
+              ? <a className="primary" href={href}>Abrir migração</a>
+              : <button className="secondary" disabled>{completed?"Migração bloqueada":"Importador em preparação"}</button>}
+          </div>;
+        })}
+      </div>
+      <div style={{marginTop:12,padding:12,borderRadius:10,background:"#fff8e8",fontSize:12}}>
+        <b>Regra de segurança:</b> concluir uma migração registra sua execução no banco. Uma nova tentativa do mesmo tipo é recusada pelo servidor, mesmo que alguém tente contornar a interface.
+      </div>
     </div>
 
     <div className="panel" style={{marginBottom:16,borderLeft:"4px solid #087f73"}}>
