@@ -1,3 +1,4 @@
+import {syncPublishedProductStocks} from "@/lib/site-stock-sync";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
@@ -120,7 +121,9 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       return canceled;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
-    return NextResponse.json(result);
+    const movements=await db.stockMovement.findMany({where:{reference:"CANCELAMENTO_VENDA",referenceId:id},select:{productId:true}});
+    const siteSync=await syncPublishedProductStocks(movements.map(m=>m.productId));
+    return NextResponse.json({...result,siteSync});
   }catch(error){
     return NextResponse.json({error:"Não foi possível cancelar a venda",detail:String(error)},{status:400});
   }
