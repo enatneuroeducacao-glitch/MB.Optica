@@ -200,7 +200,7 @@ export default function Page(){
         {([
           ["CLIENTES","Somente clientes","Clientes do BeepStart → cadastro MB","/migracao/segura?tipo=CLIENTES"],
           ["PRODUTOS","Somente produtos","Produtos do BeepStart → cadastro e estoque MB","/migracao/segura?tipo=PRODUTOS"],
-          ["FATURAMENTO","Somente faturamento","Vendas históricas e seus vínculos financeiros",""]
+          ["FATURAMENTO","Somente faturamento","Vendas históricas e seus vínculos financeiros","/migracao/faturamento"]
         ] as const).map(([key,title,description,href])=>{
           const option=migrationOptions.find(x=>x.key===key);
           const completed=Boolean(option?.completed);
