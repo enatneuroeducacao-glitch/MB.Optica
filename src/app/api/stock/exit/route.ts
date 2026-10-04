@@ -68,7 +68,8 @@ export async function POST(req:Request){
    return {movement,consumed};
   });
 
-  const siteSync=await syncPublishedProductStock(result.movement.productId);\n  return NextResponse.json({...result,siteSync});
+  const siteSync=await syncPublishedProductStock(result.movement.productId);
+  return NextResponse.json({...result,siteSync});
  }catch(error){
   return NextResponse.json({
    error:error instanceof Error?error.message:"Não foi possível registrar a saída."
