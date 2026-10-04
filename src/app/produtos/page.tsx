@@ -107,15 +107,26 @@ const reconcileBeepStart=async()=>{
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");
-  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),initialStock:selected?0:Number(form.initialStock||0),stockControlled:Boolean(form.stockControlled),photoData:form.photoData||null,
-   categoryId:form.categoryId||null,supplierId:form.supplierId||null,publishedOnSite:Boolean(form.publishedOnSite),siteCollectionSlug:form.siteCollectionSlug||null,siteFeatured:Boolean(form.siteFeatured),siteSortOrder:Number(form.siteSortOrder||0),siteDescription:form.siteDescription||null,sitePrice:form.sitePrice===""||form.sitePrice==null?null:Number(form.sitePrice),
+  const shouldPublish=Boolean(form.publishedOnSite);\n  const wasPublished=Boolean(selected?.publishedOnSite);\n  const payload={...form,cost:Number(form.cost),salePrice:Number(form.salePrice),minimumStock:Number(form.minimumStock),initialStock:selected?0:Number(form.initialStock||0),stockControlled:Boolean(form.stockControlled),photoData:form.photoData||null,
+   categoryId:form.categoryId||null,supplierId:form.supplierId||null,siteCollectionSlug:form.siteCollectionSlug||null,siteFeatured:Boolean(form.siteFeatured),siteSortOrder:Number(form.siteSortOrder||0),siteDescription:form.siteDescription||null,sitePrice:form.sitePrice===""||form.sitePrice==null?null:Number(form.sitePrice),
    lensWidth:form.lensWidth?Number(form.lensWidth):null,bridgeWidth:form.bridgeWidth?Number(form.bridgeWidth):null,
    templeLength:form.templeLength?Number(form.templeLength):null
   };
   const r=await fetch(selected?"/api/products/"+selected.id:"/api/products",{method:selected?"PATCH":"POST",headers:{"content-type":"application/json"},body:JSON.stringify(payload)});
   const d=await r.json();
   if(!r.ok){setMsg(d.error||"Erro ao salvar");return}
+  const productId=d?.id||d?.product?.id;
   setOpen(false);setSelected(null);setForm(makeEmpty());await load();
+  if(productId&&((shouldPublish&&!wasPublished)||(shouldPublish&&wasPublished)||(!shouldPublish&&wasPublished))){
+   try{
+    const action=shouldPublish?"publish":"unpublish";
+    const sr=await fetch("/api/site/products/"+productId,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action})});
+    const sd=await sr.json().catch(()=>({}));
+    if(!sr.ok)throw new Error(sd?.error||"Falha na sincronização com o site.");
+    setMsg(action==="publish"?"Produto salvo e publicado no site.":"Produto salvo e retirado do site.");
+    await load();
+   }catch(err){setMsg(err instanceof Error?err.message:"Produto salvo, mas a sincronização com o site falhou.")}
+  }
  };
 
  const edit=(p:any)=>{
