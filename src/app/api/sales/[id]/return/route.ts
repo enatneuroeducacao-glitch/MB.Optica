@@ -1,3 +1,4 @@
+import {syncPublishedProductStocks} from "@/lib/site-stock-sync";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
@@ -244,7 +245,10 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       };
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
-    return NextResponse.json(result,{status:201});
+    const saleItemIds=b.items.map((item:any)=>String(item.saleItemId||"")).filter(Boolean);
+    const movements=await db.stockMovement.findMany({where:{reference:"DEVOLUCAO_PARCIAL",referenceId:{in:saleItemIds}},select:{productId:true}});
+    const siteSync=await syncPublishedProductStocks(movements.map(m=>m.productId));
+    return NextResponse.json({...result,siteSync},{status:201});
   }catch(error){
     return NextResponse.json({
       error:error instanceof Error?error.message:"Não foi possível registrar a devolução parcial"
