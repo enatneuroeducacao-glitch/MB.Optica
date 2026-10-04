@@ -50,7 +50,7 @@ const saleTotal = (p: R) => {
   const values = p.valoresIDs;
   const gross =
     values && typeof values === "object" && !Array.isArray(values)
-      ? Object.values(values as Record<string, unknown>).reduce((sum, value) => sum + numberValue(value), 0)
+      ? Object.values(values as Record<string, unknown>).reduce<number>((sum: number, value: unknown) => sum + numberValue(value), 0)
       : numberValue(first(p, ["valor", "total", "valorTotal"]));
   return Math.max(0, gross - numberValue(first(p, ["desconto", "discount"])));
 };
