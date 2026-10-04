@@ -1,3 +1,4 @@
+import {syncPublishedProductStock} from "@/lib/site-stock-sync";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {requireRole} from "@/lib/auth";
@@ -67,7 +68,8 @@ export async function POST(req:Request){
    return {movement,consumed};
   });
 
-  return NextResponse.json(result);
+  const siteSync=await syncPublishedProductStock(result.movement.productId);
+  return NextResponse.json({...result,siteSync});
  }catch(error){
   return NextResponse.json({
    error:error instanceof Error?error.message:"Não foi possível registrar a saída."

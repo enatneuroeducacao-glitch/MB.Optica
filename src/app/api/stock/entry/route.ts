@@ -1,3 +1,4 @@
+import {syncPublishedProductStock} from "@/lib/site-stock-sync";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {requireRole} from "@/lib/auth";
@@ -26,6 +27,7 @@ export async function POST(req:Request){
    await writeAudit(tx,{action:"CREATE",entity:"StockMovement",entityId:movement.id,userId:actor.id,metadata:{type:"ENTRADA",quantity,lotId:lot.id}});
    return {lot,movement};
   });
-  return NextResponse.json(result,{status:201});
+  const siteSync=await syncPublishedProductStock(result.lot.productId);
+  return NextResponse.json({...result,siteSync},{status:201});
  }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível registrar a entrada."},{status:400});}
 }
