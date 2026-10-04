@@ -49,6 +49,7 @@ export async function POST(req:Request){
    }
    return reconciled;
   });
-  const siteSync=await syncPublishedProductStocks(result.map(item=>item.productId));\n  return NextResponse.json({success:true,items:result,siteSync},{status:201});
+  const siteSync=await syncPublishedProductStocks(result.map(item=>item.productId));
+  return NextResponse.json({success:true,items:result,siteSync},{status:201});
  }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível concluir o inventário."},{status:400});}
 }
