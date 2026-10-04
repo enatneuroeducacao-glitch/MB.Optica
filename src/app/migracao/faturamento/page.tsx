@@ -2,18 +2,20 @@
 
 import { useState } from "react";
 
+type CollectionAnalysis = {
+  collection:string; count:number; confidence:number; classification:string; reason:string;
+  fields:Array<{field:string;count:number}>;
+  referenceFields:Array<{field:string;occurrences:number}>;
+  dateCoverage:{withDate:number;withoutDate:number;first:string|null;last:string|null};
+  amount:{total:number;positiveRecords:number;negativeRecords:number};
+};
+
 type Analysis = {
   fingerprint: string;
   totalRecords: number;
   collections: number;
-  financialCandidates: Array<{
-    collection:string; count:number; confidence:number; classification:string; reason:string;
-    fields:Array<{field:string;count:number}>;
-    referenceFields:Array<{field:string;occurrences:number}>;
-    dateCoverage:{withDate:number;withoutDate:number;first:string|null;last:string|null};
-    amount:{total:number;positiveRecords:number;negativeRecords:number};
-  }>;
-  possibleAdditionalFinancialCollections: Analysis["financialCandidates"];
+  financialCandidates: CollectionAnalysis[];
+  possibleAdditionalFinancialCollections: CollectionAnalysis[];
   summary:{
     salesCount:number; billing:number; movementCount:number; movementTotal:number;
     receivableCount:number; receivableOpen:number; payableCount:number; payableOpen:number;
