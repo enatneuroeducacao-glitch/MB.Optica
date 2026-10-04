@@ -10,7 +10,7 @@ const schema=z.object({
  unit:z.string().trim().min(1).max(20).optional(),cost:z.coerce.number().min(0),salePrice:z.coerce.number().min(0),minimumStock:z.coerce.number().min(0),stockControlled:z.boolean().optional(),
  categoryId:z.string().nullable().optional(),supplierId:z.string().nullable().optional(),ncm:z.string().max(20).nullable().optional(),
  cest:z.string().max(20).nullable().optional(),cfop:z.string().max(10).nullable().optional(),origin:z.string().max(10).nullable().optional(),
- taxCode:z.string().max(30).nullable().optional()
+ taxCode:z.string().max(30).nullable().optional(),publishedOnSite:z.boolean().optional(),siteCollectionSlug:z.string().trim().max(100).nullable().optional(),siteFeatured:z.boolean().optional(),siteSortOrder:z.coerce.number().int().min(0).max(100000).optional(),siteDescription:z.string().max(10000).nullable().optional(),sitePrice:z.coerce.number().min(0).nullable().optional(),
 });
 export async function GET(){
  try{
