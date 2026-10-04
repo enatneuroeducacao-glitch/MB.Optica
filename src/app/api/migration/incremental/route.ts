@@ -32,6 +32,15 @@ export async function POST(request: Request) {
     await requireRole(["ADMIN"]);
     const body = await request.json();
     const allRecords = body?.records;
+    const migrationType = String(body?.migrationType || "").toUpperCase();
+    const migrationConfig = {
+      CLIENTES: { source:"BEEPSTART_CLIENTES", collection:"Cliente" },
+      PRODUTOS: { source:"BEEPSTART_PRODUTOS", collection:"Produto" },
+    } as const;
+    if (!(migrationType in migrationConfig)) {
+      return NextResponse.json({ ok:false, error:"Tipo de migração inválido. Escolha Clientes ou Produtos." }, { status:400 });
+    }
+    const config = migrationConfig[migrationType as keyof typeof migrationConfig];
     const selectedKeys: string[] = Array.isArray(body?.selectedKeys) ? body.selectedKeys.map((value: unknown) => String(value)) : [];
     const nonStockProductKeys: string[] = Array.isArray(body?.nonStockProductKeys) ? body.nonStockProductKeys.map((value: unknown) => String(value)) : [];
 
@@ -51,8 +60,30 @@ export async function POST(request: Request) {
 
     const selectedSet = new Set(uniqueSelectedKeys);
     const nonStockProductSet = new Set(uniqueNonStockProductKeys);
+    if (migrationType === "CLIENTES" && uniqueNonStockProductKeys.length) {
+      return NextResponse.json({ ok:false, error:"A migração de clientes não aceita classificação de produtos." }, { status:400 });
+    }
     const records = (allRecords as R[]).filter((r) => selectedSet.has(legacyKey(r, backupFingerprint)));
     if (records.length !== uniqueSelectedKeys.length) return NextResponse.json({ ok: false, error: "A seleção contém registros que não pertencem ao backup informado." }, { status: 400 });
+    const invalidCollections = records.filter(r => String(r.collection_key ?? "") !== config.collection);
+    if (invalidCollections.length) {
+      const label = migrationType === "CLIENTES" ? "de clientes" : "de produtos";
+      return NextResponse.json({ ok:false, error:"A migração " + label + " aceita somente registros da coleção " + config.collection + "." }, { status:400 });
+    }
+
+    const completedMigration = await db.migrationRun.findFirst({
+      where: { source: config.source, status:"COMPLETED" },
+      select: { id:true,completedAt:true,total:true,report:true }
+    });
+    if (completedMigration) {
+      const label = migrationType === "CLIENTES" ? "de clientes" : "de produtos";
+      return NextResponse.json({
+        ok:false,
+        blocked:true,
+        error:"A migração " + label + " do BeepStart já foi concluída e está bloqueada para nova execução.",
+        run:completedMigration
+      }, { status:409 });
+    }
 
     const existingRun = await db.migrationRun.findUnique({ where: { sourceFingerprint: fingerprint } });
     if (existingRun?.status === "COMPLETED") {
@@ -89,7 +120,7 @@ export async function POST(request: Request) {
     const result = await db.$transaction(async tx => {
       const run = await tx.migrationRun.create({
         data: {
-          source: "BEEPSTART_INCREMENTAL",
+          source: config.source,
           sourceFingerprint: fingerprint,
           status: "RUNNING",
           total: records.length
@@ -269,6 +300,7 @@ export async function POST(request: Request) {
 
       const report = {
         mode: "INCREMENTAL_SAFE",
+        migrationType,
         source: "BEEPSTART",
         backupFingerprint,
         selectionFingerprint,
