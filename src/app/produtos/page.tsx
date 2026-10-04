@@ -168,7 +168,7 @@ const reconcileBeepStart=async()=>{
     </form>
    </div>
   </div>}
-  <div className="panel" style={{marginTop:12}}
+  <div className="panel" style={{marginTop:12}}>
    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderBottom:"1px solid var(--line)"}}><div><b>Produtos cadastrados</b><div style={{fontSize:12,color:"var(--muted)"}}>{filtered.length} produto(s) exibido(s) · {integrated} integrado(s) do BeepStart</div></div><button className="primary" onClick={openNewProduct}>+ Adicionar produto</button></div>
    <div className="table">
     <div className="row header" style={{gridTemplateColumns:"58px 1.7fr 1fr 1fr .8fr .9fr 1.2fr"}}><span>Foto</span><span>Produto</span><span>Categoria</span><span>Fornecedor</span><span>Preço</span><span>Estoque</span><span>Ações</span></div>
