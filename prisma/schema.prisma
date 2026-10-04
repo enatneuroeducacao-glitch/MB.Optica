@@ -262,6 +262,16 @@ templeLength Int?
 material String?
 frameShape String?
 photoData String?
+publishedOnSite Boolean @default(false)
+siteCollectionSlug String?
+siteFeatured Boolean @default(false)
+siteSortOrder Int @default(0)
+siteDescription String?
+sitePrice Decimal? @db.Decimal(12,2)
+siteProductId String?
+siteSyncedAt DateTime?
+siteSyncStatus String?
+siteSyncError String?
 unit String @default("UN")
 cost Decimal @default(0) @db.Decimal(12,2)
 salePrice Decimal @default(0) @db.Decimal(12,2)
