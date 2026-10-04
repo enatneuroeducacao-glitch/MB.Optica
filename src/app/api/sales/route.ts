@@ -1,3 +1,4 @@
+import {syncPublishedProductStocks} from "@/lib/site-stock-sync";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
