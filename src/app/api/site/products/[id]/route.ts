@@ -86,14 +86,12 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       }else{
         await siteRequest("/rest/v1/products?source_product_id=eq."+encodeURIComponent(product.id),{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({active:false,updated_at:new Date().toISOString()})});
       }
-      const updated=await db.product.update({where:{id},data:{publishedOnSite:false,siteSyncStatus:"UNPUBLISHED",siteSyncError:null,siteSyncedAt:new Date()}});
-      await writeAudit(db,{action:"SITE_UNPUBLISH",entity:"Product",entityId:id,userId:actor.id,metadata:{code:product.code}});
+      const updated=await db.$transaction(async tx=>{const updated=await tx.product.update({where:{id},data:{publishedOnSite:false,siteSyncStatus:"UNPUBLISHED",siteSyncError:null,siteSyncedAt:new Date()}});await writeAudit(tx,{action:"SITE_UNPUBLISH",entity:"Product",entityId:id,userId:actor.id,metadata:{code:product.code}});return updated;});
       return NextResponse.json({ok:true,product:updated});
     }
     const saved=await publishProduct(product,stock);
     const siteId=String(saved?.id||product.siteProductId||"");
-    const updated=await db.product.update({where:{id},data:{publishedOnSite:true,siteProductId:siteId||undefined,siteSyncStatus:"SYNCED",siteSyncError:null,siteSyncedAt:new Date()}});
-    await writeAudit(db,{action:"SITE_PUBLISH",entity:"Product",entityId:id,userId:actor.id,metadata:{code:product.code,siteProductId:siteId,stock}});
+    const updated=await db.$transaction(async tx=>{const updated=await tx.product.update({where:{id},data:{publishedOnSite:true,siteProductId:siteId||undefined,siteSyncStatus:"SYNCED",siteSyncError:null,siteSyncedAt:new Date()}});await writeAudit(tx,{action:"SITE_PUBLISH",entity:"Product",entityId:id,userId:actor.id,metadata:{code:product.code,siteProductId:siteId,stock}});return updated;});
     return NextResponse.json({ok:true,product:updated,siteProduct:saved});
   }catch(e){
     try{
