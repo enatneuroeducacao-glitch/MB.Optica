@@ -238,7 +238,7 @@ export async function POST(req:Request){
       return {...sale,accounts:createdAccounts,entryPayment};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:20000});
 
-    const siteSync=await syncPublishedProductStocks(result.items.map((item:any)=>item.productId).filter(Boolean));
+    const siteSync=await syncPublishedProductStocks((b.items||[]).map((item:any)=>String(item.productId||"")).filter(Boolean));
     return NextResponse.json({...result,siteSync},{status:201});
   }catch(error){
     return NextResponse.json({error:"Não foi possível registrar a venda",detail:String(error)},{status:400});
