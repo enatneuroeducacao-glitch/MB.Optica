@@ -43,6 +43,7 @@ export async function POST(request:Request){
 
   const fingerprint=crypto.createHash("sha256").update(JSON.stringify(typed)).digest("hex");
   const sales=collection(typed,["Venda","venda","Sales","sale"]);
+  const backupCustomers=collection(typed,["Cliente","cliente","Customers","customers"]);
   if(!sales.length)return NextResponse.json({ok:false,error:"A C2 não encontrou a coleção Venda no backup. A estrutura precisa ser validada antes da reconciliação."},{status:400});
 
   const [customers,products,existingSales,legacy,legacyCustomers]=await Promise.all([
@@ -59,6 +60,8 @@ export async function POST(request:Request){
   for(const p of products){if(p.barcode)barcode.set(norm(p.barcode),p.id);if(p.code)code.set(norm(p.code),p.id);if(p.description)productName.set(norm(p.description),p.id);}
 
   const legacyById=new Map(legacy.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
+  const backupCustomerById=new Map<string,R>();
+  for(const c of backupCustomers){const id=idOf(c);if(id)backupCustomerById.set(id,c);}
   const legacyCustomerById=new Map(legacyCustomers.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
   const saleNumber=new Map(existingSales.map(s=>[String(s.number),s]));
   const saleFingerprint=new Map<string,typeof existingSales[number]>();
@@ -84,7 +87,16 @@ export async function POST(request:Request){
    const phoneValue=first(r,["telefone","phone","clienteTelefone"]);
    const emailValue=first(r,["email","clienteEmail"]);
    const customerNameValue=first(r,["clienteNome","customerName","nomeCliente","cliente"]);
+   const backupCustomer=customerRefId!==null?backupCustomerById.get(customerRefId):undefined;
+   const backupCustomerCpf=backupCustomer?first(backupCustomer,["cpf","cpfCnpj","document"]):null;
+   const backupCustomerPhone=backupCustomer?first(backupCustomer,["phone","telefone","celular"]):null;
+   const backupCustomerEmail=backupCustomer?first(backupCustomer,["email","eMail"]):null;
+   const backupCustomerName=backupCustomer?first(backupCustomer,["name","nome"]):null;
    const customerId=(customerRefId!==null&&customers.some(c=>c.id===customerRefId)?customerRefId:undefined)
+    ??(backupCustomerCpf!==null?cpf.get(norm(backupCustomerCpf)):undefined)
+    ??(backupCustomerEmail!==null?email.get(norm(backupCustomerEmail)):undefined)
+    ??(backupCustomerPhone!==null?phone.get(norm(backupCustomerPhone)):undefined)
+    ??(backupCustomerName!==null?customerName.get(norm(backupCustomerName)):undefined)
     ??(customerRefId!==null&&legacyCustomerById.get(customerRefId)?.targetEntity==="Customer"&&legacyCustomerById.get(customerRefId)?.targetId?String(legacyCustomerById.get(customerRefId)?.targetId):undefined)
     ??(cpfValue!==null?cpf.get(norm(cpfValue)):undefined)
     ??(emailValue!==null?email.get(norm(emailValue)):undefined)
@@ -101,6 +113,7 @@ export async function POST(request:Request){
     ??(productDescription!==null?productName.get(norm(productDescription)):undefined);
 
    if(customerId)statuses.customerOperationalMatched++;
+   else if(backupCustomer)statuses.customerLegacyFound++;
    else if(customerRefId!==null&&legacyCustomerById.has(customerRefId))statuses.customerLegacyFound++;
    else statuses.customerMissing++;
    if((productRef!==null||productCode!==null||productBarcode!==null||productDescription!==null)&&!productId)statuses.productMissing++;
@@ -117,7 +130,7 @@ export async function POST(request:Request){
    else if(numberMatch||candidate){classification="POSSIVEL_DUPLICIDADE";statuses.matched++;}
    else statuses.newRecords++;
 
-   rows.push({legacyId,classification,total,date:date?.toISOString()??null,customer:{id:customerId??null,matched:Boolean(customerId),source:customerRefId!==null?"REFERENCIA":cpfValue!==null?"CPF":emailValue!==null?"EMAIL":phoneValue!==null?"TELEFONE":customerNameValue!==null?"NOME":null},product:{id:productId??null,matched:Boolean(productId)},canceled,number:byNumber===null?null:String(byNumber)});
+   rows.push({legacyId,classification,total,date:date?.toISOString()??null,customer:{id:customerId??null,matched:Boolean(customerId),source:customerId?"MB":backupCustomer?"BACKUP_CLIENTE":customerRefId!==null?"REFERENCIA":cpfValue!==null?"CPF":emailValue!==null?"EMAIL":phoneValue!==null?"TELEFONE":customerNameValue!==null?"NOME":null},product:{id:productId??null,matched:Boolean(productId)},canceled,number:byNumber===null?null:String(byNumber)});
   }
 
   const newRecords=rows.filter(x=>x.classification==="NOVA");
