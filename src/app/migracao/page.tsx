@@ -204,7 +204,7 @@ export default function Page(){
         ] as const).map(([key,title,description,href])=>{
           const option=migrationOptions.find(x=>x.key===key);
           const completed=Boolean(option?.completed);
-          const available=key!=="FATURAMENTO";
+          const available=true;
           return <div key={key} style={{border:"1px solid var(--line)",borderRadius:14,padding:16,background:completed?"#f7f7f7":"#fff"}}>
             <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"flex-start"}}>
               <div><span className="eyebrow">{key}</span><h3 style={{margin:"4px 0 6px"}}>{title}</h3></div>
