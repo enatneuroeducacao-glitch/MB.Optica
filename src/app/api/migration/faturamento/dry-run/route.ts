@@ -43,7 +43,7 @@ export async function POST(request:Request){
 
   const fingerprint=crypto.createHash("sha256").update(JSON.stringify(typed)).digest("hex");
   const sales=collection(typed,["Venda","venda","Sales","sale"]);
-  const backupCustomers=collection(typed,["Cliente","cliente","Customers","customers"]);
+  const backupCustomers=collection(typed,["Cliente","cliente","Clientes","clientes","Customers","customers"]);
   if(!sales.length)return NextResponse.json({ok:false,error:"A C2 não encontrou a coleção Venda no backup. A estrutura precisa ser validada antes da reconciliação."},{status:400});
 
   const [customers,products,existingSales,legacy,legacyCustomers]=await Promise.all([
@@ -87,11 +87,15 @@ export async function POST(request:Request){
    const phoneValue=first(r,["telefone","phone","clienteTelefone"]);
    const emailValue=first(r,["email","clienteEmail"]);
    const customerNameValue=first(r,["clienteNome","customerName","nomeCliente","cliente"]);
-   const backupCustomer=customerRefId!==null?backupCustomerById.get(customerRefId):undefined;
+   const inlineCustomer =
+     customerRef && typeof customerRef==="object" && !Array.isArray(customerRef)
+       ? customerRef as R
+       : undefined;
+   const backupCustomer=inlineCustomer ?? (customerRefId!==null?backupCustomerById.get(customerRefId):undefined);
    const backupCustomerCpf=backupCustomer?first(backupCustomer,["cpf","cpfCnpj","document"]):null;
    const backupCustomerPhone=backupCustomer?first(backupCustomer,["phone","telefone","celular"]):null;
    const backupCustomerEmail=backupCustomer?first(backupCustomer,["email","eMail"]):null;
-   const backupCustomerName=backupCustomer?first(backupCustomer,["name","nome"]):null;
+   const backupCustomerName=backupCustomer?first(backupCustomer,["name","nome","razaoSocial","nomeCompleto"]):null;
    const customerId=(customerRefId!==null&&customers.some(c=>c.id===customerRefId)?customerRefId:undefined)
     ??(backupCustomerCpf!==null?cpf.get(norm(backupCustomerCpf)):undefined)
     ??(backupCustomerEmail!==null?email.get(norm(backupCustomerEmail)):undefined)
@@ -113,7 +117,7 @@ export async function POST(request:Request){
     ??(productDescription!==null?productName.get(norm(productDescription)):undefined);
 
    if(customerId)statuses.customerOperationalMatched++;
-   else if(backupCustomer)statuses.customerLegacyFound++;
+   else if(backupCustomer && (backupCustomerCpf!==null||backupCustomerEmail!==null||backupCustomerPhone!==null||backupCustomerName!==null))statuses.customerLegacyFound++;
    else if(customerRefId!==null&&legacyCustomerById.has(customerRefId))statuses.customerLegacyFound++;
    else statuses.customerMissing++;
    if((productRef!==null||productCode!==null||productBarcode!==null||productDescription!==null)&&!productId)statuses.productMissing++;
