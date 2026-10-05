@@ -38,6 +38,15 @@ export default function Clientes(){
  };
  const addAddress=async()=>{if(!selected)return;const r=await fetch("/api/customers/"+selected.id+"/addresses",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(address)});if(r.ok){setAddress({label:"",street:"",number:"",complement:"",district:"",city:"",state:"SC",postalCode:""});await detail(selected.id);await load()}else setMsg((await r.json()).error||"Erro ao salvar endereço.")};
  const addRx=async(e:React.FormEvent)=>{e.preventDefault();if(!selected)return;const r=await fetch("/api/prescriptions",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...rx,customerId:selected.id})});const d=await r.json();if(!r.ok){setMsg(d.error||"Erro ao registrar receita.");return}setRx(rxEmpty);await detail(selected.id);setMsg("Receita registrada.")};
+ const deleteRx=async(id:string)=>{
+   if(!selected)return;
+   if(!window.confirm("Excluir esta receita? Esta ação não poderá ser desfeita."))return;
+   const r=await fetch("/api/prescriptions/"+id,{method:"DELETE"});
+   const d=await r.json();
+   if(!r.ok){setMsg(d.error||"Não foi possível excluir a receita.");return}
+   setMsg("Receita excluída.");
+   await detail(selected.id);
+ };
  const filtered=rows.filter(c=>(c.name+" "+(c.cpfCnpj||"")+" "+(c.phone||"")+" "+(c.whatsapp||"")).toLowerCase().includes(search.toLowerCase()));
  const fields=(obj:any,exclude:string[]=[])=>(Object.entries(obj).filter(([k])=>!exclude.includes(k)));
  return <section className="page">
@@ -64,7 +73,7 @@ export default function Clientes(){
   <h3 style={{fontSize:12}}>Endereços</h3>{selected.addresses.map(a=><div key={a.id} style={{fontSize:10,padding:"8px 0",borderTop:"1px solid var(--line)"}}>{[a.label,a.street,a.number,a.complement,a.district,a.city,a.state,a.postalCode].filter(Boolean).join(", ")}</div>)}<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:10}}>{fields(address).map(([k,v])=><input key={k} aria-label={fieldLabels[k]||k} placeholder={fieldLabels[k]||k} value={String(v)} onChange={e=>setAddress({...address,[k]:e.target.value})} style={{padding:8,border:"1px solid var(--line)",borderRadius:7}}/>)}<button className="secondary" onClick={addAddress}>Adicionar endereço</button></div>
  <h3 style={{fontSize:12,marginTop:25}}>Receitas</h3>
  {(selected.prescriptions||[]).map((p:any)=><div key={p.id} style={{fontSize:10,padding:"10px 0",borderTop:"1px solid var(--line)"}}>
-   <div style={{fontWeight:700,marginBottom:7}}>Receita de {new Date(p.date).toLocaleDateString("pt-BR")} · {p.professional||"Profissional não informado"}</div>
+   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:7}}><div style={{fontWeight:700}}>Receita de {new Date(p.date).toLocaleDateString("pt-BR")} · {p.professional||"Profissional não informado"}</div><button type="button" className="secondary" onClick={()=>deleteRx(p.id)} style={{color:"#b42318",borderColor:"#f2b8b5",padding:"5px 9px",fontSize:10}}>Excluir receita</button></div>
    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
      <div style={{border:"1px solid var(--line)",borderRadius:7,padding:10}}>
        <div style={{fontWeight:700,marginBottom:7}}>OD — Olho Direito</div>
