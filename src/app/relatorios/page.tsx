@@ -92,19 +92,28 @@ export default function Relatorios(){
      </div>
     </div>
     {legacySales?.ok&&<div className="panel full" style={{marginTop:16}}>
-     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO LEGADO</span><h2>Valores faturados — lançamento manual</h2><p>Somente vendas concluídas do BeepStart. Este relatório não altera clientes, produtos, vendas ou financeiro.</p></div>
-      <div className="report-actions"><button className="secondary" onClick={()=>{
+     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO LEGADO</span><h2>Faturamento mensal — lançamento manual</h2><p>Consolidação das vendas concluídas do BeepStart por mês. O relatório não altera clientes, produtos, vendas ou financeiro.</p></div>
+      <div className="report-actions">
+       <button className="secondary" onClick={()=>{
+        const lines=["Mês;Quantidade de vendas;Faturamento"];
+        legacySales.monthly.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",",")].join(";")));
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-mensal-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
+       }}>⇩ Exportar mensal</button>
+       <button className="secondary" onClick={()=>{
         const lines=["Data;Valor faturado;ID legado"];
         legacySales.sales.forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
         const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
         const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
-      }}>⇩ Exportar CSV</button></div>
+       }}>⇩ Exportar vendas</button>
+      </div>
      </div>
-     <div className="report-kpis compact"><Card t="Vendas faturadas" v={legacySales.count}/><Card t="Total faturado" v={money(legacySales.total)} d="base BeepStart"/><Card t="Já importadas" v="0" d="nenhuma venda gravada"/></div>
-     <div className="report-table"><div className="report-row head"><span>Data</span><span>Valor faturado</span><span>ID legado</span><span>Status</span></div>
-      {legacySales.sales.slice(0,100).map((x:any)=><div className="report-row" key={x.legacyRecordId}><strong>{x.date?new Date(x.date).toLocaleDateString("pt-BR"):"—"}</strong><span>{money(x.value)}</span><span>{x.saleId}</span><strong>Faturada</strong></div>)}
+     <div className="report-kpis compact"><Card t="Vendas faturadas" v={legacySales.count}/><Card t="Total faturado" v={money(legacySales.total)} d="base BeepStart"/><Card t="Meses encontrados" v={legacySales.monthly.length} d="competência pela data da venda"/><Card t="Já importadas" v="0" d="nenhuma venda gravada"/></div>
+     <div className="report-table">
+      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Lançamento</span></div>
+      {legacySales.monthly.map((x:any)=><div className="report-row" key={x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
      </div>
-     {legacySales.count>100&&<p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>A tela mostra as primeiras 100 vendas. O CSV contém todas as {legacySales.count} vendas concluídas.</p>}
+     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>A competência mensal é calculada pela data registrada na venda, convertida para o fuso de São Paulo. O detalhamento das {legacySales.count} vendas permanece disponível na exportação de vendas.</p>
     </div>}
    <div className="panel full">
      <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Valor registrado por meio de pagamento nas vendas ativas.</p></div></div>

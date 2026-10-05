@@ -49,6 +49,22 @@ export async function GET() {
       .filter((row) => row.concluded && row.value > 0)
       .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
 
+    const monthlyMap = new Map<string,{month:string;sales:number;total:number}>();
+    for (const sale of sales) {
+      if (!sale.date) continue;
+      const parts = new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit"}).formatToParts(new Date(sale.date));
+      const year = parts.find((p) => p.type === "year")?.value;
+      const month = parts.find((p) => p.type === "month")?.value;
+      if (!year || !month) continue;
+      const key = year + "-" + month;
+      const current = monthlyMap.get(key) ?? {month:key,sales:0,total:0};
+      current.sales += 1;
+      current.total += sale.value;
+      monthlyMap.set(key,current);
+    }
+    const monthly = [...monthlyMap.values()]
+      .map((row) => ({...row,total:Math.round(row.total*100)/100}))
+      .sort((a,b)=>a.month.localeCompare(b.month));
     const total = Math.round(sales.reduce((sum, row) => sum + row.value, 0) * 100) / 100;
 
     return NextResponse.json({
