@@ -144,6 +144,15 @@ export default function Page(){
           }}>{c2Busy?"Reconciliação...":"Executar C2 — Dry Run"}</button>
         </div>
         {c2&&<div style={{marginTop:14}}>
+          {c2.customerDiagnostics&&<div style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12,background:"#fafafa"}}>
+            <b>Diagnóstico estrutural do cliente</b>
+            <p style={{margin:"6px 0 10px",color:"var(--muted)"}}>Somente metadados dos campos; nenhum CPF, telefone, e-mail ou nome é exibido.</p>
+            <div style={{display:"grid",gap:6}}>
+              {c2.customerDiagnostics.saleFields.map((x:any)=><div key={x.field}><b>{x.field}</b>: {x.occurrences} ocorrência(s), {x.shape}{x.objectKeys?.length ? " — chaves internas: "+x.objectKeys.join(", ") : ""}</div>)}
+            </div>
+            <div style={{marginTop:10}}><b>Coleções identificadas como cliente:</b> {c2.customerDiagnostics.customerCollections?.join(", ")||"nenhuma"}</div>
+          </div>}
+
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
             {[
               ["Vendas encontradas",c2.summary.salesFound.toLocaleString("pt-BR")],

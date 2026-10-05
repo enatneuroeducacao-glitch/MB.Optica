@@ -43,6 +43,30 @@ export async function POST(request:Request){
 
   const fingerprint=crypto.createHash("sha256").update(JSON.stringify(typed)).digest("hex");
   const sales=collection(typed,["Venda","venda","Sales","sale"]);
+  const customerLikeFields=["cliente","clienteId","idCliente","customer","customerId","customer_id","cliente_id","cpf","cpfCnpj","clienteCpf","clienteNome","nomeCliente","telefone","clienteTelefone","email","clienteEmail"];
+  const customerFieldDiagnostics=customerLikeFields.map(field=>{
+    const rows=sales.filter(r=>r[field]!==undefined&&r[field]!==null&&String(r[field]).trim()!=="");
+    const sample=rows[0]?.[field];
+    let shape="ausente";
+    if(rows.length){
+      if(Array.isArray(sample))shape="array";
+      else if(typeof sample==="object")shape="objeto";
+      else shape=typeof sample;
+    }
+    const objectKeys=sample&&typeof sample==="object"&&!Array.isArray(sample)?Object.keys(sample as R):[];
+    return {field,occurrences:rows.length,shape,objectKeys:objectKeys.slice(0,20)};
+  }).filter(x=>x.occurrences>0);
+  const customerCollectionNames=[...new Set(typed.map(r=>String(r.collection_key??r.collection??"")).filter(n=>/cliente|customer/i.test(n)))];
+  const customerCollectionFieldDiagnostics:Record<string,number>={};
+  for(const r of typed.slice(0,1000)){
+    const collectionName=String(r.collection_key??r.collection??"");
+    if(!customerCollectionNames.includes(collectionName))continue;
+    for(const key of Object.keys(r)){
+      if(key==="collection_key"||key==="collection")continue;
+      customerCollectionFieldDiagnostics[key]=(customerCollectionFieldDiagnostics[key]??0)+1;
+    }
+  }
+
   const backupCustomers=collection(typed,["Cliente","cliente","Clientes","clientes","Customers","customers"]);
   if(!sales.length)return NextResponse.json({ok:false,error:"A C2 não encontrou a coleção Venda no backup. A estrutura precisa ser validada antes da reconciliação."},{status:400});
 
@@ -61,7 +85,13 @@ export async function POST(request:Request){
 
   const legacyById=new Map(legacy.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
   const backupCustomerById=new Map<string,R>();
-  for(const c of backupCustomers){const id=idOf(c);if(id)backupCustomerById.set(id,c);}
+  const backupCustomerByCode=new Map<string,R>();
+  const backupCustomerByName=new Map<string,R>();
+  for(const c of backupCustomers){
+    const id=idOf(c); if(id)backupCustomerById.set(norm(id),c);
+    const code=first(c,["codigo","code","codigoCliente","clienteCodigo","customerCode","customer_code"]); if(code!==null)backupCustomerByCode.set(norm(code),c);
+    const name=first(c,["name","nome","nomeCompleto"]); if(name!==null)backupCustomerByName.set(norm(name),c);
+  }
   const legacyCustomerById=new Map(legacyCustomers.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
   const saleNumber=new Map(existingSales.map(s=>[String(s.number),s]));
   const saleFingerprint=new Map<string,typeof existingSales[number]>();
@@ -91,7 +121,13 @@ export async function POST(request:Request){
      customerRef && typeof customerRef==="object" && !Array.isArray(customerRef)
        ? customerRef as R
        : undefined;
-   const backupCustomer=inlineCustomer ?? (customerRefId!==null?backupCustomerById.get(customerRefId):undefined);
+   const inlineCode=inlineCustomer?first(inlineCustomer,["codigo","code","codigoCliente","clienteCodigo","customerCode","customer_code"]):null;
+   const inlineName=inlineCustomer?first(inlineCustomer,["name","nome","nomeCompleto"]):null;
+   const backupCustomer=inlineCustomer
+     ?? (customerRefId!==null?backupCustomerById.get(norm(customerRefId)):undefined)
+     ?? (customerRefId!==null?backupCustomerByCode.get(norm(customerRefId)):undefined)
+     ?? (inlineCode!==null?backupCustomerByCode.get(norm(inlineCode)):undefined)
+     ?? (inlineName!==null?backupCustomerByName.get(norm(inlineName)):undefined);
    const backupCustomerCpf=backupCustomer?first(backupCustomer,["cpf","cpfCnpj","document"]):null;
    const backupCustomerPhone=backupCustomer?first(backupCustomer,["phone","telefone","celular"]):null;
    const backupCustomerEmail=backupCustomer?first(backupCustomer,["email","eMail"]):null;
@@ -147,6 +183,6 @@ export async function POST(request:Request){
   if(statuses.alreadyImported)warnings.push(String(statuses.alreadyImported)+" venda(s) já possuem registro legado importado.");
   if(statuses.matched)warnings.push(String(statuses.matched)+" venda(s) parecem coincidir com vendas já existentes no MB Gestão.");
 
-  return NextResponse.json({ok:true,mode:"FATURAMENTO_C2_DRY_RUN",fingerprint,summary:{salesFound:sales.length,billing:Number(billing.toFixed(2)),newRecords:newRecords.length,blockedRecords:blocked.length,alreadyImported:statuses.alreadyImported,possibleDuplicates:statuses.matched,duplicateInBackup:statuses.duplicatesInBackup,canceled:statuses.canceled,customerMissing:statuses.customerMissing,customerLegacyFound:statuses.customerLegacyFound,customerOperationalMatched:statuses.customerOperationalMatched,productMissing:statuses.productMissing,customersInMb:customers.length,productsInMb:products.length,existingSalesSample:existingSales.length},warnings,rows,safety:{writesPerformed:false,operationalDataChanged:false,migrationRunCreated:false,willImport:newRecords.length},nextStep:"C3_IMPORTACAO_CONTROLADA"});
+  return NextResponse.json({ok:true,mode:"FATURAMENTO_C2_DRY_RUN",fingerprint,summary:{salesFound:sales.length,billing:Number(billing.toFixed(2)),newRecords:newRecords.length,blockedRecords:blocked.length,alreadyImported:statuses.alreadyImported,possibleDuplicates:statuses.matched,duplicateInBackup:statuses.duplicatesInBackup,canceled:statuses.canceled,customerMissing:statuses.customerMissing,customerLegacyFound:statuses.customerLegacyFound,customerOperationalMatched:statuses.customerOperationalMatched,productMissing:statuses.productMissing,customersInMb:customers.length,productsInMb:products.length,existingSalesSample:existingSales.length},warnings,rows,customerDiagnostics:{saleFields:customerFieldDiagnostics,customerCollections:customerCollectionNames,customerCollectionFields:Object.entries(customerCollectionFieldDiagnostics).map(([field,count])=>({field,count:Number(count)})).sort((a,b)=>b.count-a.count).slice(0,40)},safety:{writesPerformed:false,operationalDataChanged:false,migrationRunCreated:false,willImport:newRecords.length},nextStep:"C3_IMPORTACAO_CONTROLADA"});
  }catch(error){return apiError(error,"Não foi possível executar a reconciliação C2 do faturamento.");}
 }
