@@ -157,6 +157,8 @@ export default function Page(){
             <div><b>Possíveis duplicidades</b><span>{c2.summary.possibleDuplicates}</span></div>
             <div><b>Duplicadas no próprio backup</b><span>{c2.summary.duplicateInBackup}</span></div>
             <div><b>Canceladas</b><span>{c2.summary.canceled}</span></div>
+            <div><b>Clientes vinculados ao MB</b><span>{c2.summary.customerOperationalMatched}</span></div>
+            <div><b>Clientes encontrados no legado</b><span>{c2.summary.customerLegacyFound}</span></div>
             <div><b>Clientes não resolvidos</b><span>{c2.summary.customerMissing}</span></div>
             <div><b>Produtos não resolvidos</b><span>{c2.summary.productMissing}</span></div>
           </div>
