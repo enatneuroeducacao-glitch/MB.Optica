@@ -69,8 +69,8 @@ export default function Atendimento(){
     .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:7px;margin-bottom:9px}.brand{font-size:20px;font-weight:700}.title{font-size:15px;font-weight:700}
     .box{border:1px solid #777;padding:7px;margin-bottom:7px}.head{font-size:10px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
     .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.field{border-bottom:1px solid #777;min-height:24px;padding:3px}.wide{grid-column:1/-1}
-    .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:7px}.eye h3{text-align:center;margin:0 0 6px;font-size:11px}
-    table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:center}th{font-size:8px}.line{height:22px;border-bottom:1px solid #777}
+    .rx{display:grid;grid-template-columns:1fr 1fr;gap:7px}.eye{border:1px solid #777;padding:8px}.eye h3{text-align:center;margin:0 0 7px;font-size:12px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #999;text-align:center}th{font-size:8px;padding:6px 3px;height:24px}td{height:36px;padding:8px 3px;font-size:10px}.line{height:22px;border-bottom:1px solid #777}
     .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:20px}.sign div{border-top:1px solid #555;text-align:center;padding-top:4px}
     .cut{border-top:2px dashed #777;margin:12px 0 8px;padding-top:6px;text-align:center;font-size:8px;color:#555}
     .stub{border:1px solid #777;padding:7px}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:7px}.stub-field{min-height:22px;border-bottom:1px solid #777;padding:3px}.stub-title{text-align:center;font-weight:700;font-size:11px;margin-bottom:6px}
