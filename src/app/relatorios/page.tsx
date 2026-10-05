@@ -17,7 +17,62 @@ export default function Relatorios(){
  <div className="page-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h1>Relatórios</h1><p>Informações completas do sistema, desempenho, rastreabilidade e integridade.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button><button className="primary" onClick={download}>⇩ Exportar</button></div></div>
  {inc.length?<div className="report-alert"><div><b>⚠ {inc.length} inconsistência(s)</b><span>Existem registros que precisam de conferência.</span></div><button className="secondary" onClick={()=>setTab("INCONSISTÊNCIAS")}>Ver alertas</button></div>:<div className="report-ok">✓ Nenhuma inconsistência automática encontrada.</div>}
  <div className="report-tabs">{tabs.map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div>
- {tab==="VISÃO"&&<><div className="report-kpis"><Card t="Vendas" v={s.sales}/><Card t="Faturamento" v={money(s.saleTotal)}/><Card t="Margem bruta" v={money(s.grossMargin)}/><Card t="A receber" v={money(s.receivable)}/><Card t="A pagar" v={money(s.payable)}/><Card t="Estoque baixo" v={s.lowStock}/><Card t="Pedidos" v={s.orders}/><Card t="Alertas" v={s.inconsistencies}/></div><div className="report-grid-2"><div className="panel"><div className="panel-heading"><div><h2>Evolução mensal</h2><p>Vendas e recebimentos dos últimos 12 meses.</p></div></div><div className="report-table"><div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span></div>{d.sales.monthly.map((x:any)=>row(x.month,x.sales,"",money(x.total)))}</div></div><div className="panel"><div className="panel-heading"><div><h2>Resumo operacional</h2></div></div><div className="report-metrics"><div><b>{s.activeCustomers}</b><span>clientes ativos</span></div><div><b>{s.zeroStock}</b><span>produtos zerados</span></div><div><b>{d.quotes.open}</b><span>orçamentos abertos</span></div><div><b>{d.appointments.today}</b><span>agendamentos hoje</span></div><div><b>{d.fiscal.rejected}</b><span>fiscais rejeitados</span></div><div><b>{s.auditEvents}</b><span>eventos auditados</span></div></div></div></div></>}
+ {tab==="VISÃO"&&(()=>{
+   const operational=(d.sales?.monthly||[]).map((x:any)=>({month:String(x.month),sales:n(x.sales),total:n(x.total),received:n(x.received)}));
+   const legacyMap=new Map<string,any>((legacySales?.monthly||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"BeepStart"}]));
+   const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"Manual"}]));
+   const monthly=operational.map((op:any)=>{
+     const manual=manualMap.get(op.month);
+     const legacyRow=legacyMap.get(op.month);
+     if(op.sales>0||op.total>0)return {...op,origin:"MB Óptica"};
+     if(manual)return manual;
+     if(legacyRow)return legacyRow;
+     return {...op,origin:"MB Óptica"};
+   });
+   const targetFor=(index:number)=>{
+     const previous=monthly.slice(0,index).filter((x:any)=>n(x.total)>0).slice(-3);
+     if(!previous.length)return null;
+     return previous.reduce((sum:number,x:any)=>sum+n(x.total),0)/previous.length*1.10;
+   };
+   const enriched=monthly.map((x:any,i:number)=>{
+     const target=targetFor(i);
+     const ticket=x.sales>0?x.total/x.sales:0;
+     const variance=target===null?0:x.total-target;
+     const achievement=target&&target>0?x.total/target*100:null;
+     let status="BASE INICIAL";
+     if(target!==null){
+       if(variance>0.009)status="META ULTRAPASSADA";
+       else if(Math.abs(variance)<=0.009)status="META ALCANÇADA";
+       else status="PENDENTE";
+     }
+     return {...x,ticket,target,variance,achievement,status};
+   });
+   const reached=enriched.filter((x:any)=>x.target!==null&&x.variance>=-0.009).length;
+   const pending=enriched.filter((x:any)=>x.target!==null&&x.variance<-0.009).length;
+   const current=enriched[enriched.length-1]||null;
+   return <>
+    <div className="report-kpis">
+     <Card t="Vendas" v={s.sales}/><Card t="Faturamento" v={money(s.saleTotal)}/><Card t="Margem bruta" v={money(s.grossMargin)}/><Card t="A receber" v={money(s.receivable)}/><Card t="A pagar" v={money(s.payable)}/><Card t="Estoque baixo" v={s.lowStock}/><Card t="Pedidos" v={s.orders}/><Card t="Alertas" v={s.inconsistencies}/>
+    </div>
+    <div className="panel full" style={{marginTop:16}}>
+     <div className="panel-heading"><div><span className="eyebrow">VISÃO GERENCIAL</span><h2>Evolução mensal</h2><p>Histórico integrado do BeepStart, lançamentos manuais e vendas atuais. O ticket médio é calculado pelo faturamento dividido pelo número de vendas.</p></div></div>
+     <div className="report-kpis compact">
+      <Card t="Meta atingida" v={reached} d="meses dentro ou acima da meta"/><Card t="Meses pendentes" v={pending} d="abaixo da meta sugerida"/><Card t="Ticket médio atual" v={current?money(current.ticket):money(0)} d={current?.month||"sem mês"}/><Card t="Meta do mês atual" v={current?.target===null?"sem base":money(current.target)} d="média dos 3 últimos meses válidos + 10%"/>
+     </div>
+     <div className="report-table" style={{marginTop:14}}>
+      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Ticket médio</span><span>Meta</span><span>Resultado</span></div>
+      {enriched.map((x:any)=><div className="report-row" key={x.month}>
+       <strong>{x.month}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.sales>0?money(x.ticket):"—"}</span><span>{x.target===null?"—":money(x.target)}</span><span><b>{x.status}</b>{x.target!==null&&x.variance>=-0.009?<><br/><small>Ultrapassou {money(Math.max(0,x.variance))}</small></>:x.target!==null?<><br/><small>Faltam {money(Math.abs(x.variance))}</small></>:<><br/><small>Sem histórico anterior para meta</small></>}</span>
+      </div>)}
+     </div>
+     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Regra da meta sugerida: média dos até 3 meses anteriores com faturamento positivo, acrescida de 10%. A meta é um indicador gerencial adaptativo, não altera vendas, financeiro ou dados históricos.</p>
+    </div>
+    <div className="report-grid-2" style={{marginTop:16}}>
+     <div className="panel"><div className="panel-heading"><div><h2>Leitura da meta</h2><p>O sistema mostra exatamente quanto foi alcançado ou ficou pendente.</p></div></div><div className="report-metrics"><div><b>{current?.target===null?"—":money(current?.total)}</b><span>faturamento atual</span></div><div><b>{current?.target===null?"—":money(current?.target)}</b><span>meta sugerida</span></div><div><b>{current?.target===null?"—":money(Math.abs(current?.variance||0))}</b><span>{current?.variance>=0?"acima da meta":"pendente"}</span></div></div></div>
+     <div className="panel"><div className="panel-heading"><div><h2>Origem dos dados</h2><p>Preservação da separação entre histórico e operação.</p></div></div><p style={{lineHeight:1.7,fontSize:13}}>Os meses anteriores são preenchidos primeiro com lançamentos manuais quando existentes, depois com o histórico BeepStart. O mês atual permanece baseado nas vendas operacionais do MB Óptica. Assim, o histórico não modifica as vendas atuais.</p></div>
+    </div>
+   </>;
+ })()}
  {tab==="SAÚDE DO FATURAMENTO"&&(()=>{
    const faturamento=n(s.saleTotal), recebido=n(s.received), aReceber=n(s.receivable), aPagar=n(s.payable), custo=n(s.saleCost), margem=n(s.grossMargin);
    const taxaReceb=faturamento>0?recebido/faturamento:0;
