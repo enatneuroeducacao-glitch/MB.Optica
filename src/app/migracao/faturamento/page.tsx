@@ -31,6 +31,9 @@ export default function Page(){
   const [analysis,setAnalysis]=useState<Analysis|null>(null);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");
+  const [records,setRecords]=useState<any[]>([]);
+  const [c2,setC2]=useState<any|null>(null);
+  const [c2Busy,setC2Busy]=useState(false);
 
   async function analyze(){
     if(!file)return;
@@ -38,6 +41,7 @@ export default function Page(){
     try{
       const parsed=JSON.parse(await file.text());
       if(!Array.isArray(parsed))throw new Error("O backup precisa ser uma lista JSON.");
+      setRecords(parsed);
       const r=await fetch("/api/migration/faturamento/analyze",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
@@ -120,6 +124,46 @@ export default function Page(){
           {analysis.possibleAdditionalFinancialCollections.map(c=><div key={c.collection}><b>{c.collection}</b><span>{c.count.toLocaleString("pt-BR")} registros · análise manual necessária</span></div>)}
         </div>
       </>}
+
+      <div style={{marginTop:18,padding:16,border:"1px solid var(--line)",borderRadius:12}}>
+        <div className="panel-heading">
+          <div>
+            <span className="eyebrow">ETAPA C2</span>
+            <h3>Reconciliação / Dry Run</h3>
+            <p>Compara as vendas do BeepStart com clientes, produtos, vendas e registros legados existentes no MB Gestão. Continua sem gravar nada.</p>
+          </div>
+          <button className="primary" disabled={!analysis||!records.length||c2Busy} onClick={async()=>{
+            setC2Busy(true);setMessage("");
+            try{
+              const r=await fetch("/api/migration/faturamento/dry-run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({records})});
+              const d=await r.json();
+              if(!r.ok)throw new Error(d.error||"Falha no Dry Run C2.");
+              setC2(d);setMessage("C2 concluída. Nenhum dado foi gravado.");
+            }catch(e){setMessage(e instanceof Error?e.message:"Erro na C2.");}
+            finally{setC2Busy(false);}
+          }}>{c2Busy?"Reconciliação...":"Executar C2 — Dry Run"}</button>
+        </div>
+        {c2&&<div style={{marginTop:14}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10}}>
+            {[
+              ["Vendas encontradas",c2.summary.salesFound.toLocaleString("pt-BR")],
+              ["Faturamento",money(c2.summary.billing)],
+              ["Seriam novas",c2.summary.newRecords.toLocaleString("pt-BR")],
+              ["Bloqueadas",c2.summary.blockedRecords.toLocaleString("pt-BR")]
+            ].map(([label,value])=><div key={label} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}><small style={{display:"block",color:"var(--muted)"}}>{label}</small><strong style={{fontSize:21}}>{value}</strong></div>)}
+          </div>
+          <div className="settings-list" style={{marginTop:12}}>
+            <div><b>Já importadas</b><span>{c2.summary.alreadyImported}</span></div>
+            <div><b>Possíveis duplicidades</b><span>{c2.summary.possibleDuplicates}</span></div>
+            <div><b>Duplicadas no próprio backup</b><span>{c2.summary.duplicateInBackup}</span></div>
+            <div><b>Canceladas</b><span>{c2.summary.canceled}</span></div>
+            <div><b>Clientes não resolvidos</b><span>{c2.summary.customerMissing}</span></div>
+            <div><b>Produtos não resolvidos</b><span>{c2.summary.productMissing}</span></div>
+          </div>
+          {c2.warnings?.length>0&&<div style={{marginTop:12,padding:14,borderRadius:10,background:"#fff7e6"}}><b>Pontos para revisão:</b><ul>{c2.warnings.map((w:string)=><li key={w}>{w}</li>)}</ul></div>}
+          <div style={{marginTop:12,padding:14,borderRadius:10,background:"#f1faf8",color:"#087f73"}}><b>Segurança:</b> C2 não criou MigrationRun e não alterou vendas, clientes, produtos, estoque ou financeiro. O número “Seriam novas” é apenas uma previsão para a futura C3.</div>
+        </div>}
+      </div>
 
       <div style={{marginTop:18,padding:14,borderRadius:10,background:"#f1faf8",color:"#087f73"}}>
         <b>Segurança:</b> C1 não grava nada. O próximo passo, C2, será o Dry Run de reconciliação e divergências antes de qualquer importação.
