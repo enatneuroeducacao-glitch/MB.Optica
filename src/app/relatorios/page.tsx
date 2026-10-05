@@ -5,8 +5,8 @@ const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
- useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);
+ const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
+ useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
  useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
@@ -91,7 +91,22 @@ export default function Relatorios(){
       {d.sales.bySeller.slice(0,10).map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span></span><strong>{money(x.total)}</strong></div>)}
      </div>
     </div>
-    <div className="panel full">
+    {legacySales?.ok&&<div className="panel full" style={{marginTop:16}}>
+     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO LEGADO</span><h2>Valores faturados — lançamento manual</h2><p>Somente vendas concluídas do BeepStart. Este relatório não altera clientes, produtos, vendas ou financeiro.</p></div>
+      <div className="report-actions"><button className="secondary" onClick={()=>{
+        const lines=["Data;Valor faturado;ID legado"];
+        legacySales.sales.forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
+      }}>⇩ Exportar CSV</button></div>
+     </div>
+     <div className="report-kpis compact"><Card t="Vendas faturadas" v={legacySales.count}/><Card t="Total faturado" v={money(legacySales.total)} d="base BeepStart"/><Card t="Já importadas" v="0" d="nenhuma venda gravada"/></div>
+     <div className="report-table"><div className="report-row head"><span>Data</span><span>Valor faturado</span><span>ID legado</span><span>Status</span></div>
+      {legacySales.sales.slice(0,100).map((x:any)=><div className="report-row" key={x.legacyRecordId}><strong>{x.date?new Date(x.date).toLocaleDateString("pt-BR"):"—"}</strong><span>{money(x.value)}</span><span>{x.saleId}</span><strong>Faturada</strong></div>)}
+     </div>
+     {legacySales.count>100&&<p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>A tela mostra as primeiras 100 vendas. O CSV contém todas as {legacySales.count} vendas concluídas.</p>}
+    </div>}
+   <div className="panel full">
      <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Valor registrado por meio de pagamento nas vendas ativas.</p></div></div>
      <div className="report-table">
       <div className="report-row head"><span>Meio</span><span></span><span></span><span>Valor</span></div>
