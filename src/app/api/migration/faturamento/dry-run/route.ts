@@ -57,16 +57,15 @@ export async function POST(request:Request){
     return {field,occurrences:rows.length,shape,objectKeys:objectKeys.slice(0,20)};
   }).filter(x=>x.occurrences>0);
   const customerCollectionNames=[...new Set(typed.map(r=>String(r.collection_key??r.collection??"")).filter(n=>/cliente|customer/i.test(n)))];
-  const customerCollectionFieldDiagnostics=typed
-    .filter(r=>customerCollectionNames.includes(String(r.collection_key??r.collection??"")))
-    .slice(0,1000)
-    .reduce((acc,r)=>{
-      for(const key of Object.keys(r)){
-        if(key==="collection_key"||key==="collection")continue;
-        acc[key]=(acc[key]??0)+1;
-      }
-      return acc;
-    },{} as Record<string,number>);
+  const customerCollectionFieldDiagnostics:Record<string,number>={};
+  for(const r of typed.slice(0,1000)){
+    const collectionName=String(r.collection_key??r.collection??"");
+    if(!customerCollectionNames.includes(collectionName))continue;
+    for(const key of Object.keys(r)){
+      if(key==="collection_key"||key==="collection")continue;
+      customerCollectionFieldDiagnostics[key]=(customerCollectionFieldDiagnostics[key]??0)+1;
+    }
+  }
 
   const backupCustomers=collection(typed,["Cliente","cliente","Clientes","clientes","Customers","customers"]);
   if(!sales.length)return NextResponse.json({ok:false,error:"A C2 não encontrou a coleção Venda no backup. A estrutura precisa ser validada antes da reconciliação."},{status:400});
@@ -184,6 +183,6 @@ export async function POST(request:Request){
   if(statuses.alreadyImported)warnings.push(String(statuses.alreadyImported)+" venda(s) já possuem registro legado importado.");
   if(statuses.matched)warnings.push(String(statuses.matched)+" venda(s) parecem coincidir com vendas já existentes no MB Gestão.");
 
-  return NextResponse.json({ok:true,mode:"FATURAMENTO_C2_DRY_RUN",fingerprint,summary:{salesFound:sales.length,billing:Number(billing.toFixed(2)),newRecords:newRecords.length,blockedRecords:blocked.length,alreadyImported:statuses.alreadyImported,possibleDuplicates:statuses.matched,duplicateInBackup:statuses.duplicatesInBackup,canceled:statuses.canceled,customerMissing:statuses.customerMissing,customerLegacyFound:statuses.customerLegacyFound,customerOperationalMatched:statuses.customerOperationalMatched,productMissing:statuses.productMissing,customersInMb:customers.length,productsInMb:products.length,existingSalesSample:existingSales.length},warnings,rows,customerDiagnostics:{saleFields:customerFieldDiagnostics,customerCollections:customerCollectionNames,customerCollectionFields:Object.entries(customerCollectionFieldDiagnostics).sort((a,b)=>b[1]-a[1]).slice(0,40)},safety:{writesPerformed:false,operationalDataChanged:false,migrationRunCreated:false,willImport:newRecords.length},nextStep:"C3_IMPORTACAO_CONTROLADA"});
+  return NextResponse.json({ok:true,mode:"FATURAMENTO_C2_DRY_RUN",fingerprint,summary:{salesFound:sales.length,billing:Number(billing.toFixed(2)),newRecords:newRecords.length,blockedRecords:blocked.length,alreadyImported:statuses.alreadyImported,possibleDuplicates:statuses.matched,duplicateInBackup:statuses.duplicatesInBackup,canceled:statuses.canceled,customerMissing:statuses.customerMissing,customerLegacyFound:statuses.customerLegacyFound,customerOperationalMatched:statuses.customerOperationalMatched,productMissing:statuses.productMissing,customersInMb:customers.length,productsInMb:products.length,existingSalesSample:existingSales.length},warnings,rows,customerDiagnostics:{saleFields:customerFieldDiagnostics,customerCollections:customerCollectionNames,customerCollectionFields:Object.entries(customerCollectionFieldDiagnostics).map(([field,count])=>({field,count:Number(count)})).sort((a,b)=>b.count-a.count).slice(0,40)},safety:{writesPerformed:false,operationalDataChanged:false,migrationRunCreated:false,willImport:newRecords.length},nextStep:"C3_IMPORTACAO_CONTROLADA"});
  }catch(error){return apiError(error,"Não foi possível executar a reconciliação C2 do faturamento.");}
 }
