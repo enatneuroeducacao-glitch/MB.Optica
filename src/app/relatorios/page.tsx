@@ -85,28 +85,31 @@ export default function Relatorios(){
      </div>
     </div>
     {legacySales?.ok&&<div className="panel full" style={{marginTop:16}}>
-     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Faturamento mensal histórico</h2><p>Base BeepStart preservada separadamente das vendas atuais. Os lançamentos manuais também ficam isolados e nunca criam ou alteram vendas, recebimentos ou contas do mês atual.</p></div>
+     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Faturamento mensal histórico</h2><p>Base BeepStart preservada separadamente das vendas atuais. Os lançamentos manuais ficam isolados e nunca criam ou alteram vendas, recebimentos ou contas do mês atual.</p></div>
       <div className="report-actions">
        <button className="primary" onClick={()=>{setManualError("");setShowManualHistorical(true)}}>＋ Inserir vendas antigas</button>
        <button className="secondary" onClick={()=>{
         const lines=["Mês;Quantidade de vendas;Faturamento;Origem"];
         legacySales.monthly.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"BeepStart"].join(";")));
         manualHistorical.forEach((x:any)=>lines.push([String(x.month).split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"Manual"].join(";")));
-        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
-        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-historico.csv";a.click();URL.revokeObjectURL(url);
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-historico.csv";a.click();URL.revokeObjectURL(url);
        }}>⇩ Exportar mensal</button>
        <button className="secondary" onClick={()=>{
         const lines=["Data;Valor faturado;ID legado"];
         legacySales.sales.forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
-        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
-        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
        }}>⇩ Exportar vendas BeepStart</button>
       </div>
      </div>
      <div className="report-kpis compact"><Card t="Vendas BeepStart" v={legacySales.count}/><Card t="Total BeepStart" v={money(legacySales.total)} d="base preservada"/><Card t="Lançamentos manuais" v={manualHistorical.length} d="sem impacto operacional"/><Card t="Vendas atuais" v={current.sales} d="mantidas separadas"/></div>
      <div className="report-table">
       <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Origem</span></div>
-      {legacySales.monthly.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><s   {showManualHistorical&&<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>!manualSaving&&setShowManualHistorical(false)}>
+      {legacySales.monthly.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>BeepStart</span></div>)}
+      {manualHistorical.map((x:any)=><div className="report-row" key={"manual-"+x.id}><strong>{String(x.month).split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
+     </div>
+     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Os valores BeepStart são somente leitura. O lançamento manual é apenas histórico e não altera as vendas atuais.</p>
+    </div>}
+   {showManualHistorical&&<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>!manualSaving&&setShowManualHistorical(false)}>
      <div className="panel" style={{width:"min(520px,100%)",margin:0}} onClick={e=>e.stopPropagation()}>
       <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Inserir vendas antigas</h2><p>Este lançamento fica separado das vendas atuais.</p></div><button className="secondary" onClick={()=>setShowManualHistorical(false)} disabled={manualSaving}>Fechar</button></div>
       <div style={{display:"grid",gap:12}}>
@@ -119,11 +122,7 @@ export default function Relatorios(){
       </div>
      </div>
     </div>}
-pan>{x.sales}</span><strong>{money(x.total)}</strong><span>BeepStart</span></div>)}
-      {manualHistorical.map((x:any)=><div className="report-row" key={"manual-"+x.id}><strong>{String(x.month).split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
-     </div>
-     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Os valores BeepStart são somente leitura. O botão de lançamento registra um complemento histórico isolado no banco do MB Gestão e não altera as vendas atuais.</p>
-    </div>}   <div className="panel full">
+   <div className="panel full">
      <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Valor registrado por meio de pagamento nas vendas ativas.</p></div></div>
      <div className="report-table">
       <div className="report-row head"><span>Meio</span><span></span><span></span><span>Valor</span></div>
