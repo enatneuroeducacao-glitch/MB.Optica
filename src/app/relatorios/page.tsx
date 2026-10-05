@@ -37,7 +37,7 @@ export default function Relatorios(){
    const enriched=monthly.map((x:any,i:number)=>{
      const target=targetFor(i);
      const ticket=x.sales>0?x.total/x.sales:0;
-     const variance=target===null?null:x.total-target;
+     const variance=target===null?0:x.total-target;
      const achievement=target&&target>0?x.total/target*100:null;
      let status="BASE INICIAL";
      if(target!==null){
