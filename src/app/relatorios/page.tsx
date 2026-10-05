@@ -5,8 +5,8 @@ const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");
- useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);
+ const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");
+ useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);useEffect(()=>{fetch("/api/relatorios/historico-manual",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>setManualHistorical(x?.entries||[])).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
  useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
@@ -68,13 +68,6 @@ export default function Relatorios(){
       <Card t="Maior faturamento do período" v={money(highest.total)} d={highest.month}/>
      </div>
     </div>
-    <div className="panel full">
-     <div className="panel-heading"><div><h2>Evolução do faturamento</h2><p>Comparação mês a mês da receita registrada e dos recebimentos associados às vendas.</p></div></div>
-     <div className="report-table">
-      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Recebido</span></div>
-      {monthly.map((x:any,i:number)=>{const prev=monthly[i-1];const v=prev?.total>0?((x.total-prev.total)/prev.total)*100:null;return <div className="report-row" key={x.month}><strong>{x.month}</strong><span>{x.sales}</span><span>{money(x.total)}</span><strong>{money(x.received)}{v===null?"": " · "+(v>=0?"+":"")+v.toFixed(1)+"%"}</strong></div>})}
-     </div>
-    </div>
     <div className="panel">
      <div className="panel-heading"><div><h2>Leitura do período</h2><p>Indicadores derivados da série mensal.</p></div></div>
      <div className="funnel">
@@ -92,28 +85,42 @@ export default function Relatorios(){
      </div>
     </div>
     {legacySales?.ok&&<div className="panel full" style={{marginTop:16}}>
-     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO LEGADO</span><h2>Faturamento mensal — lançamento manual</h2><p>Consolidação das vendas concluídas do BeepStart por mês. O relatório não altera clientes, produtos, vendas ou financeiro.</p></div>
+     <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Faturamento mensal histórico</h2><p>Base BeepStart preservada separadamente das vendas atuais. Os lançamentos manuais ficam isolados e nunca criam ou alteram vendas, recebimentos ou contas do mês atual.</p></div>
       <div className="report-actions">
+       <button className="primary" onClick={()=>{setManualError("");setShowManualHistorical(true)}}>＋ Inserir vendas antigas</button>
        <button className="secondary" onClick={()=>{
-        const lines=["Mês;Quantidade de vendas;Faturamento"];
-        legacySales.monthly.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",",")].join(";")));
-        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
-        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-mensal-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
+        const lines=["Mês;Quantidade de vendas;Faturamento;Origem"];
+        legacySales.monthly.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"BeepStart"].join(";")));
+        manualHistorical.forEach((x:any)=>lines.push([String(x.month).split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"Manual"].join(";")));
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-historico.csv";a.click();URL.revokeObjectURL(url);
        }}>⇩ Exportar mensal</button>
        <button className="secondary" onClick={()=>{
         const lines=["Data;Valor faturado;ID legado"];
         legacySales.sales.forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
-        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
-        const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
-       }}>⇩ Exportar vendas</button>
+        const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
+       }}>⇩ Exportar vendas BeepStart</button>
       </div>
      </div>
-     <div className="report-kpis compact"><Card t="Vendas faturadas" v={legacySales.count}/><Card t="Total faturado" v={money(legacySales.total)} d="base BeepStart"/><Card t="Meses encontrados" v={legacySales.monthly.length} d="competência pela data da venda"/><Card t="Já importadas" v="0" d="nenhuma venda gravada"/></div>
+     <div className="report-kpis compact"><Card t="Vendas BeepStart" v={legacySales.count}/><Card t="Total BeepStart" v={money(legacySales.total)} d="base preservada"/><Card t="Lançamentos manuais" v={manualHistorical.length} d="sem impacto operacional"/><Card t="Vendas atuais" v={current.sales} d="mantidas separadas"/></div>
      <div className="report-table">
-      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Lançamento</span></div>
-      {legacySales.monthly.map((x:any)=><div className="report-row" key={x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
+      <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Origem</span></div>
+      {legacySales.monthly.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>BeepStart</span></div>)}
+      {manualHistorical.map((x:any)=><div className="report-row" key={"manual-"+x.id}><strong>{String(x.month).split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
      </div>
-     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>A competência mensal é calculada pela data registrada na venda, convertida para o fuso de São Paulo. O detalhamento das {legacySales.count} vendas permanece disponível na exportação de vendas.</p>
+     <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Os valores BeepStart são somente leitura. O lançamento manual é apenas histórico e não altera as vendas atuais.</p>
+    </div>}
+   {showManualHistorical&&<div style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>!manualSaving&&setShowManualHistorical(false)}>
+     <div className="panel" style={{width:"min(520px,100%)",margin:0}} onClick={e=>e.stopPropagation()}>
+      <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Inserir vendas antigas</h2><p>Este lançamento fica separado das vendas atuais.</p></div><button className="secondary" onClick={()=>setShowManualHistorical(false)} disabled={manualSaving}>Fechar</button></div>
+      <div style={{display:"grid",gap:12}}>
+       <label>Competência<input type="month" value={manualForm.month} onChange={e=>setManualForm({...manualForm,month:e.target.value})}/></label>
+       <label>Quantidade de vendas<input type="number" min="0" step="1" value={manualForm.sales} onChange={e=>setManualForm({...manualForm,sales:e.target.value})}/></label>
+       <label>Faturamento do período<input type="number" min="0" step="0.01" value={manualForm.total} onChange={e=>setManualForm({...manualForm,total:e.target.value})}/></label>
+       <label>Observação (opcional)<textarea rows={3} value={manualForm.notes} onChange={e=>setManualForm({...manualForm,notes:e.target.value})}/></label>
+       {manualError&&<div className="report-alert"><div><b>Não foi possível salvar</b><span>{manualError}</span></div></div>}
+       <div className="report-actions"><button className="secondary" onClick={()=>setShowManualHistorical(false)} disabled={manualSaving}>Cancelar</button><button className="primary" disabled={manualSaving} onClick={async()=>{setManualSaving(true);setManualError("");try{const r=await fetch("/api/relatorios/historico-manual",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(manualForm)});const x=await r.json();if(!r.ok||!x.ok)throw new Error(x.error||"Não foi possível salvar.");const list=await fetch("/api/relatorios/historico-manual",{cache:"no-store"}).then(v=>v.json());setManualHistorical(list?.entries||[]);setManualForm({month:"",sales:"",total:"",notes:""});setShowManualHistorical(false)}catch(e){setManualError(e instanceof Error?e.message:"Erro ao salvar.")}finally{setManualSaving(false)}}}>{manualSaving?"Salvando...":"Salvar lançamento"}</button></div>
+      </div>
+     </div>
     </div>}
    <div className="panel full">
      <div className="panel-heading"><div><h2>Meios de pagamento</h2><p>Valor registrado por meio de pagamento nas vendas ativas.</p></div></div>
