@@ -86,7 +86,13 @@ export async function POST(request:Request){
 
   const legacyById=new Map(legacy.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
   const backupCustomerById=new Map<string,R>();
-  for(const c of backupCustomers){const id=idOf(c);if(id)backupCustomerById.set(id,c);}
+  const backupCustomerByCode=new Map<string,R>();
+  const backupCustomerByName=new Map<string,R>();
+  for(const c of backupCustomers){
+    const id=idOf(c); if(id)backupCustomerById.set(norm(id),c);
+    const code=first(c,["codigo","code","codigoCliente","clienteCodigo","customerCode","customer_code"]); if(code!==null)backupCustomerByCode.set(norm(code),c);
+    const name=first(c,["name","nome","nomeCompleto"]); if(name!==null)backupCustomerByName.set(norm(name),c);
+  }
   const legacyCustomerById=new Map(legacyCustomers.filter(x=>x.legacyId).map(x=>[String(x.legacyId),x]));
   const saleNumber=new Map(existingSales.map(s=>[String(s.number),s]));
   const saleFingerprint=new Map<string,typeof existingSales[number]>();
@@ -116,7 +122,13 @@ export async function POST(request:Request){
      customerRef && typeof customerRef==="object" && !Array.isArray(customerRef)
        ? customerRef as R
        : undefined;
-   const backupCustomer=inlineCustomer ?? (customerRefId!==null?backupCustomerById.get(customerRefId):undefined);
+   const inlineCode=inlineCustomer?first(inlineCustomer,["codigo","code","codigoCliente","clienteCodigo","customerCode","customer_code"]):null;
+   const inlineName=inlineCustomer?first(inlineCustomer,["name","nome","nomeCompleto"]):null;
+   const backupCustomer=inlineCustomer
+     ?? (customerRefId!==null?backupCustomerById.get(norm(customerRefId)):undefined)
+     ?? (customerRefId!==null?backupCustomerByCode.get(norm(customerRefId)):undefined)
+     ?? (inlineCode!==null?backupCustomerByCode.get(norm(inlineCode)):undefined)
+     ?? (inlineName!==null?backupCustomerByName.get(norm(inlineName)):undefined);
    const backupCustomerCpf=backupCustomer?first(backupCustomer,["cpf","cpfCnpj","document"]):null;
    const backupCustomerPhone=backupCustomer?first(backupCustomer,["phone","telefone","celular"]):null;
    const backupCustomerEmail=backupCustomer?first(backupCustomer,["email","eMail"]):null;
