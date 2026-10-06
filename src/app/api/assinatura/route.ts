@@ -27,7 +27,7 @@ function serialize(subscription:any, activeUsers:number){
 
 export async function GET(){
   try{
-    await requireUser();
+    await requireRole(["ADMIN"]);
     const [subscription, activeUsers] = await Promise.all([
       db.subscription.findFirst({orderBy:{createdAt:"asc"}}),
       db.user.count({where:{active:true}}),
