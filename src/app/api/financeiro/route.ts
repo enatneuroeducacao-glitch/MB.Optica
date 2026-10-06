@@ -139,6 +139,7 @@ export async function POST(req:Request){
       const gross=Number(b.grossAmount); if(!Number.isFinite(gross)||gross<=0) throw new Error("Remuneração bruta inválida");
       const fiscal=await db.fiscalConfig.findFirst({where:{active:true},orderBy:{updatedAt:"desc"}});
       const type=String(b.type||"PROLABORE"); const regime=String(fiscal?.taxRegime||"SIMEI");
+      if(Number(b.grossAmount)<1621 && (type==="SALARIO" || (type==="PROLABORE" && regime!=="SIMEI"))) throw new Error("Para esta modalidade, a remuneração não pode ficar abaixo de R$ 1.621,00 na competência 2026.");
       return NextResponse.json({grossAmount:gross,...computePayroll(gross,type,regime,Number(b.otherDiscounts||0)),regime,type});
     }
     if(b.action==="CREATE_PAYROLL"){
@@ -146,6 +147,7 @@ export async function POST(req:Request){
       const fiscal=await db.fiscalConfig.findFirst({where:{active:true},orderBy:{updatedAt:"desc"}});
       const type=String(b.type||"PROLABORE")==="SALARIO"?"SALARIO":"PROLABORE";
       const regime=String(fiscal?.taxRegime||"SIMEI");
+      if(gross<1621 && (type==="SALARIO" || (type==="PROLABORE" && regime!=="SIMEI"))) throw new Error("Para esta modalidade, a remuneração não pode ficar abaixo de R$ 1.621,00 na competência 2026.");
       const calc=computePayroll(gross,type,regime,Number(b.otherDiscounts||0));
       const competence=new Date(String(b.competence||""));
       if(Number.isNaN(competence.getTime())) throw new Error("Competência inválida");
