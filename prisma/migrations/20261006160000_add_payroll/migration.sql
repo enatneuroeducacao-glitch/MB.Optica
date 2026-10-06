@@ -1,3 +1,6 @@
+CREATE TYPE "PayrollRecordType" AS ENUM ('PROLABORE', 'SALARIO');
+CREATE TYPE "PayrollStatus" AS ENUM ('RASCUNHO', 'EMITIDA', 'PAGA', 'CANCELADA');
+
 CREATE TABLE "PayrollSettings" (
   "id" TEXT NOT NULL,
   "ownerName" TEXT NOT NULL DEFAULT 'Moni Becker',
@@ -16,7 +19,7 @@ CREATE TABLE "PayrollRecord" (
   "competence" TIMESTAMP(3) NOT NULL,
   "personName" TEXT NOT NULL,
   "role" TEXT,
-  "type" TEXT NOT NULL DEFAULT 'PROLABORE',
+  "type" "PayrollRecordType" NOT NULL DEFAULT 'PROLABORE',
   "grossAmount" DECIMAL(12,2) NOT NULL,
   "inssAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
   "irrfAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -25,7 +28,7 @@ CREATE TABLE "PayrollRecord" (
   "employerInss" DECIMAL(12,2) NOT NULL DEFAULT 0,
   "fgtsAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
   "totalCost" DECIMAL(12,2) NOT NULL,
-  "status" TEXT NOT NULL DEFAULT 'RASCUNHO',
+  "status" "PayrollStatus" NOT NULL DEFAULT 'RASCUNHO',
   "paymentDate" TIMESTAMP(3),
   "notes" TEXT,
   "ruleSnapshot" JSONB,
