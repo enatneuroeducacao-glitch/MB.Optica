@@ -93,7 +93,7 @@ export async function GET(){
         }
       }),
       db.account.findMany({
-        where:{type:"RECEBER",status:{in:["PENDENTE","PARCIAL"]}},
+        where:{type:"RECEBER",status:{in:["PENDENTE","PARCIAL"]},writtenOffAt:null},
         select:{id:true,description:true,customerId:true,supplierId:true,amount:true,paidAmount:true,dueDate:true,status:true,customer:{select:{name:true}}}
       }),
       db.account.findMany({
@@ -103,6 +103,7 @@ export async function GET(){
       db.account.findMany({
         where:{
           status:{in:["PENDENTE","PARCIAL"]},
+          writtenOffAt:null,
           dueDate:{lt:today}
         },
         select:{id:true,description:true,type:true,amount:true,paidAmount:true,dueDate:true,status:true,customerId:true,customer:{select:{name:true}}}
