@@ -5,11 +5,19 @@ import { requireRole, requireUser } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
 const patchSchema = z.object({
-  plan: z.enum(["BASICO", "PROFISSIONAL", "ENTERPRISE"]).optional(),
+  plan: z.enum(["BASICO", "PROFISSIONAL", "PREMIUM", "ENTERPRISE", "PROPRIETARIO"]).optional(),
   status: z.enum(["AVALIACAO", "ATIVA", "PENDENTE", "SUSPENSA", "CANCELADA", "EXPIRADA"]).optional(),
   billingCycle: z.enum(["MENSAL", "ANUAL"]).optional(),
   price: z.coerce.number().min(0).max(999999).optional(),
   maxUsers: z.coerce.number().int().min(1).max(1000).optional(),
+  maxUnits: z.coerce.number().int().min(1).max(1000).nullable().optional(),
+  maxClients: z.coerce.number().int().min(1).max(1000000).nullable().optional(),
+  maxProducts: z.coerce.number().int().min(1).max(1000000).nullable().optional(),
+  maxSales: z.coerce.number().int().min(1).max(1000000).nullable().optional(),
+  maxOrders: z.coerce.number().int().min(1).max(1000000).nullable().optional(),
+  trialDays: z.coerce.number().int().min(0).max(365).optional(),
+  graceDays: z.coerce.number().int().min(0).max(30).optional(),
+  licenseType: z.enum(["SUBSCRIPTION","PROPRIETARY"]).optional(),
   modules: z.array(z.string().min(1).max(80)).max(50).optional(),
   trialEndsAt: z.string().datetime().nullable().optional(),
   currentPeriodStart: z.string().datetime().nullable().optional(),
@@ -49,6 +57,14 @@ export async function PATCH(request:Request){
     if(body.billingCycle!==undefined)data.billingCycle=body.billingCycle;
     if(body.price!==undefined)data.price=body.price;
     if(body.maxUsers!==undefined)data.maxUsers=body.maxUsers;
+    if(body.maxUnits!==undefined)data.maxUnits=body.maxUnits;
+    if(body.maxClients!==undefined)data.maxClients=body.maxClients;
+    if(body.maxProducts!==undefined)data.maxProducts=body.maxProducts;
+    if(body.maxSales!==undefined)data.maxSales=body.maxSales;
+    if(body.maxOrders!==undefined)data.maxOrders=body.maxOrders;
+    if(body.trialDays!==undefined)data.trialDays=body.trialDays;
+    if(body.graceDays!==undefined)data.graceDays=body.graceDays;
+    if(body.licenseType!==undefined)data.licenseType=body.licenseType;
     if(body.modules!==undefined)data.modules=body.modules;
     if(body.trialEndsAt!==undefined)data.trialEndsAt=body.trialEndsAt?new Date(body.trialEndsAt):null;
     if(body.currentPeriodStart!==undefined)data.currentPeriodStart=body.currentPeriodStart?new Date(body.currentPeriodStart):null;
@@ -62,10 +78,18 @@ export async function PATCH(request:Request){
           plan:body.plan||"PROFISSIONAL",
           status:body.status||"AVALIACAO",
           billingCycle:body.billingCycle||"MENSAL",
-          price:body.price??0,
+          price:body.price??100,
           maxUsers:body.maxUsers??5,
-          modules:body.modules??["Dashboard","Clientes","Produtos e estoque","Vendas","Financeiro","Relatórios","Laboratório"],
-          trialEndsAt:body.trialEndsAt?new Date(body.trialEndsAt):null,
+          maxUnits:body.maxUnits??1,
+          maxClients:body.maxClients??2000,
+          maxProducts:body.maxProducts??2000,
+          maxSales:body.maxSales??null,
+          maxOrders:body.maxOrders??null,
+          trialDays:body.trialDays??15,
+          graceDays:body.graceDays??5,
+          licenseType:body.licenseType??"SUBSCRIPTION",
+          modules:body.modules??["Dashboard","Agenda","Clientes","Atendimento","Mensagens","Produtos e estoque","Fornecedores","Vendas","Financeiro","Relatórios","Configurações","Receitas","Orçamentos","Pedidos","Laboratório"],
+          trialEndsAt:body.trialEndsAt?new Date(body.trialEndsAt):new Date(Date.now()+(body.trialDays??15)*86400000),
           currentPeriodStart:body.currentPeriodStart?new Date(body.currentPeriodStart):new Date(),
           currentPeriodEnd:body.currentPeriodEnd?new Date(body.currentPeriodEnd):null,
         }});
