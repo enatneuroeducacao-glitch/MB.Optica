@@ -86,7 +86,7 @@ export async function GET(){
     };
     legacySales.forEach((r:any)=>{
       const p=r.payload||{}; if(p.cancelada) return;
-      const revenue=Object.values(p.valoresIDs||{}).reduce((a:any,v:any)=>a+Number(v||0),0);
+      const revenue=Object.values((p.valoresIDs||{}) as Record<string,unknown>).reduce((a:number,v)=>a+Number(v||0),0);
       if(revenue>0)addSale(Number(p.data),revenue);
     });
     sales.forEach((s:any)=>addSale(s.createdAt,money(s.total)));
