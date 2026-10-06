@@ -20,7 +20,9 @@ const PLAN_MODULES: Record<string, SubscriptionModule[]> = {
     "Fornecedores","Vendas","Financeiro","Relatórios","Configurações","Receitas",
     "Orçamentos","Pedidos","Laboratório",
   ],
+  PREMIUM: [...SUBSCRIPTION_MODULES],
   ENTERPRISE: [...SUBSCRIPTION_MODULES],
+  PROPRIETARIO: [...SUBSCRIPTION_MODULES],
 };
 
 const TRIAL_MODULES: SubscriptionModule[] = [
@@ -71,24 +73,37 @@ function modulesFor(subscription: {plan:string; status:string; modules:unknown} 
   return plan.filter((module) => configured.length === 0 || configured.includes(module));
 }
 
+function trialExpired(trialEndsAt: Date | null | undefined) {
+  return Boolean(trialEndsAt && trialEndsAt.getTime() <= Date.now());
+}
+
 export async function getSubscriptionEntitlement() {
   if (isOwnerInstance()) {
     return {
       owner: true,
-      plan: "ENTERPRISE",
+      plan: "PROPRIETARIO",
       status: "ATIVA",
       trial: false,
       modules: [...SUBSCRIPTION_MODULES],
       maxUsers: null,
       activeUsers: null,
+      maxUnits: null,
+      maxClients: null,
+      maxProducts: null,
+      maxSales: null,
+      maxOrders: null,
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+      licenseType: "PROPRIETARY",
     };
   }
 
   const subscription = await db.subscription.findFirst({ orderBy: { createdAt: "asc" } });
-  const modules = modulesFor(subscription);
+  const expiredTrial = trialExpired(subscription?.trialEndsAt);
+  const modules = expiredTrial ? [] : modulesFor(subscription);
   const activeUsers = await db.user.count({ where: { active: true } });
-  const maxUsers = subscription?.maxUsers ?? 3;
-  const status = subscription?.status ?? "AVALIACAO";
+  const maxUsers = subscription?.maxUsers ?? 1;
+  const status = expiredTrial ? "EXPIRADA" : (subscription?.status ?? "AVALIACAO");
   const trial = status === "AVALIACAO";
 
   return {
@@ -101,6 +116,12 @@ export async function getSubscriptionEntitlement() {
     activeUsers,
     trialEndsAt: subscription?.trialEndsAt ?? null,
     currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
+    maxUnits: subscription?.maxUnits ?? 1,
+    maxClients: subscription?.maxClients ?? 100,
+    maxProducts: subscription?.maxProducts ?? 100,
+    maxSales: subscription?.maxSales ?? 20,
+    maxOrders: subscription?.maxOrders ?? 20,
+    licenseType: subscription?.licenseType ?? "SUBSCRIPTION",
   };
 }
 
