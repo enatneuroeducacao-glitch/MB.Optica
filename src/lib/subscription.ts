@@ -61,6 +61,7 @@ export function moduleForPath(pathname: string) {
 
 function modulesFor(subscription: {plan:string; status:string; modules:unknown} | null): SubscriptionModule[] {
   if (!subscription) return TRIAL_MODULES;
+  if (subscription.status === "AVALIACAO") return TRIAL_MODULES;
   if (subscription.status === "CANCELADA" || subscription.status === "EXPIRADA" || subscription.status === "SUSPENSA") return [];
   const configured = Array.isArray(subscription.modules)
     ? subscription.modules.filter((value): value is SubscriptionModule => typeof value === "string" && SUBSCRIPTION_MODULES.includes(value as SubscriptionModule))
