@@ -44,7 +44,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     check();
     return()=>{mounted=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus)};
   },[path]);
-  if(path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
+  if(path==="/inicio"||path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
   if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/inicio");router.refresh();}finally{setBusy(false);}}
   return <div className="shell">
