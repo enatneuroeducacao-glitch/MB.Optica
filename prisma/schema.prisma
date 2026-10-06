@@ -628,6 +628,55 @@ model LegacyRecord {
   @@index([migrationRunId])
   @@index([targetEntity,targetId])
 }
+enum PayrollRecordType {
+  PROLABORE
+  SALARIO
+}
+
+enum PayrollStatus {
+  RASCUNHO
+  EMITIDA
+  PAGA
+  CANCELADA
+}
+
+model PayrollSettings {
+  id String @id @default(cuid())
+  ownerName String @default("Moni Becker")
+  ownerRole String @default("Proprietária / Administradora")
+  recommendationMode String @default("MEDIA_6_MESES")
+  reservePercent Decimal @default(10) @db.Decimal(5,2)
+  salaryRules Json
+  taxRules Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PayrollRecord {
+  id String @id @default(cuid())
+  competence DateTime
+  personName String
+  role String?
+  type PayrollRecordType @default(PROLABORE)
+  grossAmount Decimal @db.Decimal(12,2)
+  inssAmount Decimal @default(0) @db.Decimal(12,2)
+  irrfAmount Decimal @default(0) @db.Decimal(12,2)
+  otherDiscounts Decimal @default(0) @db.Decimal(12,2)
+  netAmount Decimal @db.Decimal(12,2)
+  employerInss Decimal @default(0) @db.Decimal(12,2)
+  fgtsAmount Decimal @default(0) @db.Decimal(12,2)
+  totalCost Decimal @db.Decimal(12,2)
+  status PayrollStatus @default(RASCUNHO)
+  paymentDate DateTime?
+  notes String?
+  ruleSnapshot Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([competence])
+  @@index([personName,competence])
+  @@index([status])
+}
+
 model StoreSettings {
   id String @id @default(cuid())
   legalName String?
