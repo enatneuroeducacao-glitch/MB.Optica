@@ -113,7 +113,7 @@ export async function GET(){
     const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const payable=accounts.filter(a=>a.type==="PAGAR"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const writtenOff=accounts.filter(a=>a.type==="RECEBER"&&a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
-    const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO");
+    const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt);
     const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
