@@ -50,7 +50,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     {menuOpen&&<button className="mobile-menu-overlay" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}/>}
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
       <div className="brand"><div className="brand-mark">{logo?<img src={logo} alt="Logo da óptica"/>:"MB"}</div><div><strong>MB Óptica</strong><small>Gestão inteligente</small></div><button className="mobile-close" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}>×</button></div>
-      <nav>{groups.map(g=><div className="nav-group" key={g.label}><span>{g.label}</span>{g.items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>)}</nav>
+      <nav>{groups.map(g=>{const items=g.items.filter(([label])=>label!=="Assinatura do sistema"||user?.role==="ADMIN");return <div className="nav-group" key={g.label}><span>{g.label}</span>{items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>})}</nav>
       <div className="sidebar-footer"><div>Sistema atualizado automaticamente</div><div>Versão {version ? version.slice(0,8) : "carregando..."}</div></div>
     </aside>
     <main className="main">
