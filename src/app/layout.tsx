@@ -1,5 +1,6 @@
 import "./globals.css";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { getCurrentUser } from "@/lib/auth";
 import { enforceSubscriptionAccess } from "@/lib/subscription";
