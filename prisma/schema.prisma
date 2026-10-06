@@ -119,7 +119,9 @@ id String @id @default(cuid())
 enum SubscriptionPlan {
   BASICO
   PROFISSIONAL
+  PREMIUM
   ENTERPRISE
+  PROPRIETARIO
 }
 
 enum SubscriptionStatus {
@@ -143,6 +145,14 @@ model Subscription {
   billingCycle BillingCycle @default(MENSAL)
   price Decimal @default(0) @db.Decimal(12,2)
   maxUsers Int @default(5)
+  maxUnits Int?
+  maxClients Int?
+  maxProducts Int?
+  maxSales Int?
+  maxOrders Int?
+  trialDays Int @default(15)
+  graceDays Int @default(5)
+  licenseType String @default("SUBSCRIPTION")
   modules Json?
   provider String?
   providerCustomerId String?
