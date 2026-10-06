@@ -110,14 +110,15 @@ export async function GET(){
     };
     const today=new Date(); today.setHours(0,0,0,0);
     const received=sales.flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
-    const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
+    const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const payable=accounts.filter(a=>a.type==="PAGAR"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
+    const writtenOff=accounts.filter(a=>a.type==="RECEBER"&&a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO");
     const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
     const cashOut=cashMovements.filter(m=>["SAIDA","SANGRIA"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
-    return NextResponse.json({accounts,sales,methods,openCash,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
+    return NextResponse.json({accounts,sales,methods,openCash,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
   }catch(error){return NextResponse.json({error:"Não foi possível carregar o centro financeiro",detail:String(error)},{status:500})}
 }
 
@@ -169,6 +170,19 @@ export async function POST(req:Request){
       const id=String(b.id||""); if(!id) throw new Error("Folha não informada");
       const record=await db.payrollRecord.update({where:{id},data:{status:"CANCELADA"}});
       return NextResponse.json(record);
+    }
+    if(b.action==="WRITE_OFF_ACCOUNT"){
+      const accountId=String(b.accountId||"");
+      const reason=String(b.reason||"Inadimplência considerada incobrável").trim();
+      if(!accountId) throw new Error("Conta não informada");
+      if(!reason) throw new Error("Informe o motivo da baixa como perda");
+      const account=await db.account.findUnique({where:{id:accountId}});
+      if(!account) throw new Error("Conta não encontrada");
+      if(account.type!=="RECEBER") throw new Error("Somente contas a receber podem ser baixadas como perda");
+      if(account.status==="PAGO"||account.status==="CANCELADO") throw new Error("Esta conta não está disponível para baixa como perda");
+      const remaining=Math.max(0,Number(account.amount)-Number(account.paidAmount));
+      const updated=await db.account.update({where:{id:accountId},data:{writtenOffAt:new Date(),writtenOffReason:reason}});
+      return NextResponse.json({account:updated,amountWrittenOff:remaining});
     }
     if(b.action==="CREATE_ACCOUNT"){
       const type=b.type==="PAGAR"?"PAGAR":"RECEBER";
