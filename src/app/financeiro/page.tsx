@@ -116,6 +116,6 @@ export default function Financeiro(){
     <div className="finance-list">{payrollRecords.length?payrollRecords.map((r:any)=><div key={r.id}><span><b>{r.personName}</b> · {r.type==="PROLABORE"?"Pró-labore":"Salário"} · {new Date(r.competence).toLocaleDateString("pt-BR",{month:"2-digit",year:"numeric"})}<br/><small>{r.status} · líquido {money(r.netAmount)} · custo {money(r.totalCost)}</small></span><strong>{money(r.grossAmount)}</strong><span className="payroll-row-actions">{r.status==="EMITIDA"&&<button className="secondary" onClick={()=>payPayroll(r.id)}>Marcar paga</button>}{r.status!=="PAGA"&&r.status!=="CANCELADA"&&<button className="secondary" onClick={()=>cancelPayroll(r.id)}>Cancelar</button>}</span></div>):<div><span>Nenhuma folha emitida ainda.</span></div>}</div>
    </div>
    <div className="payroll-note"><b>Atenção:</b> o valor recomendado é uma regra de gestão financeira do MB Gestão, não uma determinação legal de salário. Para pró-labore, o valor deve ser compatível com as funções exercidas e validado com a contabilidade, inclusive quanto ao regime tributário e contribuições.</div>
-  </div>
+  </div>}
  </section>
 }
