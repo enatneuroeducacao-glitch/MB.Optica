@@ -81,6 +81,7 @@ export const API_PERMISSIONS: Record<string, string> = {
   "/api/fiscal/homologacao": "configuracoes",
   "/api/migration": "migracao",
   "/api/gestao/indicadores": "relatorios",
+  "/api/assinatura": "configuracoes",
 };
 
 export const API_PUBLIC_AUTHENTICATED = new Set([
@@ -91,6 +92,7 @@ export const API_PUBLIC_AUTHENTICATED = new Set([
   "/api/auth/reset-password",
   "/api/branding",
   "/api/version",
+  "/api/entitlements",
 ]);
 
 export const ROLE_API_PREFIXES: Record<string, string[]> = {
@@ -145,6 +147,7 @@ export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/stock", ["ADMIN", "GERENTE", "LABORATORIO"]],
   ["/api/migration", ["ADMIN"]],
   ["/api/fiscal/homologacao", ["ADMIN", "GERENTE"]],
+  ["/api/assinatura", ["ADMIN"]],
 ];
 
 export function effectivePermissions(role: string, explicit: unknown) {
