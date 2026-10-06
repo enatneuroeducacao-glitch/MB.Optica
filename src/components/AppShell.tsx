@@ -46,7 +46,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
   },[path]);
   if(path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
   if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
-  async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/login");router.refresh();}finally{setBusy(false);}}
+  async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/inicio");router.refresh();}finally{setBusy(false);}}
   return <div className="shell">
     {menuOpen&&<button className="mobile-menu-overlay" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}/>}
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
