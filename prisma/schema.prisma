@@ -543,6 +543,8 @@ amount Decimal @db.Decimal(12,2)
 paidAmount Decimal @default(0) @db.Decimal(12,2)
 status PaymentStatus @default(PENDENTE)
 notes String?
+  writtenOffAt DateTime?
+  writtenOffReason String?
 customer Customer? @relation(fields:[customerId],references:[id])
 supplier Supplier? @relation(fields:[supplierId],references:[id])
 sale Sale? @relation(fields:[saleId],references:[id])
