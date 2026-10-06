@@ -24,7 +24,7 @@ export default function Financeiro(){
  const [payrollForm,setPayrollForm]=useState({personName:"Moni Becker",role:"Proprietária / Administradora",type:"PROLABORE",competence:new Date().toISOString().slice(0,7)+"-01",grossAmount:"1500",otherDiscounts:"",notes:""});
  const [payrollCalc,setPayrollCalc]=useState<any>(null);
  const [payrollSettings,setPayrollSettings]=useState<any>(null);
- const load=async()=>{const r=await fetch("/api/financeiro",{cache:"no-store"});const d=await r.json();if(r.ok)setData(d);else setMsg(d.error||"Erro ao carregar")};
+ const load=async()=>{const r=await fetch("/api/financeiro",{cache:"no-store"});const d=await r.json();if(r.ok){setData(d);setPayrollSettings(d.payroll?.settings||null)}else setMsg(d.error||"Erro ao carregar")};
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
  const accounts:Account[]=data?.accounts||[];
