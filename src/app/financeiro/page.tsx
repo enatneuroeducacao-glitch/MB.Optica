@@ -21,12 +21,18 @@ export default function Financeiro(){
  const [settle,setSettle]=useState({accountId:"",amount:"",method:"PIX",reference:""});
  const [cash,setCash]=useState({amount:"",description:""});
  const [cashMove,setCashMove]=useState({kind:"ENTRADA",amount:"",description:""});
+ const [payrollForm,setPayrollForm]=useState({personName:"Moni Becker",role:"Proprietária / Administradora",type:"PROLABORE",competence:new Date().toISOString().slice(0,7)+"-01",grossAmount:"1500",otherDiscounts:"",notes:""});
+ const [payrollCalc,setPayrollCalc]=useState<any>(null);
+ const [payrollSettings,setPayrollSettings]=useState<any>(null);
  const load=async()=>{const r=await fetch("/api/financeiro",{cache:"no-store"});const d=await r.json();if(r.ok)setData(d);else setMsg(d.error||"Erro ao carregar")};
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
  const accounts:Account[]=data?.accounts||[];
  const summary=data?.summary||{};
  const openCash:Cash=data?.openCash||null;
+ const payroll=data?.payroll||{};
+ const recommendation=payroll.recommendation||{};
+ const payrollRecords=payroll.payrollRecords||[];
  const paymentMethods=Array.isArray(data?.methods)&&data.methods.length?data.methods:[{id:"PIX",name:"PIX",isCash:false},{id:"DINHEIRO",name:"Dinheiro",isCash:true},{id:"CARTAO_DEBITO",name:"Cartão de débito",isCash:false},{id:"CARTAO_CREDITO",name:"Cartão de crédito",isCash:false},{id:"TRANSFERENCIA",name:"Transferência",isCash:false},{id:"BOLETO",name:"Boleto",isCash:false}];
  const categories=account.type==="PAGAR"?payableCategories:receivableCategories;
  const upcoming=useMemo(()=>accounts.filter(a=>a.status!=="PAGO"&&a.status!=="CANCELADO").slice(0,12),[accounts]);
@@ -34,16 +40,82 @@ export default function Financeiro(){
  const settleAccount=async(e:any)=>{e.preventDefault();try{await api({action:"SETTLE_ACCOUNT",...settle,amount:Number(settle.amount)});setMsg("Liquidação registrada.");setSettle({...settle,accountId:"",amount:"",reference:""});await load()}catch(e:any){setMsg(e.message)}};
  const open=async()=>{try{await api({action:"OPEN_CASH",amount:Number(cash.amount||0),notes:cash.description});setMsg("Caixa aberto.");await load()}catch(e:any){setMsg(e.message)}};
  const movement=async(e:any)=>{e.preventDefault();try{await api({action:"CASH_MOVEMENT",...cashMove,amount:Number(cashMove.amount)});setMsg("Movimento lançado.");setCashMove({...cashMove,amount:"",description:""});await load()}catch(e:any){setMsg(e.message)}};
+ const calculatePayroll=async()=>{try{const d=await api({action:"CALCULATE_PAYROLL",grossAmount:Number(payrollForm.grossAmount),type:payrollForm.type,otherDiscounts:Number(payrollForm.otherDiscounts||0)});setPayrollCalc(d);setMsg("Cálculo atualizado.");}catch(e:any){setMsg(e.message)}};
+ const emitPayroll=async(e:any)=>{e.preventDefault();try{await api({action:"CREATE_PAYROLL",...payrollForm,grossAmount:Number(payrollForm.grossAmount),otherDiscounts:Number(payrollForm.otherDiscounts||0)});setMsg("Folha emitida e registrada.");setPayrollCalc(null);await load()}catch(e:any){setMsg(e.message)}};
+ const payPayroll=async(id:string)=>{try{await api({action:"PAY_PAYROLL",id});setMsg("Pagamento da folha registrado.");await load()}catch(e:any){setMsg(e.message)}};
+ const cancelPayroll=async(id:string)=>{try{await api({action:"CANCEL_PAYROLL",id});setMsg("Folha cancelada.");await load()}catch(e:any){setMsg(e.message)}};
+ const savePayrollSettings=async(e:any)=>{e.preventDefault();try{await api({action:"UPDATE_PAYROLL_SETTINGS",ownerName:payrollSettings?.ownerName||"Moni Becker",ownerRole:payrollSettings?.ownerRole||"Proprietária / Administradora",reservePercent:Number(payrollSettings?.reservePercent||10),salaryRules:payrollSettings?.salaryRules||payroll.salaryRules});setMsg("Regras salvas.");await load()}catch(e:any){setMsg(e.message)}};
  const close=async()=>{try{const d=await api({action:"CLOSE_CASH"});setMsg("Caixa fechado. Saldo esperado: "+money(d.expected));await load()}catch(e:any){setMsg(e.message)}};
 
  return <section className="page finance-center">
   <div className="page-heading"><div><span className="eyebrow">CENTRO FINANCEIRO</span><h1>Financeiro</h1><p>Visão integrada de vendas, recebíveis, pagamentos e caixa da óptica.</p></div><button className="primary" onClick={()=>setTab("LANÇAR")}>+ Novo lançamento</button></div>
   {msg&&<div className="notice">{msg}</div>}
   <div className="stats"><StatCard label="A receber" value={money(summary.receivable)} detail="saldo aberto"/><StatCard label="A pagar" value={money(summary.payable)} detail="obrigações abertas"/><StatCard label="Recebido hoje" value={money(summary.todayReceived)} detail="pagamentos registrados"/><StatCard label="Saldo de caixa" value={money(summary.cashBalance)} detail={openCash?"caixa aberto":"caixa fechado"}/></div>
-  <div className="finance-tabs">{["VISÃO","RECEBER","PAGAR","CAIXA","LANÇAR"].map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div>
+  <div className="finance-tabs">{["VISÃO","RECEBER","PAGAR","CAIXA","LANÇAR","FOLHA / PRÓ-LABORE"].map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div>
   {tab==="VISÃO"&&<div className="grid-two"><div className="panel"><div className="panel-heading"><div><h2>Agenda financeira</h2><p>Próximos títulos e vencimentos.</p></div></div><div className="finance-list">{upcoming.map(a=><div key={a.id}><span><b>{a.type==="RECEBER"?"A receber":"A pagar"}</b> · {date(a.dueDate)} · {a.customer?.name||a.supplier?.name||"Lançamento"}</span><strong>{money(Number(a.amount)-Number(a.paidAmount))}</strong></div>)}</div></div><div className="panel"><div className="panel-heading"><div><h2>Indicadores</h2><p>Controle financeiro operacional.</p></div></div><div className="finance-kpis"><div><b>{summary.dueToday||0}</b><span>vencendo hoje</span></div><div><b>{money(summary.ticket)}</b><span>ticket médio</span></div><div><b>{data?.sales?.length||0}</b><span>vendas recentes</span></div></div><div className="cash-state"><span className={openCash?"online-dot":"offline-dot"}></span><div><b>{openCash?"Caixa aberto":"Caixa fechado"}</b><small>{openCash?"Abertura "+date(openCash.openedAt):"Abra o caixa para movimentar valores."}</small></div>{openCash?<button className="secondary" onClick={close}>Fechar caixa</button>:<button className="primary" onClick={()=>setTab("CAIXA")}>Abrir caixa</button>}</div></div></div>}
   {(tab==="RECEBER"||tab==="PAGAR")&&<div className="panel"><div className="panel-heading"><div><h2>{tab==="RECEBER"?"Contas a receber":"Contas a pagar"}</h2><p>Títulos financeiros reais.</p></div></div><div className="finance-list">{accounts.filter(a=>a.type===tab).map(a=>{const saldo=Math.max(0,Number(a.amount)-Number(a.paidAmount));return <div key={a.id}><span><b>{a.description}</b><br/><small>{date(a.dueDate)} · {a.customer?.name||a.supplier?.name||"—"} · {a.status}</small></span><strong>{money(saldo)}</strong><button className="secondary" onClick={()=>{setSettle({accountId:a.id,amount:String(saldo),method:"PIX",reference:""});setTab("LANÇAR")}}>Liquidar</button></div>})}</div></div>}
   {tab==="CAIXA"&&<div className="grid-two"><div className="panel"><div className="panel-heading"><div><h2>Caixa operacional</h2><p>Abertura, entradas, saídas, sangrias e fechamento.</p></div></div>{openCash?<><div className="cash-state"><span className="online-dot"></span><div><b>Caixa aberto</b><small>Abertura: {money(openCash.openingCash)}</small></div><button className="secondary" onClick={close}>Fechar caixa</button></div><form onSubmit={movement} className="form-grid"><label>Tipo<select value={cashMove.kind} onChange={e=>setCashMove({...cashMove,kind:e.target.value})}><option>ENTRADA</option><option>REFORCO</option><option>SAIDA</option><option>SANGRIA</option></select></label><label>Valor<input type="number" step="0.01" value={cashMove.amount} onChange={e=>setCashMove({...cashMove,amount:e.target.value})} required/></label><label className="wide">Descrição<input value={cashMove.description} onChange={e=>setCashMove({...cashMove,description:e.target.value})} required/></label><button className="primary">Lançar movimento</button></form></>:<form onSubmit={open} className="form-grid"><label>Fundo de caixa<input type="number" step="0.01" value={cash.amount} onChange={e=>setCash({...cash,amount:e.target.value})} required/></label><label className="wide">Observação<input value={cash.description} onChange={e=>setCash({...cash,description:e.target.value})}/></label><button className="primary">Abrir caixa</button></form>}</div><div className="panel"><div className="panel-heading"><div><h2>Movimentações</h2><p>Últimos lançamentos do caixa.</p></div></div><div className="finance-list">{(openCash?.movements||[]).map(m=><div key={m.id}><span>{m.kind} · {m.description}<br/><small>{date(m.createdAt)}</small></span><strong>{money(m.amount)}</strong></div>)}</div></div></div>}
   {tab==="LANÇAR"&&<div className="grid-two"><div className="panel"><div className="panel-heading"><div><h2>Novo título</h2><p>Crie contas a receber ou a pagar.</p></div></div><form onSubmit={submitAccount} className="form-grid"><label>Tipo<select value={account.type} onChange={e=>{const type=e.target.value;setAccount({...account,type,category:type==="PAGAR"?payableCategories[0]:receivableCategories[0]})}}><option>RECEBER</option><option>PAGAR</option></select></label><label>Categoria<select value={account.category} onChange={e=>setAccount({...account,category:e.target.value})}>{categories.map(category=><option key={category}>{category}</option>)}</select></label><label>Valor<input type="number" step="0.01" value={account.amount} onChange={e=>setAccount({...account,amount:e.target.value})} required/></label><label className="wide">Descrição complementar<input value={account.description} placeholder="Ex.: conta de energia da loja" onChange={e=>setAccount({...account,description:e.target.value})}/></label><label>Vencimento<input type="date" value={account.dueDate} onChange={e=>setAccount({...account,dueDate:e.target.value})} required/></label><label className="wide">Observações<textarea value={account.notes} onChange={e=>setAccount({...account,notes:e.target.value})}/></label><button className="primary">Salvar lançamento</button></form></div><div className="panel"><div className="panel-heading"><div><h2>Liquidar título</h2><p>Registre recebimentos ou pagamentos parciais/totais.</p></div></div><form onSubmit={settleAccount} className="form-grid"><label className="wide">Título<select value={settle.accountId} onChange={e=>{const a=accounts.find(x=>x.id===e.target.value);setSettle({...settle,accountId:e.target.value,amount:a?String(Math.max(0,Number(a.amount)-Number(a.paidAmount))):""})}}><option value="">Selecione</option>{accounts.filter(a=>a.status!=="PAGO"&&a.status!=="CANCELADO").map(a=><option key={a.id} value={a.id}>{a.type} · {a.description} · {money(Number(a.amount)-Number(a.paidAmount))}</option>)}</select></label><label>Valor<input type="number" step="0.01" value={settle.amount} onChange={e=>setSettle({...settle,amount:e.target.value})} required/></label><label>Forma de pagamento<select value={settle.method} onChange={e=>setSettle({...settle,method:e.target.value})}>{paymentMethods.map((method:any)=><option key={method.id} value={method.name}>{method.name}</option>)}</select></label><label className="wide">Referência<input value={settle.reference} placeholder="Nº do comprovante, boleto ou transação" onChange={e=>setSettle({...settle,reference:e.target.value})}/></label><button className="primary">Registrar liquidação</button></form></div></div>}
+  {tab==="FOLHA / PRÓ-LABORE"&&<div>
+   <div className="payroll-grid">
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Capacidade de retirada da Moni</h2><p>Regra automática baseada na média dos 6 meses fechados anteriores.</p></div></div>
+     <div className="payroll-highlight"><div><span>Média de faturamento — 6 meses</span><strong>{money(recommendation.average6)}</strong></div><div><span>Faturamento do mês atual</span><strong>{money(recommendation.currentRevenue)}</strong></div><div><span>Pró-labore recomendado</span><strong>{money(recommendation.recommendedSalary)}</strong></div></div>
+     <div className="payroll-alert"><b>{recommendation.warning||"Análise disponível."}</b><span>{recommendation.basis||"Média dos 6 meses fechados."}</span></div>
+     <div className="payroll-rules">
+      <h3>Faixas configuradas</h3>
+      {(payrollSettings?.salaryRules||[
+       {maxRevenue:8000,salary:1500,label:"Base de recuperação"},
+       {maxRevenue:9999.99,salary:1800,label:"Recuperação"},
+       {maxRevenue:11999.99,salary:2000,label:"Estabilização"},
+       {maxRevenue:14999.99,salary:2300,label:"Crescimento"},
+       {maxRevenue:null,salary:2500,label:"Crescimento consolidado"}
+      ]).map((r:any,i:number)=><div key={i}><span>{r.maxRevenue===null?"Acima de "+money(i?14999.99:0):"Até "+money(r.maxRevenue)}</span><b>{money(r.salary)}</b><small>{r.label}</small></div>)}
+     </div>
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Configuração do proprietário</h2><p>Parâmetros de gestão. A validação tributária deve ser feita com a contabilidade.</p></div></div>
+     <form onSubmit={savePayrollSettings} className="form-grid">
+      <label>Nome<input value={payrollSettings?.ownerName||"Moni Becker"} onChange={e=>setPayrollSettings({...payrollSettings,ownerName:e.target.value})}/></label>
+      <label>Função<input value={payrollSettings?.ownerRole||"Proprietária / Administradora"} onChange={e=>setPayrollSettings({...payrollSettings,ownerRole:e.target.value})}/></label>
+      <label>Reserva mínima (%)<input type="number" min="0" max="50" step="0.5" value={payrollSettings?.reservePercent??10} onChange={e=>setPayrollSettings({...payrollSettings,reservePercent:e.target.value})}/></label>
+      <label>Regime atual<strong className="payroll-regime">{payroll?.recommendation?.regime||"SIMEI"}</strong></label>
+      <button className="primary">Salvar parâmetros</button>
+     </form>
+    </div>
+   </div>
+   <div className="payroll-grid">
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Emitir folha / pró-labore</h2><p>Gere o demonstrativo da competência e registre a obrigação.</p></div><button type="button" className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button></div>
+     <form onSubmit={emitPayroll} className="form-grid">
+      <label>Competência<input type="month" value={payrollForm.competence.slice(0,7)} onChange={e=>setPayrollForm({...payrollForm,competence:e.target.value+"-01"})} required/></label>
+      <label>Tipo<select value={payrollForm.type} onChange={e=>setPayrollForm({...payrollForm,type:e.target.value})}><option value="PROLABORE">Pró-labore</option><option value="SALARIO">Salário CLT</option></select></label>
+      <label className="wide">Pessoa<input value={payrollForm.personName} onChange={e=>setPayrollForm({...payrollForm,personName:e.target.value})} required/></label>
+      <label>Função<input value={payrollForm.role} onChange={e=>setPayrollForm({...payrollForm,role:e.target.value})}/></label>
+      <label>Remuneração bruta<input type="number" step="0.01" value={payrollForm.grossAmount} onChange={e=>setPayrollForm({...payrollForm,grossAmount:e.target.value})} required/></label>
+      <label>Outros descontos<input type="number" step="0.01" value={payrollForm.otherDiscounts} onChange={e=>setPayrollForm({...payrollForm,otherDiscounts:e.target.value})}/></label>
+      <label className="wide">Observações<textarea value={payrollForm.notes} onChange={e=>setPayrollForm({...payrollForm,notes:e.target.value})}/></label>
+      <div className="payroll-actions"><button type="button" className="secondary" onClick={calculatePayroll}>Calcular folha</button><button className="primary">Emitir folha</button></div>
+     </form>
+     {payrollCalc&&<div className="payroll-calc"><div><span>INSS</span><b>{money(payrollCalc.inss)}</b></div><div><span>IRRF</span><b>{money(payrollCalc.irrf)}</b></div><div><span>FGTS</span><b>{money(payrollCalc.fgts)}</b></div><div><span>Líquido</span><b>{money(payrollCalc.net)}</b></div><div><span>Custo total</span><b>{money(payrollCalc.totalCost)}</b></div></div>}
+    </div>
+    <div className="panel">
+     <div className="panel-heading"><div><h2>Regras legais incorporadas</h2><p>Base 2026, com parâmetros separados por tipo de remuneração.</p></div></div>
+     <ul className="payroll-legal">
+      <li><b>Pró-labore:</b> tratado como remuneração do sócio, separado de distribuição de lucros.</li>
+      <li><b>INSS:</b> cálculo configurado para contribuinte individual; em SIMEI, a contribuição previdenciária do titular é tratada no DAS e não duplicada nesta folha.</li>
+      <li><b>IRRF:</b> tabela mensal 2026 e redução vigente são consideradas no cálculo.</li>
+      <li><b>Salário CLT:</b> INSS progressivo e FGTS de 8% como custo patronal estimado.</li>
+      <li><b>13º e férias:</b> não são gerados automaticamente para pró-labore; para empregados devem ser controlados conforme vínculo e legislação.</li>
+      <li><b>eSocial/FGTS/DCTFWeb:</b> esta tela é um controle gerencial e demonstrativo; não substitui a transmissão das obrigações oficiais.</li>
+     </ul>
+    </div>
+   </div>
+   <div className="panel">
+    <div className="panel-heading"><div><h2>Folhas emitidas</h2><p>Histórico de pró-labore e salários registrados no MB Gestão.</p></div></div>
+    <div className="finance-list">{payrollRecords.length?payrollRecords.map((r:any)=><div key={r.id}><span><b>{r.personName}</b> · {r.type==="PROLABORE"?"Pró-labore":"Salário"} · {new Date(r.competence).toLocaleDateString("pt-BR",{month:"2-digit",year:"numeric"})}<br/><small>{r.status} · líquido {money(r.netAmount)} · custo {money(r.totalCost)}</small></span><strong>{money(r.grossAmount)}</strong><span className="payroll-row-actions">{r.status==="EMITIDA"&&<button className="secondary" onClick={()=>payPayroll(r.id)}>Marcar paga</button>}{r.status!=="PAGA"&&r.status!=="CANCELADA"&&<button className="secondary" onClick={()=>cancelPayroll(r.id)}>Cancelar</button>}</span></div>):<div><span>Nenhuma folha emitida ainda.</span></div>}</div>
+   </div>
+   <div className="payroll-note"><b>Atenção:</b> o valor recomendado é uma regra de gestão financeira do MB Gestão, não uma determinação legal de salário. Para pró-labore, o valor deve ser compatível com as funções exercidas e validado com a contabilidade, inclusive quanto ao regime tributário e contribuições.</div>
+  </div>
  </section>
 }
