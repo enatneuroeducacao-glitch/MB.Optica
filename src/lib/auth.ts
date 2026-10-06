@@ -4,6 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import { db } from "@/lib/db";
 import { effectivePermissions } from "@/lib/permissions";
+import { enforceSubscriptionAccess } from "@/lib/subscription";
 
 export const AUTH_COOKIE = "mb_optica_session";
 const SESSION_HOURS = 12;
@@ -53,6 +54,7 @@ export async function getCurrentUser() {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
+  await enforceSubscriptionAccess();
   return user;
 }
 

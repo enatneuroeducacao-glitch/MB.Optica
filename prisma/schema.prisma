@@ -116,6 +116,47 @@ id String @id @default(cuid())
   @@index([status])
   @@index([accessKey])
 }
+enum SubscriptionPlan {
+  BASICO
+  PROFISSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  AVALIACAO
+  ATIVA
+  PENDENTE
+  SUSPENSA
+  CANCELADA
+  EXPIRADA
+}
+
+enum BillingCycle {
+  MENSAL
+  ANUAL
+}
+
+model Subscription {
+  id String @id @default(cuid())
+  plan SubscriptionPlan @default(PROFISSIONAL)
+  status SubscriptionStatus @default(AVALIACAO)
+  billingCycle BillingCycle @default(MENSAL)
+  price Decimal @default(0) @db.Decimal(12,2)
+  maxUsers Int @default(5)
+  modules Json?
+  provider String?
+  providerCustomerId String?
+  providerSubscriptionId String? @unique
+  trialEndsAt DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd DateTime?
+  canceledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
 model User {
 id String @id @default(cuid())
 name String
