@@ -6,11 +6,12 @@ import {ReactNode,useEffect,useState} from "react";
 const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Atendimento","/atendimento"]]},{label:"Comunicação",items:[["Mensagens","/mensagens"]]},{label:"Operação",items:[["Produtos e estoque","/produtos"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Relatórios","/relatorios"],["Assinatura do sistema","/assinatura"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
 
 type User={name:string;email:string;role:string;mustChangePassword?:boolean}|null;
+type Entitlement={owner:boolean;plan:string;status:string;trial:boolean;modules:string[];maxUsers:number|null;activeUsers:number|null};
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false);
-  useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{})},[]);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false);
+  useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{}); fetch("/api/entitlements",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d)setEntitlement(d)}).catch(()=>{})},[]);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
 
   useEffect(()=>{
@@ -50,13 +51,13 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     {menuOpen&&<button className="mobile-menu-overlay" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}/>}
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
       <div className="brand"><div className="brand-mark">{logo?<img src={logo} alt="Logo da óptica"/>:"MB"}</div><div><strong>MB Óptica</strong><small>Gestão inteligente</small></div><button className="mobile-close" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}>×</button></div>
-      <nav>{groups.map(g=>{const items=g.items.filter(([label])=>label!=="Assinatura do sistema"||user?.role==="ADMIN");return <div className="nav-group" key={g.label}><span>{g.label}</span>{items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>})}</nav>
+      <nav>{groups.map(g=>{const items=g.items.filter(([label,href])=>{if(label==="Assinatura do sistema") return user?.role==="ADMIN"; if(!entitlement) return true; const moduleByLabel:Record<string,string>={"Dashboard":"Dashboard","Agenda":"Agenda","Clientes":"Clientes","Atendimento":"Atendimento","Mensagens":"Mensagens","Produtos e estoque":"Produtos e estoque","Fornecedores":"Fornecedores","Vendas":"Vendas","Financeiro":"Financeiro","Relatórios":"Relatórios","Configurações":"Configurações","Migração":"Migração"}; const module=moduleByLabel[label]; return !module || entitlement.owner || entitlement.modules.includes(module);});return <div className="nav-group" key={g.label}><span>{g.label}</span>{items.map(([label,href])=><Link className={path===href?"active":""} href={href} key={href} onClick={()=>setMenuOpen(false)}>{label}</Link>)}</div>})}</nav>
       <div className="sidebar-footer"><div>Sistema atualizado automaticamente</div><div>Versão {version ? version.slice(0,8) : "carregando..."}</div></div>
     </aside>
     <main className="main">
       <header className="topbar">
         <div className="topbar-left"><button className="mobile-menu-button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button><div><span className="eyebrow">OPERAÇÃO</span><strong>Centro de controle</strong></div></div>
-        <div className="top-actions"><button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button><span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
+        <div className="top-actions"><button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button>{entitlement&&!entitlement.owner&&<span className="version-badge" title={entitlement.trial?"Modo degustação":"Recursos conforme assinatura"}>{entitlement.trial?"Degustação":"Plano "+entitlement.plan}</span>}<span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
       </header>
       {children}
     </main>
