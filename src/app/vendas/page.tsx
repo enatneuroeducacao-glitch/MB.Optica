@@ -233,8 +233,9 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
          <label>Parcelas
            <select value={form.cardInstallments} onChange={e=>setForm({...form,cardInstallments:e.target.value})}>{Array.from({length:24},(_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select>
          </label>
-         <label>Taxa da máquina
-           <select value={form.cardFeeRate} onChange={e=>setForm({...form,cardFeeRate:e.target.value})}>{[1,2,3,4,5,6].map(rate=><option key={rate} value={rate}>{rate}%</option>)}<option value="0">0% — sem taxa</option></select>
+         <label>Taxa da máquina (%)
+           <input type="number" min="0" max="100" step="0.01" inputMode="decimal" value={form.cardFeeRate} onChange={e=>setForm({...form,cardFeeRate:e.target.value.replace(",","." )})} placeholder="Ex.: 3,15" />
+           <small style={{display:"block",marginTop:4,color:"var(--muted)"}}>Informe a taxa exata da maquininha, com até 2 casas decimais.</small>
          </label>
          <div className="sales-total-box"><span>Valor líquido previsto</span><strong>{money(cardNetAmount)}</strong><small>Taxa: {money(cardFeeAmount)}</small></div>
        </div>
