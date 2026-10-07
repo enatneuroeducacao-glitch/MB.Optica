@@ -34,6 +34,10 @@ export async function POST(req:Request){
       if(!seller) throw new Error("Vendedor não encontrado ou inativo");
     }
 
+    const initialStatus=String(b.status||"ORCAMENTO");
+    if(!["ORCAMENTO","PEDIDO"].includes(initialStatus)) throw new Error("Status inicial inválido para criação do pedido");
+    if(initialStatus==="PEDIDO"&&!String(b.laboratory||"").trim()) throw new Error("Informe o laboratório para criar o pedido diretamente como PEDIDO");
+
     const items=Array.isArray(b.items)?b.items:[];
     if(!items.length) throw new Error("O pedido precisa ter pelo menos um item");
     const normalizedItems=items.map((item:any)=>{
@@ -55,9 +59,10 @@ export async function POST(req:Request){
           dueDate:b.dueDate?new Date(b.dueDate):undefined,
           laboratory:b.laboratory?String(b.laboratory).trim():undefined,
           notes:b.notes?String(b.notes).trim():undefined,
+          status:initialStatus as any,
           total,
           items:{create:normalizedItems},
-          events:{create:{status:"ORCAMENTO",message:"Pedido óptico criado"}}
+          events:{create:{status:initialStatus as any,message:initialStatus==="PEDIDO"?"Pedido óptico criado pelo Atendimento":"Pedido óptico criado"}}
         },
         include:{items:true,events:true}
       });
