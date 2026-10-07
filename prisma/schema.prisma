@@ -506,6 +506,16 @@ isCash Boolean @default(true)
 payments Payment[]
 settlements AccountSettlement[]
 }
+
+model CardMachine {
+  id String @id @default(cuid())
+  name String @unique
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+}
+
 model PixKey {
   id String @id @default(cuid())
   type String
@@ -523,12 +533,18 @@ saleId String
 methodId String
 amount Decimal @db.Decimal(12,2)
 reference String?
+cardMachineId String?
+cardInstallments Int?
+cardFeeRate Decimal? @db.Decimal(5,2)
+cardFeeAmount Decimal? @db.Decimal(12,2)
+cardNetAmount Decimal? @db.Decimal(12,2)
 reversedAt DateTime?
 reversalReference String?
 paidAt DateTime @default(now())
 accountSettlementId String? @unique
 sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
 method PaymentMethod @relation(fields:[methodId],references:[id])
+cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
 accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
 }
 model Account {
