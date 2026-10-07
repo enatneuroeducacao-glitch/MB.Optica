@@ -5,6 +5,14 @@ import {writeAudit} from "@/lib/audit";
 
 export async function GET(){
   try{
+    const defaults=["Ton","Infinity","Mercado Pago"];
+    for(const name of defaults){
+      await db.cardMachine.upsert({
+        where:{name},
+        update:{active:true},
+        create:{name,active:true}
+      });
+    }
     const machines=await db.cardMachine.findMany({
       where:{active:true},
       orderBy:{name:"asc"}
