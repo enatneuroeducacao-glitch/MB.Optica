@@ -9,6 +9,7 @@ type Order={id:string;number:number;customerId:string;total:number|string;status
 type SaleType="BALCAO"|"PEDIDO_OPTICO"|"ENCOMENDA"|"SERVICO"|"PRODUTOS";
 type Method={id:string;name:string;isCash:boolean;active:boolean};
 type PixKey={id:string;type:string;key:string;holderName:string;holderDocument?:string|null;city?:string|null};
+type CardMachine={id:string;name:string;active:boolean};
 type Sale=any;
 type SaleItemForm={id:string;productId:string;description:string;quantity:string;unitPrice:string;unitCost:string};
 type LegacyFinancial={salesToday:number;salesTodayCount:number;receivedToday:number;receivable:number;billing:number;salesCount:number;clientsActive:number};
@@ -20,18 +21,18 @@ const tlv=(id:string,value:string)=>id+String(value.length).padStart(2,"0")+valu
 const pixPayload=(p:PixKey,amount:number)=>{const merchant=(p.holderName||"MB OPTICA").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,25);const city=(p.city||"JOINVILLE").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().slice(0,15);let body=tlv("00","01")+tlv("01","12")+tlv("26",tlv("00","BR.GOV.BCB.PIX")+tlv("01",p.key)+(amount>0?tlv("02",money(amount).replace(/[^0-9,]/g,"").replace(",",".")):""))+tlv("52","0000")+tlv("53","986")+tlv("58","BR")+tlv("59",merchant)+tlv("60",city)+tlv("62",tlv("05","***"));const crc=crc16(body+"6304");return body+"6304"+crc};
 
 export default function Vendas(){
- const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[customerResults,setCustomerResults]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]);
+ const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[customerResults,setCustomerResults]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]),[cardMachines,setCardMachines]=useState<CardMachine[]>([]);
  const [legacy,setLegacy]=useState<LegacyFinancial|null>(null);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
- const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});
+ const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"1"});
  const [saleItems,setSaleItems]=useState<SaleItemForm[]>([]);
- const [customerQuery,setCustomerQuery]=useState(""),[customerError,setCustomerError]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:""}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
+ const [customerQuery,setCustomerQuery]=useState(""),[customerError,setCustomerError]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"1"}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
-  const [s,c,p,o,m,pk,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
-  const [sd,cd,pd,od,md,pkd,ud,csd,lfd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),u.json(),cs.json(),lf.json()]);
+  const [s,c,p,o,m,pk,cm,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/card-machines"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
+  const [sd,cd,pd,od,md,pkd,cmd,ud,csd,lfd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),cm.json(),u.json(),cs.json(),lf.json()]);
   if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok){setCustomers(Array.isArray(cd)?cd:[]);setCustomerResults(Array.isArray(cd)?cd:[]);}if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
-  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);if(lf.ok&&lfd?.ok)setLegacy(lfd);
+  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(cm.ok&&Array.isArray(cmd))setCardMachines(cmd.filter((x:any)=>x.active));if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);if(lf.ok&&lfd?.ok)setLegacy(lfd);
  };
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
@@ -91,8 +92,19 @@ if(!form.customerId){setMsg("Cliente é obrigatório.");return}
 if(!saleItems.length){setMsg("Adicione pelo menos um produto/serviço à venda.");return}
 const installments=form.paymentCondition==="CARNÊ"?Math.max(1,Number(form.installments||1)):0;
 const selectedPix=form.paymentCondition==="PIX"?pixKeys.find(k=>k.id===form.pixPayload):undefined;
+ const selectedCardMachine=cardMachines.find(m=>m.id===form.cardMachineId);
+ const cardFeeAmount=form.paymentCondition==="CARTAO"?Number((total*Number(form.cardFeeRate||0)/100).toFixed(2)):0;
+ const cardNetAmount=form.paymentCondition==="CARTAO"?Number((total-cardFeeAmount).toFixed(2)):total;
 const pixCode=selectedPix?pixPayload(selectedPix,total):form.pixPayload;
 if(form.paymentCondition==="CARNÊ"&&installments<2){setMsg("Use pelo menos 2 parcelas para o carnê.");return}
+if(form.paymentCondition==="CARTAO"){
+ const creditMethod=methods.find(m=>m.name.toLocaleLowerCase("pt-BR").includes("cartão de crédito")||m.name.toLocaleLowerCase("pt-BR").includes("cartao de credito"));
+ if(!creditMethod){setMsg("O meio 'Cartão de crédito' não está cadastrado.");return}
+ if(!form.cardMachineId){setMsg("Selecione a maquininha utilizada.");return}
+ if(!Number(form.cardInstallments)||Number(form.cardInstallments)<1){setMsg("Informe o número de parcelas.");return}
+ if(!Number.isFinite(Number(form.cardFeeRate))||Number(form.cardFeeRate)<0){setMsg("Informe uma taxa válida.");return}
+ form.paymentMethodId=creditMethod.id;
+}
 if(form.paymentCondition==="MISTO"){
  const validParts=paymentParts.filter(p=>Number(p.amount)>0);
  if(!validParts.length&&mixedReceivable<=0){setMsg("Informe pelo menos um pagamento ou saldo a receber.");return}
@@ -103,13 +115,13 @@ if(form.paymentCondition==="MISTO"){
 const r=await fetch("/api/sales",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleType:form.saleType,customerId:form.customerId,sellerId:user.id,orderId:form.orderId||undefined,discount:Number(form.discount),surcharge:Number(form.surcharge),notes:form.notes,paymentCondition:form.paymentCondition,installments,paymentMethodId:form.paymentMethodId||undefined,entryAmount:Number(form.entryAmount||0),pixPayload:pixCode||undefined,firstDueDate:form.firstDueDate,payments:form.paymentCondition==="MISTO"?paymentParts.filter(p=>Number(p.amount)>0).map(p=>({methodId:p.methodId,amount:Number(p.amount),reference:p.reference||undefined})):undefined,receivable:form.paymentCondition==="MISTO"&&mixedReceivable>0?{amount:mixedReceivable,dueDate:form.firstDueDate,methodId:form.paymentMethodId||undefined}:undefined,items:saleItems.map(item=>({productId:item.productId,description:item.description,quantity:Number(item.quantity),unitPrice:Number(item.unitPrice),unitCost:Number(item.unitCost||0)})),stock:saleItems.map(item=>({productId:item.productId,quantity:Number(item.quantity)}))})});
 const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}
 if(form.paymentCondition!=="CARNÊ"&&form.paymentMethodId){
-const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:pixCode||undefined})});
+const pr=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:d.id,methodId:form.paymentMethodId,amount:total,reference:pixCode||undefined,cardMachineId:form.paymentCondition==="CARTAO"?form.cardMachineId:undefined,cardInstallments:form.paymentCondition==="CARTAO"?Number(form.cardInstallments):undefined,cardFeeRate:form.paymentCondition==="CARTAO"?Number(form.cardFeeRate):undefined})});
 const pd=await pr.json();if(!pr.ok)setMsg("Venda criada, mas o recebimento não foi registrado: "+(pd.detail||pd.error||"erro"));else setMsg("Venda #"+d.number+" registrada e recebida.");
 }else setMsg("Venda #"+d.number+" registrada.");
 setOpen(false);
 setForm({saleType:"BALCAO",customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:""});setSaleItems([]);setCustomerQuery("");setProductQuery("");setPaymentParts([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]);
 const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSales=await refreshed.json();if(Array.isArray(refreshedSales)){setSales(refreshedSales);const created=refreshedSales.find((s:any)=>s.id===d.id);if(created)setSelected(created);}
-}; const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:""});await load()};
+}; const registerPayment=async(e:React.FormEvent)=>{e.preventDefault();if(!paying)return;const r=await fetch("/api/payments",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({saleId:paying.id,methodId:pay.methodId,amount:Number(pay.amount),reference:pay.reference||undefined})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMsg("Pagamento registrado.");setPaying(null);setPay({methodId:"",amount:"",reference:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"1"});await load()};
  const openCash=async()=>{const r=await fetch("/api/cash/session",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({openingCash:Number(opening||0)})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setOpening("");setMsg("Caixa aberto.");await load()}; const closeCash=async()=>{if(!cash)return;const value=window.prompt("Informe o valor contado no caixa para o fechamento:","0");if(value===null)return;const counted=Number(value.replace(",","."));if(!Number.isFinite(counted)||counted<0){setMsg("Valor de fechamento inválido.");return}const r=await fetch("/api/cash/close",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({closingCash:counted})});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}const diff=Number(d.difference||0);setMsg("Caixa fechado. Saldo esperado: "+money(d.expected)+" · Contado: "+money(counted)+" · Diferença: "+money(diff));await load()};
  const cashMove=async(e:React.FormEvent)=>{e.preventDefault();const r=await fetch("/api/cash/movement",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(move)});const d=await r.json();if(!r.ok){setMsg((d.error||"Erro")+(d.detail?" — "+d.detail:""));return}setMove({kind:"SANGRIA",amount:"",description:""});setMsg("Movimentação registrada.");await load()};
  const chooseCustomer=(c:Customer)=>{setForm({...form,customerId:c.id,orderId:""});setCustomerQuery(c.name)}; const chooseProduct=(p:Product)=>{setForm({...form,productId:p.id,unitPrice:String(p.salePrice)});setProductQuery(p.description)}; const chooseOrder=(id:string)=>{const o=orders.find(x=>x.id===id);if(!o)return;const imported=(o.items||[]).filter((i:any)=>i.productId).map((i:any)=>{const p=products.find(x=>x.id===i.productId);return {id:crypto.randomUUID(),productId:String(i.productId),description:String(i.description||p?.description||"Item"),quantity:String(i.quantity||1),unitPrice:String(i.unitPrice??p?.salePrice??0),unitCost:String(p?.cost||0)}});setForm({...form,orderId:id,customerId:o.customerId,productId:"",quantity:"1",unitPrice:""});setCustomerQuery(customers.find(c=>c.id===o.customerId)?.name||"");setProductQuery("");setSaleItems(imported);setMsg(imported.length?`${imported.length} item(ns) do pedido adicionados à venda.`:"O pedido não possui itens de produto para importar.");}; const printSale=(kind:"CUPOM"|"RECIBO"|"CARNE"|"PROMISSORIA"|"FISCAL"|"NF_PREPARO")=>{
@@ -199,14 +211,44 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
     <div className="sales-form-grid">
      <label>Forma
       <select value={form.paymentCondition} onChange={e=>setForm({...form,paymentCondition:e.target.value})}>
-       <option value="AVISTA">À vista</option><option value="PIX">PIX</option><option value="CARTAO">Cartão</option><option value="MISTO">Misto — entrada + saldo / várias formas</option><option value="CARNÊ">Crediário / Carnê</option>
+       <option value="AVISTA">À vista</option><option value="PIX">PIX</option><option value="CARTAO">Cartão de crédito</option><option value="MISTO">Misto — entrada + saldo / várias formas</option><option value="CARNÊ">Crediário / Carnê</option>
       </select>
      </label>
-     <label>Meio de recebimento
+     {form.paymentCondition!=="CARTAO"&&<label>Meio de recebimento
       <select value={form.paymentMethodId} onChange={e=>setForm({...form,paymentMethodId:e.target.value})}>
        <option value="">Não receber agora</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}{m.isCash?" · caixa":""}</option>)}
       </select>
-     </label>
+     </label>}
+     {form.paymentCondition==="CARTAO"&&<div className="sales-wide" style={{border:"1px solid var(--line)",borderRadius:10,padding:12}}>
+       <div className="sales-payment-title"><b>Dados do cartão</b><span>Registre a maquininha, parcelas e taxa para calcular o valor líquido.</span></div>
+       <div className="sales-form-grid" style={{marginTop:10}}>
+         <label>Maquininha
+           <select value={form.cardMachineId} onChange={e=>setForm({...form,cardMachineId:e.target.value})}>
+             <option value="">Selecione a maquininha</option>{cardMachines.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}
+           </select>
+         </label>
+         <label>Parcelas
+           <select value={form.cardInstallments} onChange={e=>setForm({...form,cardInstallments:e.target.value})}>{Array.from({length:24},(_,i)=><option key={i+1} value={i+1}>{i+1}x</option>)}</select>
+         </label>
+         <label>Taxa da máquina
+           <select value={form.cardFeeRate} onChange={e=>setForm({...form,cardFeeRate:e.target.value})}>{[1,2,3,4,5,6].map(rate=><option key={rate} value={rate}>{rate}%</option>)}<option value="0">0% — sem taxa</option></select>
+         </label>
+         <div className="sales-total-box"><span>Valor líquido previsto</span><strong>{money(cardNetAmount)}</strong><small>Taxa: {money(cardFeeAmount)}</small></div>
+       </div>
+       <div className="sales-actions" style={{justifyContent:"space-between",marginTop:10}}>
+         <span style={{fontSize:12,color:"var(--muted)"}}>{selectedCardMachine?selectedCardMachine.name:"Nenhuma maquininha selecionada"} · {form.cardInstallments}x · {form.cardFeeRate}%</span>
+         <button type="button" className="secondary" onClick={async()=>{
+           const name=window.prompt("Nome da nova maquininha:");
+           if(!name?.trim()) return;
+           const rr=await fetch("/api/card-machines",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:name.trim()})});
+           const dd=await rr.json();
+           if(!rr.ok){setMsg(dd.error||"Não foi possível cadastrar a maquininha.");return}
+           setCardMachines(prev=>[...prev,dd].sort((a,b)=>a.name.localeCompare(b.name,"pt-BR")));
+           setForm(prev=>({...prev,cardMachineId:dd.id}));
+           setMsg("Maquininha cadastrada e selecionada.");
+         }}>+ Adicionar maquininha</button>
+       </div>
+     </div>}
      {form.paymentCondition==="MISTO"&&<div className="sales-wide" style={{border:"1px solid var(--line)",borderRadius:10,padding:12}}>
        <div className="sales-payment-title"><b>Composição do pagamento</b><span>Permite receber parte agora e deixar o restante para outra data ou combinar várias formas de pagamento.</span></div>
        <div style={{display:"grid",gap:8,marginTop:10}}>
@@ -265,7 +307,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
 
   {selected&&<div className="panel sales-detail"><div className="panel-heading"><div><span className="eyebrow">VENDA #{selected.number}</span><h2>{selected.customer?.name||"Venda"}</h2><p>{dt(selected.createdAt)} · {selected.saleType==="PEDIDO_OPTICO"?"Pedido óptico":selected.saleType==="ENCOMENDA"?"Encomenda":selected.saleType==="SERVICO"?"Serviço":selected.saleType==="PRODUTOS"?"Produtos":"Balcão"} · Vendedor: {selected.seller?.name||"—"}</p></div><div className="sales-actions"><button className="secondary" onClick={()=>setPaying(selected)}>Receber pagamento</button><button className="secondary" onClick={()=>printSale("CUPOM")}>🖨 Cupom 58mm</button><button className="secondary" onClick={()=>printSale("RECIBO")}>🖨 Recibo</button><button className="secondary" onClick={()=>printSale("CARNE")}>🖨 Carnê</button><button className="secondary" onClick={()=>printSale("PROMISSORIA")}>🖨 Promissória</button><button className="secondary" onClick={()=>printSale("NF_PREPARO")}>🧾 Preparar NF</button>{selected.fiscalDocument&&<button className="secondary" onClick={()=>printSale("FISCAL")}>🖨 NF autorizada</button>}<button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div></div>
    <div className="sales-detail-grid"><div><h3>Itens</h3>{(selected.items||[]).map((i:any)=><div className="sales-line" key={i.id}><span>{i.description} × {Number(i.quantity)}</span><b>{money(i.total)}</b></div>)}</div><div><h3>Resumo</h3><div className="sales-line"><span>Subtotal</span><b>{money(selected.subtotal)}</b></div><div className="sales-line"><span>Desconto</span><b>- {money(selected.discount)}</b></div><div className="sales-line"><span>Acréscimo</span><b>+ {money(selected.surcharge)}</b></div><div className="sales-line total"><span>Total</span><b>{money(selected.total)}</b></div></div></div>
-   <div className="sales-payment-history"><h3>Pagamentos</h3>{(selected.payments||[]).map((p:any)=><div className="sales-line" key={p.id}><span>{p.method?.name||"—"} · {dt(p.paidAt)}{p.reference?" · "+p.reference:""}</span><b>{money(p.amount)}</b></div>)}{!selected.payments?.length&&<span style={{color:"var(--muted)"}}>Nenhum pagamento registrado.</span>}</div>
+   <div className="sales-payment-history"><h3>Pagamentos</h3>{(selected.payments||[]).map((p:any)=><div className="sales-line" key={p.id}><span>{p.method?.name||"—"}{p.cardMachine?.name?" · "+p.cardMachine.name:""}{p.cardInstallments?" · "+p.cardInstallments+"x":""}{p.cardFeeRate!==null&&p.cardFeeRate!==undefined?" · taxa "+Number(p.cardFeeRate)+"%":""} · {dt(p.paidAt)}{p.reference?" · "+p.reference:""}</span><b>{money(p.amount)}</b></div>)}{!selected.payments?.length&&<span style={{color:"var(--muted)"}}>Nenhum pagamento registrado.</span>}</div>
   </div>}
 
   {paying&&<div className="sales-pdv-overlay" role="dialog" aria-modal="true" aria-label={`Receber venda #${paying.number}`} onMouseDown={e=>{if(e.currentTarget===e.target)setPaying(null)}}><div className="panel sales-form sales-pdv-modal"><div className="panel-heading"><div><span className="eyebrow">RECEBIMENTO</span><h2>Receber venda #{paying.number}</h2><p>Saldo restante: <b>{money(remaining)}</b></p></div><button className="secondary" type="button" onClick={()=>setPaying(null)}>Fechar</button></div><form onSubmit={registerPayment}><div className="sales-form-grid"><label>Meio de pagamento<select required value={pay.methodId} onChange={e=>setPay({...pay,methodId:e.target.value})}><option value="">Selecione</option>{methods.map(m=><option key={m.id} value={m.id}>{m.name}{m.isCash?" · caixa":""}</option>)}</select></label><label>Valor<input required type="number" min="0.01" max={remaining} step="0.01" value={pay.amount||String(remaining)} onChange={e=>setPay({...pay,amount:e.target.value})}/></label><label>Referência<input value={pay.reference} onChange={e=>setPay({...pay,reference:e.target.value})} placeholder="NSU, autorização, comprovante..."/></label></div><div className="sales-actions"><button className="primary">Registrar pagamento</button></div></form></div></div>}
