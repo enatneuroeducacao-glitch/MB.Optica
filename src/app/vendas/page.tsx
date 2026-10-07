@@ -72,6 +72,9 @@ export default function Vendas(){
  const product=products.find(p=>p.id===form.productId);
  const subtotal=saleItems.reduce((sum,item)=>sum+Math.max(0,Number(item.quantity||0)*Number(item.unitPrice||0)),0);
  const total=Math.max(0,subtotal-Number(form.discount||0)+Number(form.surcharge||0));
+ const selectedCardMachine=cardMachines.find(m=>m.id===form.cardMachineId);
+ const cardFeeAmount=Number((total*Number(form.cardFeeRate||0)/100).toFixed(2));
+ const cardNetAmount=Number((total-cardFeeAmount).toFixed(2));
  const addSaleItem=()=>{if(!form.productId){setMsg("Selecione o produto/serviço antes de adicionar.");return}const p=products.find(x=>x.id===form.productId);const quantity=Number(form.quantity||0),unitPrice=Number(form.unitPrice||0);if(!p||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitPrice)||unitPrice<0){setMsg("Informe produto, quantidade e preço válidos.");return}setSaleItems(prev=>[...prev,{id:crypto.randomUUID(),productId:p.id,description:p.description,quantity:String(quantity),unitPrice:String(unitPrice),unitCost:String(p.cost||0)}]);setForm({...form,productId:"",quantity:"1",unitPrice:""});setProductQuery("");setMsg("")};
  const removeSaleItem=(id:string)=>setSaleItems(prev=>prev.filter(item=>item.id!==id));
  const updateSaleItem=(id:string,patch:Partial<SaleItemForm>)=>setSaleItems(prev=>prev.map(item=>item.id===id?{...item,...patch}:item));
