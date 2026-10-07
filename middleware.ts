@@ -64,6 +64,9 @@ export async function middleware(request: NextRequest) {
   const key = secretKey();
 
   if (!token || !key) {
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("/inicio", request.url));
+    }
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Não autenticado." }, { status: 401, headers: response.headers });
     }
