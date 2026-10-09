@@ -427,6 +427,7 @@ receivedAt DateTime?
 deliveredAt DateTime?
 notes String?
 total Decimal @default(0) @db.Decimal(12,2)
+discount Decimal @default(0) @db.Decimal(12,2)
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 customer Customer @relation(fields:[customerId],references:[id])
