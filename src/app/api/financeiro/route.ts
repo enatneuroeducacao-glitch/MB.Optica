@@ -193,6 +193,10 @@ export async function POST(req:Request){
     if(b.action==="SETTLE_ACCOUNT"){
       const accountId=String(b.accountId||""); const amount=Number(b.amount);
       if(!accountId||!Number.isFinite(amount)||amount<=0) throw new Error("Conta e valor são obrigatórios");
+      const cardMachineId=String(b.cardMachineId||"");const isCard=/cartão|cartao/i.test(String(b.method||""));const cardInstallments=Number(b.cardInstallments);const cardFeeRate=Number(b.cardFeeRate);
+      if(isCard&&(!cardMachineId||!Number.isInteger(cardInstallments)||cardInstallments<1||!Number.isFinite(cardFeeRate)||cardFeeRate<0||cardFeeRate>100))throw new Error("Dados do cartão inválidos: maquininha, parcelas e taxa de 0 a 100% são obrigatórios");
+      if(isCard){const machine=await db.cardMachine.findUnique({where:{id:cardMachineId}});if(!machine||!machine.active)throw new Error("Maquininha inválida ou inativa")}
+      const cardFeeAmount=isCard?Number((amount*cardFeeRate/100).toFixed(2)):null;const cardNetAmount=isCard?Number((amount-cardFeeAmount!).toFixed(2)):null;
 
       const result=await db.$transaction(async tx=>{
         const account=await tx.account.findUnique({where:{id:accountId}});
@@ -258,7 +262,7 @@ export async function POST(req:Request){
         }
 
         const settlement=await tx.accountSettlement.create({
-          data:{accountId,amount,method:b.method||undefined,methodId:b.methodId||undefined,reference:b.reference||undefined,notes:b.notes||undefined}
+          data:{accountId,amount,method:b.method||undefined,methodId:b.methodId||undefined,cardMachineId:isCard?cardMachineId:undefined,cardInstallments:isCard?cardInstallments:undefined,cardFeeRate:isCard?cardFeeRate:undefined,cardFeeAmount:isCard?cardFeeAmount:undefined,cardNetAmount:isCard?cardNetAmount:undefined,reference:b.reference||undefined,notes:b.notes||undefined}
         });
         const paidAmount=Number(account.paidAmount)+amount;
         const updated=await tx.account.update({where:{id:accountId},data:{paidAmount,status:paidAmount+0.001>=Number(account.amount)?"PAGO":"PARCIAL"}});
