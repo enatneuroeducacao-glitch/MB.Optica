@@ -485,6 +485,7 @@ items SaleItem[]
 payments Payment[]
 accounts Account[]
 fiscalDocument FiscalDocument?
+issuedDocuments IssuedDocument[]
 }
 model SaleItem {
 id String @id @default(cuid())
@@ -737,4 +738,22 @@ model ServiceOrderSequence {
   id String @id
   nextNumber Int @default(1)
   updatedAt DateTime @updatedAt
+}
+
+model DocumentSequence {
+type String @id
+nextNumber Int @default(1)
+updatedAt DateTime @updatedAt
+}
+
+model IssuedDocument {
+id String @id @default(cuid())
+saleId String
+type String
+number Int
+issuedAt DateTime @default(now())
+sale Sale @relation(fields:[saleId],references:[id],onDelete:Restrict)
+@@unique([saleId,type])
+@@unique([type,number])
+@@index([issuedAt])
 }
