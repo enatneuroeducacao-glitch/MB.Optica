@@ -21,13 +21,14 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
     const prior=await db.issuedDocument.findUnique({where:{saleId_type:{saleId,type}}});
     if(prior) return NextResponse.json({saleId,type,number:prior.number,issuedAt:prior.issuedAt,reused:true});
 
-    const document=await db.$transaction(async(tx)=>{
+    const result=await db.$transaction(async(tx)=>{
       const existing=await tx.issuedDocument.findUnique({where:{saleId_type:{saleId,type}}});
-      if(existing) return existing;
+      if(existing) return {document:existing,reused:true};
       const sequence=await tx.documentSequence.update({where:{type},data:{nextNumber:{increment:1}}});
-      return tx.issuedDocument.create({data:{saleId,type,number:sequence.nextNumber-1}});
+      const document=await tx.issuedDocument.create({data:{saleId,type,number:sequence.nextNumber-1}});
+      return {document,reused:false};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:15000});
-    return NextResponse.json({saleId,type,number:document.number,issuedAt:document.issuedAt,reused:document.issuedAt.getTime()!==document.issuedAt.getTime()});
+    return NextResponse.json({saleId,type,number:result.document.number,issuedAt:result.document.issuedAt,reused:result.reused});
   }catch(error){
     try{
       const {id:saleId}=await params;
