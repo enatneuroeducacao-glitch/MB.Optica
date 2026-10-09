@@ -47,7 +47,11 @@ export async function POST(req:Request){
       if(!Number.isFinite(unitPrice)||unitPrice<0) throw new Error("Preço de item inválido");
       return {productId:item.productId?String(item.productId):undefined,description:String(item.description||"Item óptico").trim(),kind:String(item.kind||"OUTRO").trim(),eye:item.eye?String(item.eye).trim():undefined,quantity,unitPrice};
     });
-    const total=normalizedItems.reduce((sum:number,item:{quantity:number;unitPrice:number})=>sum+item.quantity*item.unitPrice,0);
+    const subtotal=normalizedItems.reduce((sum:number,item:{quantity:number;unitPrice:number})=>sum+item.quantity*item.unitPrice,0);
+    const discount=Number(b.discount??0);
+    if(!Number.isFinite(discount)||discount<0) throw new Error("Desconto inválido");
+    if(discount>subtotal) throw new Error("O desconto não pode ser maior que o subtotal");
+    const total=Math.max(0,subtotal-discount);
     if(b.total!==undefined&&(!Number.isFinite(Number(b.total))||Number(b.total)<0)) throw new Error("Total inválido");
 
     const order=await db.$transaction(async(tx)=>{
@@ -61,6 +65,7 @@ export async function POST(req:Request){
           notes:b.notes?String(b.notes).trim():undefined,
           status:initialStatus as any,
           total,
+          discount,
           items:{create:normalizedItems},
           events:{create:{status:initialStatus as any,message:initialStatus==="PEDIDO"?"Pedido óptico criado pelo Atendimento":"Pedido óptico criado"}}
         },
