@@ -9,7 +9,7 @@ on:
 
 jobs:
   verify:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
 
     services:
       postgres:
@@ -58,7 +58,7 @@ jobs:
         run: npm run build
 
   docker:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     needs: verify
     services:
       postgres:
