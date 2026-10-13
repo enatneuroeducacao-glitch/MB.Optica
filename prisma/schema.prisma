@@ -233,6 +233,7 @@ sales Sale[]
 accounts Account[]
 legacyRecords LegacyRecord[]
 appointments Appointment[]
+thirdPartyFrameIntakes ThirdPartyFrameIntake[]
 }
 model Address {
 id String @id @default(cuid())
