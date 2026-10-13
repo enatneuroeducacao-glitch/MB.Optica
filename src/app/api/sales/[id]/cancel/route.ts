@@ -8,11 +8,14 @@ import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
-    await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
+    const actor=await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
     const {id}=await params;
     const b=await req.json().catch(()=>({}));
-    const reason=String(b.reason||"Cancelamento da venda").trim();
-    if(reason.length<3) throw new Error("Motivo do cancelamento é obrigatório");
+    const reason=String(b.reason||"").trim();
+    const reference=String(b.reference||"").trim();
+    if(reason.length<3) throw new Error("Informe o motivo do cancelamento (mínimo 3 caracteres)");
+    if(reason.length>500) throw new Error("O motivo deve ter no máximo 500 caracteres");
+    if(reference.length>200) throw new Error("A referência do estorno deve ter no máximo 200 caracteres");
 
     const result=await db.$transaction(async(tx)=>{
       const sale=await tx.sale.findUnique({
@@ -20,11 +23,13 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         include:{
           payments:{include:{method:true}},
           items:true,
-          accounts:{where:{type:"RECEBER"},include:{settlements:{include:{payment:true}}}}
+          accounts:{where:{type:"RECEBER"},include:{settlements:{include:{payment:true}}}},
+          fiscalDocument:true
         }
       });
       if(!sale) throw new Error("Venda não encontrada");
       if(sale.canceled) return sale;
+      if(sale.fiscalDocument) throw new Error("Esta venda possui documento fiscal vinculado. Resolva o cancelamento fiscal primeiro; depois cancele a venda para estornar o financeiro.");
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
       let cashRefunds=0;
@@ -54,7 +59,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           where:{id:payment.id},
           data:{
             reversedAt,
-            reversalReference:b.reference?String(b.reference):reason
+            reversalReference:reference||reason
           }
         });
         await enqueueAccountingEvent(tx, {
@@ -128,8 +133,11 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         action:"CANCEL",
         entity:"Sale",
         entityId:sale.id,
+        userId:actor.id,
+        request:req,
         metadata:{
           reason,
+          refundReference:reference||null,
           restoredMovements:movements.length,
           reversedPayments:activePayments.length,
           cashRefunds,
