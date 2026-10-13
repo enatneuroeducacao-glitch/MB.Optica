@@ -745,3 +745,131 @@ model ServiceOrderSequence {
   nextNumber Int @default(1)
   updatedAt DateTime @updatedAt
 }
+
+// Accounting foundation — double-entry bookkeeping. Operational modules remain the source of business events.
+model AccountingSettings {
+  id String @id @default(cuid())
+  taxRegime String @default("SIMPLES_NACIONAL")
+  accountingStartDate DateTime?
+  currency String @default("BRL")
+  timezone String @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChartOfAccount {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  description String?
+  nature String
+  accountType String
+  parentId String?
+  active Boolean @default(true)
+  system Boolean @default(false)
+  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ChartOfAccount[] @relation("AccountingAccountTree")
+  lines AccountingEntryLine[]
+  debitMappings AccountingMapping[] @relation("AccountingMappingDebit")
+  creditMappings AccountingMapping[] @relation("AccountingMappingCredit")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([parentId])
+  @@index([active, nature])
+}
+
+model AccountingPeriod {
+  id String @id @default(cuid())
+  year Int
+  month Int
+  startDate DateTime
+  endDate DateTime
+  status String @default("ABERTO")
+  closedAt DateTime?
+  closedByUserId String?
+  notes String?
+  entries AccountingEntry[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([year, month])
+  @@index([status, startDate, endDate])
+}
+
+model AccountingEntry {
+  id String @id @default(cuid())
+  entryDate DateTime
+  competenceDate DateTime
+  description String
+  sourceType String @default("MANUAL")
+  sourceId String?
+  originKey String? @unique
+  status String @default("RASCUNHO")
+  totalDebit Decimal @default(0) @db.Decimal(14,2)
+  totalCredit Decimal @default(0) @db.Decimal(14,2)
+  periodId String
+  period AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  lines AccountingEntryLine[]
+  sourceEvent AccountingEvent?
+  createdByUserId String?
+  postedAt DateTime?
+  reversedAt DateTime?
+  reversalOfId String?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([entryDate])
+  @@index([competenceDate])
+  @@index([periodId, status])
+  @@index([sourceType, sourceId])
+}
+
+model AccountingEntryLine {
+  id String @id @default(cuid())
+  entryId String
+  accountId String
+  lineNumber Int
+  description String?
+  debit Decimal @default(0) @db.Decimal(14,2)
+  credit Decimal @default(0) @db.Decimal(14,2)
+  referenceType String?
+  referenceId String?
+  entry AccountingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([entryId, lineNumber])
+  @@index([accountId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model AccountingMapping {
+  id String @id @default(cuid())
+  eventType String
+  debitAccountId String
+  creditAccountId String
+  active Boolean @default(true)
+  description String?
+  debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId], references: [id], onDelete: Restrict)
+  creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([eventType, debitAccountId, creditAccountId])
+  @@index([eventType, active])
+}
+
+model AccountingEvent {
+  id String @id @default(cuid())
+  eventType String
+  sourceType String
+  sourceId String
+  idempotencyKey String @unique
+  payload Json?
+  status String @default("PENDENTE")
+  processedAt DateTime?
+  errorMessage String?
+  entryId String? @unique
+  entry AccountingEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([eventType, status])
+  @@index([sourceType, sourceId])
+}
