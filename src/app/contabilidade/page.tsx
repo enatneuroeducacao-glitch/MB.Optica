@@ -39,7 +39,11 @@ export default function ContabilidadePage() {
     const journalResponse = await fetch("/api/contabilidade/lancamentos", { cache: "no-store" });
     const journalData = await journalResponse.json();
     if (!journalResponse.ok) throw new Error(journalData.error || "Não foi possível carregar o diário.");
-    setEntries(journalData.entries || []);\n    const mappingResponse = await fetch("/api/contabilidade/mapeamentos", { cache: "no-store" });\n    const mappingJson = await mappingResponse.json();\n    if (!mappingResponse.ok) throw new Error(mappingJson.error || "Não foi possível carregar os mapeamentos.");\n    setMappingData(mappingJson);
+    setEntries(journalData.entries || []);
+    const mappingResponse = await fetch("/api/contabilidade/mapeamentos", { cache: "no-store" });
+    const mappingJson = await mappingResponse.json();
+    if (!mappingResponse.ok) throw new Error(mappingJson.error || "Não foi possível carregar os mapeamentos.");
+    setMappingData(mappingJson);
   }, []);
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
