@@ -15,7 +15,7 @@ const EVENT_TYPES = new Set([
 export async function GET() {
   try {
     await requireRole(["ADMIN"]);
-    const [mappings, events, accounts] = await Promise.all([
+    const [mappings, events, accounts, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
       db.accountingMapping.findMany({
         orderBy: [{ eventType: "asc" }, { createdAt: "desc" }],
         include: {
@@ -25,8 +25,19 @@ export async function GET() {
       }),
       db.accountingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
       db.chartOfAccount.findMany({ where: { active: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, active: true } }),
+      db.sale.count(),
+      db.payment.count(),
+      db.accountingEvent.count({ where: { eventType: "SALE_RECOGNIZED" } }),
+      db.accountingEvent.count({ where: { eventType: "PAYMENT_RECEIVED" } }),
+      db.accountingEvent.count({ where: { status: { in: ["PENDENTE", "ERRO"] } } }),
     ]);
-    return NextResponse.json({ mappings, events, accounts, supportedEventTypes: [...EVENT_TYPES] });
+    return NextResponse.json({
+      mappings, events, accounts, supportedEventTypes: [...EVENT_TYPES],
+      integrationDiagnostics: {
+        salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount,
+        note: "Contagens históricas totais; não equivalem a falhas de integração. Compare operações novas feitas após a publicação."
+      }
+    });
   } catch (error) {
     return apiError(error, "Não foi possível carregar os mapeamentos contábeis.");
   }
