@@ -30,8 +30,10 @@ export async function POST(request: Request) {
       if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new Error("Evento sem valor positivo ou data válida.");
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
       if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
-      const mapping = await tx.accountingMapping.findFirst({ where: { eventType: event.eventType, active: true }, orderBy: { createdAt: "asc" } });
-      if (!mapping) throw new Error("Não há mapeamento ativo para este tipo de evento.");
+      const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, active: true } });
+      if (activeMappings.length === 0) throw new Error("Não há mapeamento ativo para este tipo de evento.");
+      if (activeMappings.length !== 1) throw new Error("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
+      const mapping = activeMappings[0];
       const accounts = await tx.chartOfAccount.findMany({ where: { id: { in: [mapping.debitAccountId, mapping.creditAccountId] }, active: true } });
       if (accounts.length !== 2) throw new Error("As contas do mapeamento precisam estar ativas.");
       const existingByKey = await tx.accountingEntry.findUnique({ where: { originKey: event.idempotencyKey } });
