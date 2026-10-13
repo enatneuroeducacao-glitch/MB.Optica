@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 type Account = { id: string; code: string; name: string; nature: string; accountType: string; description?: string | null; parentId?: string | null; active: boolean };
 type Period = { id: string; year: number; month: number; status: string; startDate: string; endDate: string };
 type Settings = { taxRegime: string; accountingStartDate?: string | null } | null;
+type Entry = { id:string; description:string; entryDate:string; status:string; totalDebit:string|number; totalCredit:string|number; period:{year:number;month:number}; lines:{id:string;debit:string|number;credit:string|number;account:{code:string;name:string}}[]; reversedAt?:string|null };
 const monthNames = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const types = [{value:"ATIVO",label:"Ativo"},{value:"PASSIVO",label:"Passivo"},{value:"PATRIMONIO_LIQUIDO",label:"Patrimônio líquido"},{value:"RECEITA",label:"Receita"},{value:"DESPESA",label:"Despesa"},{value:"CUSTO",label:"Custo"}];
 
@@ -12,9 +13,11 @@ export default function ContabilidadePage() {
   const [settings, setSettings] = useState<Settings>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [periods, setPeriods] = useState<Period[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [journal, setJournal] = useState({entryDate:new Date().toISOString().slice(0,10),competenceDate:new Date().toISOString().slice(0,10),description:"",periodId:"",debitAccountId:"",creditAccountId:"",amount:""});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"resumo"|"contas"|"periodos">("resumo");
+  const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos">("resumo");
   const [startDate, setStartDate] = useState("");
   const [account, setAccount] = useState({code:"",name:"",nature:"DEVEDORA",accountType:"ATIVO",description:"",parentId:""});
   const [period, setPeriod] = useState({year:String(new Date().getFullYear()),month:String(new Date().getMonth()+1)});
@@ -27,6 +30,10 @@ export default function ContabilidadePage() {
     setStartDate(data.settings?.accountingStartDate ? String(data.settings.accountingStartDate).slice(0,10) : "");
     setAccounts(data.accounts || []);
     setPeriods(data.periods || []);
+    const journalResponse = await fetch("/api/contabilidade/lancamentos", { cache: "no-store" });
+    const journalData = await journalResponse.json();
+    if (!journalResponse.ok) throw new Error(journalData.error || "Não foi possível carregar o diário.");
+    setEntries(journalData.entries || []);
   }, []);
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
@@ -66,7 +73,7 @@ export default function ContabilidadePage() {
     </div>
 
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
-      {([["resumo","Configuração"],["contas","Plano de contas"],["periodos","Períodos contábeis"]] as const).map(([key,label])=><button key={key} onClick={()=>setTab(key)} style={tab===key?button:secondary}>{label}</button>)}
+      {([["resumo","Configuração"],["contas","Plano de contas"],["periodos","Períodos contábeis"],["lancamentos","Lançamentos"]] as const).map(([key,label])=><button key={key} onClick={()=>setTab(key)} style={tab===key?button:secondary}>{label}</button>)}
     </div>
 
     {tab==="resumo" && <div style={{...card,maxWidth:800}}>
@@ -99,6 +106,23 @@ export default function ContabilidadePage() {
         <button disabled={busy} style={{...button,marginTop:16,opacity:busy ? 0.65 : 1}}>Criar período aberto</button>
       </form>
       <div style={card}><h2 style={{fontSize:18,marginTop:0}}>Períodos recentes</h2>{periods.length===0?<p style={{color:"var(--muted)",fontSize:13}}>Nenhum período criado.</p>:periods.map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",gap:12,padding:"12px 0",borderBottom:"1px solid var(--line)"}}><div><strong>{monthNames[p.month-1]} de {p.year}</strong><div style={{fontSize:12,color:"var(--muted)",marginTop:4}}>{new Date(p.startDate).toLocaleDateString("pt-BR")} – {new Date(p.endDate).toLocaleDateString("pt-BR")}</div></div><span style={{fontSize:12,fontWeight:700,color:p.status==="ABERTO"?"#28643a":"var(--muted)"}}>{p.status}</span></div>)}</div>
+    </div>}
+    {tab==="lancamentos" && <div style={{display:"grid",gap:18}}>
+      <form style={card} onSubmit={async(e)=>{e.preventDefault();setBusy(true);setMessage("");try{const amount=Number(journal.amount);const response=await fetch("/api/contabilidade/lancamentos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"POST_ENTRY",entryDate:journal.entryDate,competenceDate:journal.competenceDate,description:journal.description,periodId:journal.periodId,lines:[{accountId:journal.debitAccountId,debit:amount,credit:0},{accountId:journal.creditAccountId,debit:0,credit:amount}]})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Falha ao contabilizar");setMessage("Lançamento contabilizado com sucesso.");setJournal({...journal,description:"",amount:""});await load();}catch(err){setMessage(err instanceof Error?err.message:"Falha no lançamento");}finally{setBusy(false);}}}>
+        <h2 style={{fontSize:18,marginTop:0}}>Novo lançamento manual</h2>
+        <p style={{fontSize:13,color:"var(--muted)"}}>Nesta primeira versão, cada lançamento usa uma conta de débito e uma de crédito pelo mesmo valor. O registro é definitivo; correções devem ser feitas por estorno.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
+          <label style={{fontSize:13,fontWeight:700}}>Data do lançamento<input required type="date" value={journal.entryDate} onChange={e=>setJournal({...journal,entryDate:e.target.value})} style={field}/></label>
+          <label style={{fontSize:13,fontWeight:700}}>Competência<input required type="date" value={journal.competenceDate} onChange={e=>setJournal({...journal,competenceDate:e.target.value})} style={field}/></label>
+          <label style={{fontSize:13,fontWeight:700}}>Período contábil<select required value={journal.periodId} onChange={e=>setJournal({...journal,periodId:e.target.value})} style={field}><option value="">Selecione período aberto</option>{periods.filter(p=>p.status==="ABERTO").map(p=><option key={p.id} value={p.id}>{monthNames[p.month-1]} de {p.year}</option>)}</select></label>
+          <label style={{fontSize:13,fontWeight:700}}>Valor (R$)<input required type="number" min="0.01" step="0.01" value={journal.amount} onChange={e=>setJournal({...journal,amount:e.target.value})} style={field}/></label>
+          <label style={{fontSize:13,fontWeight:700}}>Conta de débito<select required value={journal.debitAccountId} onChange={e=>setJournal({...journal,debitAccountId:e.target.value})} style={field}><option value="">Selecione</option>{accounts.filter(a=>a.active).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</select></label>
+          <label style={{fontSize:13,fontWeight:700}}>Conta de crédito<select required value={journal.creditAccountId} onChange={e=>setJournal({...journal,creditAccountId:e.target.value})} style={field}><option value="">Selecione</option>{accounts.filter(a=>a.active).map(a=><option key={a.id} value={a.id}>{a.code} — {a.name}</option>)}</select></label>
+        </div>
+        <label style={{display:"block",marginTop:12,fontSize:13,fontWeight:700}}>Histórico / descrição<input required maxLength={240} value={journal.description} onChange={e=>setJournal({...journal,description:e.target.value})} style={field}/></label>
+        <button disabled={busy||accounts.length<2||periods.filter(p=>p.status==="ABERTO").length===0} style={{...button,marginTop:16,opacity:busy?0.65:1}}>{busy?"Processando…":"Validar e contabilizar"}</button>
+      </form>
+      <div style={card}><h2 style={{fontSize:18,marginTop:0}}>Diário contábil recente</h2>{entries.length===0?<p style={{color:"var(--muted)",fontSize:13}}>Nenhum lançamento registrado. Cadastre contas e abra um período antes de lançar.</p>:<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Data","Histórico","Período","Débitos","Créditos","Estado"].map(x=><th key={x} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--line)"}}>{x}</th>)}</tr></thead><tbody>{entries.map(en=><tr key={en.id}><td style={{padding:9,borderBottom:"1px solid var(--line)",whiteSpace:"nowrap"}}>{new Date(en.entryDate).toLocaleDateString("pt-BR")}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{en.description}<div style={{fontSize:11,color:"var(--muted)"}}>{en.lines.map(l=>l.account.code+" "+l.account.name+" (D "+Number(l.debit).toFixed(2)+" / C "+Number(l.credit).toFixed(2)+")").join(" · ")}</div></td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{String(en.period.month).padStart(2,"0")}/{en.period.year}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{Number(en.totalDebit).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{Number(en.totalCredit).toLocaleString("pt-BR",{style:"currency",currency:"BRL"})}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{en.status}</td></tr>)}</tbody></table></div>}</div>
     </div>}
     <p style={{fontSize:12,color:"var(--muted)",marginTop:20}}>Nesta fase não são gerados lançamentos automáticos, balancetes oficiais nem declarações fiscais. Os dados serão integrados aos módulos operacionais após validação contábil.</p>
   </section>;
