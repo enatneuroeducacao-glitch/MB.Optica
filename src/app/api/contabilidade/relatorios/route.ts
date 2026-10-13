@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
@@ -41,7 +40,7 @@ export async function GET(request: Request) {
       });
       return NextResponse.json({ period, rows: ledger, totalDebit: accountRows.reduce((s, r) => s + r.debit, 0), totalCredit: accountRows.reduce((s, r) => s + r.credit, 0), finalBalance: balance });
     }
-    const accounts = await db.chartOfAccount.findMany({ where: { active: true }, orderBy: { code: "asc" } });
+    const accounts = await db.chartOfAccount.findMany({ orderBy: { code: "asc" } });
     const balances = accounts.map(account => {
       const movements = rows.filter(row => row.accountId === account.id);
       const debit = Math.round(movements.reduce((s, r) => s + r.debit, 0) * 100) / 100;
