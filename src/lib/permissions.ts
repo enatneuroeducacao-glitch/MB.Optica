@@ -1,5 +1,6 @@
 export const PAGE_PERMISSIONS: Record<string, string> = {
   "/agenda": "agenda",
+  "/armacoes-terceiros": "armacoesTerceiros",
   "/mensagens": "mensagens",
   "/clientes": "clientes",
   "/receitas": "receitas",
@@ -19,6 +20,7 @@ export const PAGE_PERMISSIONS: Record<string, string> = {
 
 export const PERMISSION_GROUPS = [
   ["dashboard"],
+  ["armacoesTerceiros"],
   ["mensagens"],
   ["agenda"],
   ["clientes"],
@@ -43,16 +45,17 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ADMIN: [...PERMISSION_GROUPS],
   GERENTE: [
     "dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos",
-    "laboratorio", "produtos", "estoque", "fornecedores", "vendas",
+    "laboratorio", "produtos", "estoque", "fornecedores", "vendas", "armacoesTerceiros",
     "financeiro", "relatorios", "configuracoes", "usuarios", "auditoria",
   ],
-  VENDEDOR: ["dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos", "vendas", "produtos"],
+  VENDEDOR: ["dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos", "vendas", "produtos", "armacoesTerceiros"],
   FINANCEIRO: ["dashboard", "mensagens", "vendas", "financeiro", "relatorios"],
   LABORATORIO: ["dashboard", "mensagens", "pedidos", "laboratorio", "produtos", "estoque"],
 };
 
 export const API_PERMISSIONS: Record<string, string> = {
   "/api/appointments": "agenda",
+  "/api/third-party-frames": "armacoesTerceiros",
   "/api/messages": "mensagens",
   "/api/audit": "auditoria",
   "/api/categories": "produtos",
@@ -114,7 +117,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/orders",
     "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys", "/api/sales",
-    "/api/quotes",
+    "/api/quotes", "/api/third-party-frames",
   ],
   FINANCEIRO: [
     "/api/auth/me", "/api/messages", "/api/dashboard", "/api/payment-methods", "/api/payments",
@@ -123,7 +126,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
   ],
   LABORATORIO: [
     "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/prescriptions",
-    "/api/products", "/api/categories", "/api/orders", "/api/stock",
+    "/api/products", "/api/categories", "/api/orders", "/api/stock", "/api/third-party-frames",
   ],
 };
 
@@ -139,6 +142,7 @@ export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/customers", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/prescriptions", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/third-party-frames", ["ADMIN", "GERENTE", "VENDEDOR", "LABORATORIO"]],
   ["/api/appointments", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/quotes", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
