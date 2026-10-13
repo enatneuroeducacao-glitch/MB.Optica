@@ -3,7 +3,7 @@ import Link from "next/link";
 import {usePathname,useRouter} from "next/navigation";
 import {ReactNode,useEffect,useState} from "react";
 
-const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Atendimento","/atendimento"]]},{label:"Comunicação",items:[["Mensagens","/mensagens"]]},{label:"Operação",items:[["Produtos e estoque","/produtos"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Contabilidade","/contabilidade"],["Relatórios","/relatorios"],["Assinatura do sistema","/assinatura"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
+const groups=[{label:"Visão geral",items:[["Dashboard","/"],["Agenda","/agenda"]]},{label:"Óptica",items:[["Clientes","/clientes"],["Atendimento","/atendimento"],["Armações de terceiros","/armacoes-terceiros"]]},{label:"Comunicação",items:[["Mensagens","/mensagens"]]},{label:"Operação",items:[["Produtos e estoque","/produtos"],["Fornecedores","/fornecedores"],["Vendas","/vendas"]]},{label:"Gestão",items:[["Financeiro","/financeiro"],["Contabilidade","/contabilidade"],["Relatórios","/relatorios"],["Assinatura do sistema","/assinatura"],["Configurações","/configuracoes"],["Migração","/migracao"]]}] as const;
 
 type User={name:string;email:string;role:string;mustChangePassword?:boolean}|null;
 type Entitlement={owner:boolean;plan:string;status:string;trial:boolean;modules:string[];maxUsers:number|null;activeUsers:number|null};
