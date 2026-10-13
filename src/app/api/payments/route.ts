@@ -3,6 +3,7 @@ import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
 import {requireRole} from "@/lib/auth";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request){
   try{
@@ -67,6 +68,14 @@ export async function POST(req:Request){
           cardFeeAmount:cardFeeAmount??undefined,
           cardNetAmount:cardNetAmount??undefined
         }
+      });
+
+      await enqueueAccountingEvent(tx, {
+        eventType: "PAYMENT_RECEIVED",
+        sourceType: "Payment",
+        sourceId: payment.id,
+        idempotencyKey: "PAYMENT_RECEIVED:" + payment.id,
+        payload: { amount, entryDate: payment.paidAt.toISOString(), description: "Recebimento da venda #" + sale.number },
       });
 
       const movement=method.isCash&&session
