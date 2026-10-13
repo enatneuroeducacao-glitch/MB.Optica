@@ -38,6 +38,38 @@ export async function POST(request: Request) {
     const body = await request.json();
     const action = String(body?.action || "");
 
+    if (action === "CREATE_SAFE_BASE_MAPPINGS") {
+      const requiredCodes = ["1.2", "4.1", "2.1", "6.1"];
+      const accounts = await db.chartOfAccount.findMany({ where: { code: { in: requiredCodes }, active: true } });
+      const byCode = new Map(accounts.map((account) => [account.code, account]));
+      const missing = requiredCodes.filter((code) => !byCode.has(code));
+      if (missing.length) {
+        return NextResponse.json({ error: "Não foi possível preparar as sugestões. Faltam contas ativas: " + missing.join(", ") + ". Revise o plano de contas." }, { status: 400 });
+      }
+      const suggestions = [
+        { eventType: "SALE_RECOGNIZED", debitCode: "1.2", creditCode: "4.1", description: "SUGESTÃO — venda reconhecida: débito em clientes a receber e crédito em receita de vendas. Revisar critérios de competência e origem." },
+        { eventType: "SUPPLIER_EXPENSE_RECOGNIZED", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa de fornecedor reconhecida: débito em despesas operacionais e crédito em fornecedores a pagar. Classificação depende da natureza da compra." },
+      ];
+      const created = [];
+      const skipped = [];
+      for (const suggestion of suggestions) {
+        const debit = byCode.get(suggestion.debitCode)!;
+        const credit = byCode.get(suggestion.creditCode)!;
+        const existing = await db.accountingMapping.findFirst({ where: { eventType: suggestion.eventType } });
+        if (existing) {
+          skipped.push(suggestion.eventType);
+          continue;
+        }
+        const mapping = await db.accountingMapping.create({
+          data: { eventType: suggestion.eventType, debitAccountId: debit.id, creditAccountId: credit.id, description: suggestion.description, active: false },
+          include: { debitAccount: { select: { id: true, code: true, name: true, active: true } }, creditAccount: { select: { id: true, code: true, name: true, active: true } } },
+        });
+        created.push(mapping);
+      }
+      await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_BASE_MAPPING_SUGGESTIONS_CREATED", entity: "AccountingMapping", metadata: { created: created.map((m) => m.eventType), skipped } } });
+      return NextResponse.json({ created, skipped, note: "As sugestões foram criadas inativas. Não habilitam processamento até revisão e ativação explícita." }, { status: 201 });
+    }
+
     if (action === "CREATE_MAPPING") {
       const eventType = String(body.eventType || "");
       const debitAccountId = String(body.debitAccountId || "");
