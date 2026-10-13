@@ -4,6 +4,7 @@ import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {requireRole} from "@/lib/auth";
 import {writeAudit} from "@/lib/audit";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 const money=(v:any)=>Number(v||0);
 
@@ -219,6 +220,17 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           });
         }
         refundRecord.accountId=refundAccount.id;
+      }
+
+      if(refundAmount>0){
+        const returnKey=[...requested.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([itemId,quantity])=>itemId+":"+quantity).join("|");
+        await enqueueAccountingEvent(tx, {
+          eventType: "SALE_REFUNDED",
+          sourceType: "PartialSaleReturn",
+          sourceId: sale.id,
+          idempotencyKey: "SALE_REFUNDED:PARTIAL:" + sale.id + ":" + returnKey,
+          payload: { amount: refundAmount, entryDate: new Date().toISOString(), description: "Devolução parcial da venda #" + sale.number + " — " + reason },
+        });
       }
 
       await writeAudit(tx,{
