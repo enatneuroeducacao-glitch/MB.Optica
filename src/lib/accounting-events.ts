@@ -25,7 +25,7 @@ export async function enqueueAccountingEvent(
       sourceType: input.sourceType,
       sourceId: input.sourceId,
       idempotencyKey: input.idempotencyKey,
-      payload: { ...input.payload, amount },
+      payload: { ...input.payload, amount } as Prisma.InputJsonObject,
       status: "PENDENTE",
     },
     update: {},
