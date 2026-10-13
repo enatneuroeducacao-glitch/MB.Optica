@@ -81,7 +81,7 @@ async function main() {
   assert(Math.abs(money(finance.body.summary.received) - 100) < .01, "recebimento total antes do cancelamento");
 
   await api("/api/sales/" + sale.body.id + "/cancel", {
-    method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de devolução financeira" })
+    method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de devolução financeira", reference: "CI-ESTORNO-SETTLEMENTS" })
   });
 
   const canceled = await db.sale.findUnique({
@@ -134,7 +134,7 @@ async function main() {
 
   for (const id of [salePix.body.id, saleCard.body.id]) {
     await api("/api/sales/" + id + "/cancel", {
-      method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de estorno" })
+      method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de estorno", reference: "CI-ESTORNO-" + id })
     });
   }
 
