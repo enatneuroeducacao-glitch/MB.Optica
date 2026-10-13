@@ -43,6 +43,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ settings });
     }
 
+    if (action === "PREPARE_INITIAL_STRUCTURE") {
+      const existingAccounts = await db.chartOfAccount.count();
+      const existingPeriods = await db.accountingPeriod.count();
+      if (existingAccounts > 0) {
+        return NextResponse.json({ error: "O plano de contas já possui registros. A preparação automática foi bloqueada para evitar duplicações; revise o cadastro existente." }, { status: 409 });
+      }
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+      const accounts = [
+        { code: "1", name: "Ativo", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.1", name: "Disponibilidades", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.1.01", name: "Caixa", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.1.02", name: "Bancos conta movimento", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.1.03", name: "Valores a receber de cartões", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.2", name: "Contas a receber de clientes", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "1.3", name: "Estoques", nature: "DEVEDORA", accountType: "ATIVO" },
+        { code: "2", name: "Passivo", nature: "CREDORA", accountType: "PASSIVO" },
+        { code: "2.1", name: "Fornecedores a pagar", nature: "CREDORA", accountType: "PASSIVO" },
+        { code: "2.2", name: "Tributos a recolher", nature: "CREDORA", accountType: "PASSIVO" },
+        { code: "3", name: "Patrimônio líquido", nature: "CREDORA", accountType: "PATRIMONIO_LIQUIDO" },
+        { code: "3.1", name: "Capital", nature: "CREDORA", accountType: "PATRIMONIO_LIQUIDO" },
+        { code: "4", name: "Receitas", nature: "CREDORA", accountType: "RECEITA" },
+        { code: "4.1", name: "Receita de vendas", nature: "CREDORA", accountType: "RECEITA" },
+        { code: "4.2", name: "Devoluções e abatimentos de vendas", nature: "DEVEDORA", accountType: "RECEITA" },
+        { code: "5", name: "Custos", nature: "DEVEDORA", accountType: "CUSTO" },
+        { code: "5.1", name: "Custo das mercadorias vendidas", nature: "DEVEDORA", accountType: "CUSTO" },
+        { code: "6", name: "Despesas", nature: "DEVEDORA", accountType: "DESPESA" },
+        { code: "6.1", name: "Despesas operacionais", nature: "DEVEDORA", accountType: "DESPESA" },
+        { code: "6.2", name: "Tarifas e taxas de cartões", nature: "DEVEDORA", accountType: "DESPESA" }
+      ];
+      const result = await db.$transaction(async (tx) => {
+        const createdAccounts = await Promise.all(accounts.map((account) => tx.chartOfAccount.create({
+          data: { ...account, system: true, description: "Estrutura inicial sugerida; validar com a contabilidade responsável." }
+        })));
+        let createdPeriod = null;
+        if (existingPeriods === 0) {
+          createdPeriod = await tx.accountingPeriod.create({ data: { year, month, startDate, endDate, status: "ABERTO", notes: "Período inicial criado pela preparação da estrutura contábil." } });
+        }
+        const settings = await tx.accountingSettings.findFirst({ orderBy: { updatedAt: "desc" } });
+        if (!settings) await tx.accountingSettings.create({ data: { taxRegime: "SIMPLES_NACIONAL", accountingStartDate: startDate, currency: "BRL", timezone: "America/Sao_Paulo" } });
+        return { accounts: createdAccounts, period: createdPeriod };
+      });
+      await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_INITIAL_STRUCTURE_PREPARED", entity: "AccountingSettings", metadata: { accountsCreated: result.accounts.length, year, month } } });
+      return NextResponse.json({ success: true, accountsCreated: result.accounts.length, periodCreated: Boolean(result.period), period: result.period, requiresAccountantReview: true }, { status: 201 });
+    }
+
     if (action === "CREATE_ACCOUNT") {
       const code = String(body.code || "").trim();
       const name = String(body.name || "").trim();

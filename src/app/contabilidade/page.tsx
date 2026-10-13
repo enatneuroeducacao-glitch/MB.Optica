@@ -88,6 +88,11 @@ export default function ContabilidadePage() {
 
     {tab==="resumo" && <div style={{...card,maxWidth:800}}>
       <h2 style={{fontSize:18,marginTop:0}}>Configuração inicial</h2>
+      <div style={{border:"1px solid var(--line)",borderRadius:10,padding:14,marginBottom:16}}>
+        <strong>Preparar estrutura contábil</strong>
+        <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>Cria um plano de contas inicial sugerido e abre o período do mês atual, somente se ainda não houver plano cadastrado. Não cria lançamentos nem processa eventos. As contas devem ser revisadas pela contabilidade responsável antes de configurar os mapeamentos.</p>
+        <button type="button" disabled={busy||accounts.length>0} style={{...button,opacity:busy||accounts.length>0?0.55:1}} onClick={async()=>{if(!window.confirm("Preparar o plano de contas inicial e o período atual? Isso não cria lançamentos financeiros e não poderá ser executado se já houver contas cadastradas."))return;await send({action:"PREPARE_INITIAL_STRUCTURE"});}}>{accounts.length>0?"Plano de contas já iniciado":"Preparar estrutura inicial"}</button>
+      </div>
       <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>A escolha do regime nesta tela é uma configuração do sistema, não uma validação fiscal ou confirmação de enquadramento. Não há envio de declarações nem escrituração oficial nesta etapa.</p>
       <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Regime tributário<select value={settings?.taxRegime || "SIMPLES_NACIONAL"} onChange={(e)=>setSettings({taxRegime:e.target.value,accountingStartDate:settings?.accountingStartDate})} style={field}><option value="SIMPLES_NACIONAL">Simples Nacional</option></select></label>
       <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Data inicial para organização contábil<input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} style={field}/></label>
