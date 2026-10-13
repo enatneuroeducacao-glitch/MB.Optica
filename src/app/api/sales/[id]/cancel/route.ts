@@ -3,9 +3,12 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
+import {requireRole} from "@/lib/auth";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
+    await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
     const {id}=await params;
     const b=await req.json().catch(()=>({}));
     const reason=String(b.reason||"Cancelamento da venda").trim();
@@ -46,12 +49,20 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           cashRefunds++;
         }
 
+        const reversedAt=new Date();
         await tx.payment.update({
           where:{id:payment.id},
           data:{
-            reversedAt:new Date(),
+            reversedAt,
             reversalReference:b.reference?String(b.reference):reason
           }
+        });
+        await enqueueAccountingEvent(tx, {
+          eventType: "PAYMENT_REVERSED",
+          sourceType: "Payment",
+          sourceId: payment.id,
+          idempotencyKey: "PAYMENT_REVERSED:" + payment.id,
+          payload: { amount: Number(payment.amount), entryDate: reversedAt.toISOString(), description: "Estorno do pagamento da venda #" + sale.number + " — " + reason },
         });
       }
 
@@ -100,9 +111,17 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         });
       }
 
+      const canceledAt=new Date();
       const canceled=await tx.sale.update({
         where:{id:sale.id},
-        data:{canceled:true,canceledAt:new Date(),cancelReason:reason}
+        data:{canceled:true,canceledAt,cancelReason:reason}
+      });
+      await enqueueAccountingEvent(tx, {
+        eventType: "SALE_REFUNDED",
+        sourceType: "Sale",
+        sourceId: sale.id,
+        idempotencyKey: "SALE_REFUNDED:CANCEL:" + sale.id,
+        payload: { amount: Number(sale.total), entryDate: canceledAt.toISOString(), description: "Estorno do reconhecimento da venda #" + sale.number + " — " + reason },
       });
 
       await writeAudit(tx,{

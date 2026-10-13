@@ -2,9 +2,12 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
+import {requireRole} from "@/lib/auth";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
+    await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
     const {id}=await params;
     const b=await req.json().catch(()=>({}));
     const result=await db.$transaction(async(tx)=>{
@@ -39,6 +42,13 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       const reversed=await tx.payment.update({
         where:{id},
         data:{reversedAt,reversalReference:b.reference?String(b.reference):undefined}
+      });
+      await enqueueAccountingEvent(tx, {
+        eventType: "PAYMENT_REVERSED",
+        sourceType: "Payment",
+        sourceId: payment.id,
+        idempotencyKey: "PAYMENT_REVERSED:" + payment.id,
+        payload: { amount: Number(payment.amount), entryDate: reversedAt.toISOString(), description: "Estorno do pagamento da venda #" + payment.sale.number + (b.reason ? " — " + String(b.reason) : "") },
       });
 
       let reversedSettlement=null;
