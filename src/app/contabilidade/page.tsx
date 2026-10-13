@@ -12,7 +12,9 @@ const types = [{value:"ATIVO",label:"Ativo"},{value:"PASSIVO",label:"Passivo"},{
 export default function ContabilidadePage() {
   const [settings, setSettings] = useState<Settings>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [periods, setPeriods] = useState<Period[]>([]);\n  const [entries, setEntries] = useState<Entry[]>([]);\n  const [journal, setJournal] = useState({entryDate:new Date().toISOString().slice(0,10),competenceDate:new Date().toISOString().slice(0,10),description:"",periodId:"",debitAccountId:"",creditAccountId:"",amount:""});
+  const [periods, setPeriods] = useState<Period[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [journal, setJournal] = useState({entryDate:new Date().toISOString().slice(0,10),competenceDate:new Date().toISOString().slice(0,10),description:"",periodId:"",debitAccountId:"",creditAccountId:"",amount:""});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos">("resumo");
@@ -27,7 +29,11 @@ export default function ContabilidadePage() {
     setSettings(data.settings);
     setStartDate(data.settings?.accountingStartDate ? String(data.settings.accountingStartDate).slice(0,10) : "");
     setAccounts(data.accounts || []);
-    setPeriods(data.periods || []);\n    const journalResponse = await fetch("/api/contabilidade/lancamentos", { cache: "no-store" });\n    const journalData = await journalResponse.json();\n    if (!journalResponse.ok) throw new Error(journalData.error || "Não foi possível carregar o diário.");\n    setEntries(journalData.entries || []);
+    setPeriods(data.periods || []);
+    const journalResponse = await fetch("/api/contabilidade/lancamentos", { cache: "no-store" });
+    const journalData = await journalResponse.json();
+    if (!journalResponse.ok) throw new Error(journalData.error || "Não foi possível carregar o diário.");
+    setEntries(journalData.entries || []);
   }, []);
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
