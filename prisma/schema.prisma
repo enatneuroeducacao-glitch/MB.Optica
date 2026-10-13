@@ -233,6 +233,7 @@ sales Sale[]
 accounts Account[]
 legacyRecords LegacyRecord[]
 appointments Appointment[]
+thirdPartyFrameIntakes ThirdPartyFrameIntake[]
 }
 model Address {
 id String @id @default(cuid())
@@ -872,4 +873,28 @@ model AccountingEvent {
   updatedAt DateTime @updatedAt
   @@index([eventType, status])
   @@index([sourceType, sourceId])
+}
+
+model ThirdPartyFrameIntake {
+  id String @id @default(cuid())
+  customerName String
+  customerId String?
+  brand String?
+  model String?
+  source String @default("MARKETPLACE")
+  purchaseDate DateTime?
+  condition String
+  risks String?
+  serviceRequested String
+  inspectionNotes String?
+  photoReferences String?
+  customerAcknowledged Boolean @default(false)
+  servicePrice Decimal? @db.Decimal(12,2)
+  status String @default("RECEBIDA")
+  createdByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+  @@index([customerId])
 }
