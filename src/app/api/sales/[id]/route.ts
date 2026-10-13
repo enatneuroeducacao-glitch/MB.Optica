@@ -22,18 +22,15 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       const sale=await tx.sale.findUnique({
         where:{id},
         include:{
-          items:true,
           payments:true,
-          accounts:{where:{type:"RECEBER"},include:{settlements:true}},
+          accounts:{include:{settlements:{include:{payment:true}}}},
           fiscalDocument:true
         }
       });
       if(!sale) throw new Error("Venda não encontrada.");
       if(sale.canceled) throw new Error("Não é possível editar uma venda cancelada.");
-      if(sale.fiscalDocument) throw new Error("Esta venda possui documento fiscal. Não é permitido alterar os valores por esta tela.");
-      if(sale.payments.length) throw new Error("Esta venda já possui registros de pagamento. Para preservar a conciliação, os valores não podem ser editados por esta tela.");
-      if(sale.accounts.some(a=>a.settlements.length||Number(a.paidAmount)>0)){
-        throw new Error("Há recebimentos vinculados às contas desta venda. Não é possível editar os valores.");
+      if(sale.fiscalDocument && !["CANCELADO","REJEITADO","INUTILIZADO"].includes(sale.fiscalDocument.status)){
+        throw new Error("Esta venda possui documento fiscal ativo. Regularize o documento fiscal antes de alterar os valores.");
       }
 
       const subtotal=Number(sale.subtotal);
@@ -44,26 +41,99 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
         where:{sourceType:"Sale",sourceId:sale.id,eventType:"SALE_RECOGNIZED"}
       });
       if(recognition&&recognition.status!=="PENDENTE"){
-        throw new Error("O evento contábil desta venda já foi processado. Faça a correção pelo fluxo contábil para manter a rastreabilidade.");
+        throw new Error("O evento contábil desta venda já foi processado. A correção precisa ser feita pelo fluxo contábil para manter a rastreabilidade.");
+      }
+
+      // Recebimentos diretos e baixas sem pagamento vinculado contam como valores já recebidos.
+      // Pagamentos vinculados a uma baixa não são somados duas vezes.
+      const activePayments=sale.payments.filter(p=>!p.reversedAt);
+      const directPaid=activePayments.reduce((sum,p)=>sum+Number(p.amount),0);
+      const unlinkedSettlements=sale.accounts.flatMap(a=>a.settlements)
+        .filter(s=>!s.reversedAt&&(!s.payment||s.payment.reversedAt))
+        .reduce((sum,s)=>sum+Number(s.amount),0);
+      const received=Math.round((directPaid+unlinkedSettlements+Number.EPSILON)*100)/100;
+      const desiredReceivable=Math.max(0,Math.round((total-received+Number.EPSILON)*100)/100);
+
+      const receivables=sale.accounts.filter(a=>a.type==="RECEBER"&&a.status!=="CANCELADO");
+      const currentOpen=receivables.reduce((sum,a)=>sum+Math.max(0,Number(a.amount)-Number(a.paidAmount)),0);
+      let difference=Math.round((desiredReceivable-currentOpen+Number.EPSILON)*100)/100;
+
+      // Só ajusta saldo ainda em aberto. O valor já baixado e cada conciliação permanecem intactos.
+      if(difference<0){
+        let reduction=-difference;
+        const adjustable=[...receivables].sort((a,b)=>b.dueDate.getTime()-a.dueDate.getTime());
+        for(const account of adjustable){
+          if(reduction<=0.009) break;
+          const amount=Number(account.amount);
+          const paidAmount=Number(account.paidAmount);
+          const open=Math.max(0,amount-paidAmount);
+          const take=Math.min(open,reduction);
+          if(take<=0) continue;
+          const nextAmount=Math.round((amount-take+Number.EPSILON)*100)/100;
+          await tx.account.update({
+            where:{id:account.id},
+            data:{
+              amount:Math.max(paidAmount,nextAmount),
+              status:Math.max(paidAmount,nextAmount)<=paidAmount+0.009?"PAGO":paidAmount>0?"PARCIAL":"PENDENTE"
+            }
+          });
+          reduction=Math.round((reduction-take+Number.EPSILON)*100)/100;
+        }
+        difference=0;
+      }else if(difference>0.009){
+        await tx.account.create({
+          data:{
+            type:"RECEBER",
+            description:"Ajuste de valor da venda #"+sale.number,
+            customerId:sale.customerId||undefined,
+            saleId:sale.id,
+            dueDate:new Date(),
+            amount:difference,
+            paidAmount:0,
+            status:"PENDENTE",
+            notes:"Saldo complementar gerado pela edição controlada da venda."
+          }
+        });
+      }
+
+      // Se o total ficar abaixo do que já foi recebido, registra reembolso a fazer.
+      // O lançamento fica pendente: não afirma que houve devolução no banco/cartão/PIX.
+      const refundTarget=Math.max(0,Math.round((received-total+Number.EPSILON)*100)/100);
+      const refundPrefix="Reembolso pendente por ajuste da venda #"+sale.number;
+      const refundAccounts=sale.accounts.filter(a=>a.type==="PAGAR"&&a.description.startsWith(refundPrefix));
+      const alreadyRefunded=refundAccounts.reduce((sum,a)=>sum+Number(a.paidAmount),0);
+      const refundOutstanding=Math.max(0,refundTarget-alreadyRefunded);
+      if(refundAccounts.length){
+        let remaining=refundOutstanding;
+        for(const account of refundAccounts){
+          const paidAmount=Number(account.paidAmount);
+          const allocation=Math.min(Math.max(0,Number(account.amount)-paidAmount),remaining);
+          const nextAmount=Math.round((paidAmount+allocation+Number.EPSILON)*100)/100;
+          await tx.account.update({
+            where:{id:account.id},
+            data:{amount:nextAmount,status:nextAmount<=paidAmount+0.009?"PAGO":paidAmount>0?"PARCIAL":"PENDENTE"}
+          });
+          remaining=Math.max(0,Math.round((remaining-allocation+Number.EPSILON)*100)/100);
+        }
+        if(remaining>0.009){
+          await tx.account.create({data:{
+            type:"PAGAR",description:refundPrefix,customerId:sale.customerId||undefined,saleId:sale.id,
+            dueDate:new Date(),amount:remaining,paidAmount:0,status:"PENDENTE",
+            notes:"Reembolso ainda não realizado. Registre a liquidação somente após a devolução efetiva."
+          }});
+        }
+      }else if(refundOutstanding>0.009){
+        await tx.account.create({data:{
+          type:"PAGAR",description:refundPrefix,customerId:sale.customerId||undefined,saleId:sale.id,
+          dueDate:new Date(),amount:refundOutstanding,paidAmount:0,status:"PENDENTE",
+          notes:"Reembolso ainda não realizado. Registre a liquidação somente após a devolução efetiva."
+        }});
       }
 
       const updated=await tx.sale.update({
         where:{id:sale.id},
         data:{discount,surcharge,total,notes:notes||null}
       });
-
-      if(sale.accounts.length){
-        const oldReceivableTotal=sale.accounts.reduce((sum,a)=>sum+Number(a.amount),0);
-        let allocated=0;
-        for(let index=0;index<sale.accounts.length;index++){
-          const account=sale.accounts[index];
-          const amount=index===sale.accounts.length-1
-            ? Math.round((total-allocated)*100)/100
-            : Math.round((oldReceivableTotal>0?total*Number(account.amount)/oldReceivableTotal:total/sale.accounts.length)*100)/100;
-          allocated+=amount;
-          await tx.account.update({where:{id:account.id},data:{amount:Math.max(0,amount)}});
-        }
-      }
 
       const payload={amount:total,entryDate:sale.createdAt.toISOString(),description:"Reconhecimento da venda #"+sale.number+" (valor atualizado)"};
       if(recognition){
@@ -88,16 +158,18 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
         userId:actor.id,
         request:req,
         metadata:{
-          previousDiscount:Number(sale.discount),
-          discount,
-          previousSurcharge:Number(sale.surcharge),
-          surcharge,
-          previousTotal:Number(sale.total),
-          total,
+          previousDiscount:Number(sale.discount),discount,
+          previousSurcharge:Number(sale.surcharge),surcharge,
+          previousTotal:Number(sale.total),total,
+          activePaymentsTotal:directPaid,
+          unlinkedSettlementsTotal:unlinkedSettlements,
+          receivableOpenBefore:currentOpen,
+          receivableOpenAfter:desiredReceivable,
+          refundPending:refundTarget,
           notesChanged:(sale.notes||"")!==notes
         }
       });
-      return updated;
+      return {...updated,financialAdjustment:{received,receivableOpen:desiredReceivable,refundPending:refundTarget}};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:20000});
 
     return NextResponse.json(result);
