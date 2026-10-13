@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 type Account = { id: string; code: string; name: string; nature: string; accountType: string; description?: string | null; parentId?: string | null; active: boolean };
 type Period = { id: string; year: number; month: number; status: string; startDate: string; endDate: string };
-type Settings = { taxRegime: string; accountingStartDate?: string | null } | null;\ntype Entry = { id:string; description:string; entryDate:string; status:string; totalDebit:string|number; totalCredit:string|number; period:{year:number;month:number}; lines:{id:string;debit:string|number;credit:string|number;account:{code:string;name:string}}[]; reversedAt?:string|null };
+type Settings = { taxRegime: string; accountingStartDate?: string | null } | null;
+type Entry = { id:string; description:string; entryDate:string; status:string; totalDebit:string|number; totalCredit:string|number; period:{year:number;month:number}; lines:{id:string;debit:string|number;credit:string|number;account:{code:string;name:string}}[]; reversedAt?:string|null };
 const monthNames = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const types = [{value:"ATIVO",label:"Ativo"},{value:"PASSIVO",label:"Passivo"},{value:"PATRIMONIO_LIQUIDO",label:"Patrimônio líquido"},{value:"RECEITA",label:"Receita"},{value:"DESPESA",label:"Despesa"},{value:"CUSTO",label:"Custo"}];
 
