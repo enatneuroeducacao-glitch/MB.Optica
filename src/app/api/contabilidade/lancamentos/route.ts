@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         if (entryDate < period.startDate || entryDate > period.endDate || competenceDate < period.startDate || competenceDate > period.endDate) {
           throw new Error("As datas do lançamento devem pertencer ao período selecionado.");
         }
-        const accountIds = [...new Set(normalized.map((line: any) => line.accountId))];
+        const accountIds: string[] = [...new Set<string>(normalized.map((line: any) => String(line.accountId)))];
         const activeAccounts = await tx.chartOfAccount.findMany({ where: { id: { in: accountIds }, active: true } });
         if (activeAccounts.length !== accountIds.length) throw new Error("Uma ou mais contas não existem ou estão inativas.");
         const entry = await tx.accountingEntry.create({
