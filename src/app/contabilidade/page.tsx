@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 
 type Account = { id: string; code: string; name: string; nature: string; accountType: string; description?: string | null; parentId?: string | null; active: boolean };
 type Period = { id: string; year: number; month: number; status: string; startDate: string; endDate: string };
@@ -46,10 +46,10 @@ export default function ContabilidadePage() {
     } finally { setBusy(false); }
   }
 
-  const field: React.CSSProperties = {width:"100%",padding:"10px 12px",border:"1px solid var(--line)",borderRadius:9,background:"var(--surface)",color:"var(--text)",marginTop:6};
-  const card: React.CSSProperties = {background:"var(--surface)",border:"1px solid var(--line)",borderRadius:14,padding:20,boxShadow:"var(--shadow)"};
-  const button: React.CSSProperties = {border:0,borderRadius:9,padding:"10px 14px",background:"var(--brand-dark)",color:"#fff",fontWeight:700,cursor:"pointer"};
-  const secondary: React.CSSProperties = {border:"1px solid var(--line)",borderRadius:9,padding:"9px 13px",background:"var(--surface)",color:"var(--text)",cursor:"pointer"};
+  const field: CSSProperties = {width:"100%",padding:"10px 12px",border:"1px solid var(--line)",borderRadius:9,background:"var(--surface)",color:"var(--text)",marginTop:6};
+  const card: CSSProperties = {background:"var(--surface)",border:"1px solid var(--line)",borderRadius:14,padding:20,boxShadow:"var(--shadow)"};
+  const button: CSSProperties = {border:0,borderRadius:9,padding:"10px 14px",background:"var(--brand-dark)",color:"#fff",fontWeight:700,cursor:"pointer"};
+  const secondary: CSSProperties = {border:"1px solid var(--line)",borderRadius:9,padding:"9px 13px",background:"var(--surface)",color:"var(--text)",cursor:"pointer"};
 
   return <section style={{padding:"28px 34px 44px",maxWidth:1400,margin:"0 auto"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:22}}>
