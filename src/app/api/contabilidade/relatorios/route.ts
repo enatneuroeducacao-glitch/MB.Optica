@@ -25,67 +25,6 @@ export async function GET(request: Request) {
       debit: Number(line.debit), credit: Number(line.credit),
     })));
     if (report === "reconciliacao") {
-      const events = await db.accountingEvent.findMany({
-        orderBy: { createdAt: "asc" },
-        take: 5000,
-      });
-      const periodEvents = events.filter((event) => {
-        const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
-          ? event.payload as Record<string, unknown>
-          : {};
-        const date = new Date(String(payload.entryDate || event.createdAt.toISOString()));
-        const day = Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
-        const startDay = period.startDate.toISOString().slice(0, 10);
-        const endDay = period.endDate.toISOString().slice(0, 10);
-        return Boolean(day) && day >= startDay && day <= endDay;
-      });
-      const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
-      const pendingEvents = periodEvents.filter((event) => event.status !== "PROCESSADO");
-      const processedWithoutEntry = periodEvents.filter((event) => event.status === "PROCESSADO" && (!event.entryId || !entriesById.has(event.entryId)));
-      const unbalancedEntries = entries.map((entry) => {
-        const lineDebit = Math.round(entry.lines.reduce((sum, line) => sum + Number(line.debit), 0) * 100) / 100;
-        const lineCredit = Math.round(entry.lines.reduce((sum, line) => sum + Number(line.credit), 0) * 100) / 100;
-        const headerDebit = Math.round(Number(entry.totalDebit) * 100) / 100;
-        const headerCredit = Math.round(Number(entry.totalCredit) * 100) / 100;
-        return {
-          entryId: entry.id,
-          description: entry.description,
-          headerDebit,
-          headerCredit,
-          lineDebit,
-          lineCredit,
-        };
-      }).filter((entry) => Math.abs(entry.headerDebit - entry.headerCredit) > 0.01
-        || Math.abs(entry.lineDebit - entry.lineCredit) > 0.01
-        || Math.abs(entry.headerDebit - entry.lineDebit) > 0.01
-        || Math.abs(entry.headerCredit - entry.lineCredit) > 0.01);
-      const reportRows = periodEvents.map((event) => ({
-        id: event.id,
-        eventType: event.eventType,
-        sourceType: event.sourceType,
-        sourceId: event.sourceId,
-        status: event.status,
-        idempotencyKey: event.idempotencyKey,
-        entryId: event.entryId,
-        errorMessage: event.errorMessage,
-        processedEntryInPeriod: Boolean(event.entryId && entriesById.has(event.entryId)),
-      }));
-      return NextResponse.json({
-        period,
-        summary: {
-          events: periodEvents.length,
-          pendingEvents: pendingEvents.length,
-          processedWithoutEntry: processedWithoutEntry.length,
-          unbalancedEntries: unbalancedEntries.length,
-          balanced: pendingEvents.length === 0 && processedWithoutEntry.length === 0 && unbalancedEntries.length === 0,
-        },
-        events: reportRows,
-        unbalancedEntries,
-        pendingEventIds: pendingEvents.map((event) => event.id),
-        processedWithoutEntryIds: processedWithoutEntry.map((event) => event.id),
-      });
-    }
-    if (report === "reconciliacao") {
       const events = await db.accountingEvent.findMany({ orderBy: { createdAt: "asc" }, take: 5000 });
       const periodEvents = events.filter((event) => {
         const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
