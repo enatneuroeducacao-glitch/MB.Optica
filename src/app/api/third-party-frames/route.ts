@@ -14,6 +14,7 @@ export async function POST(req:Request){
   const b=await req.json();
   const customerName=String(b.customerName||"").trim();
   if(!customerName)throw new Error("Informe o nome do cliente.");
+  if(b.customerAcknowledged!==true)throw new Error("Registre a ciência do cliente antes de salvar.");
   const source=String(b.source||"MARKETPLACE");
   if(!["MARKETPLACE","OUTRA_OTICA","PRESENTE","OUTRA"].includes(source))throw new Error("Origem inválida.");
   const condition=String(b.condition||"");
