@@ -130,6 +130,13 @@ export async function POST(req:Request){
             : null;
           if(method.isCash&&!session) throw new Error("Não há caixa aberto para registrar este recebimento");
           const payment=await tx.payment.create({data:{saleId:sale.id,methodId:method.id,amount,reference:part.reference?String(part.reference):undefined}});
+          await enqueueAccountingEvent(tx, {
+            eventType: "PAYMENT_RECEIVED",
+            sourceType: "Payment",
+            sourceId: payment.id,
+            idempotencyKey: "PAYMENT_RECEIVED:" + payment.id,
+            payload: { amount, entryDate: payment.paidAt.toISOString(), description: "Recebimento da venda #" + sale.number },
+          });
           if(method.isCash&&session){
             await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount,description:"Pagamento da venda #"+sale.number+" — composição mista",referenceId:sale.id}});
           }
@@ -193,6 +200,13 @@ export async function POST(req:Request){
             await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount:entryAmount,description:"Entrada da venda #"+sale.number,referenceId:sale.id}});
           }
           entryPayment=await tx.payment.create({data:{saleId:sale.id,methodId:method.id,amount:entryAmount,reference:b.entryReference||undefined}});
+          await enqueueAccountingEvent(tx, {
+            eventType: "PAYMENT_RECEIVED",
+            sourceType: "Payment",
+            sourceId: entryPayment.id,
+            idempotencyKey: "PAYMENT_RECEIVED:" + entryPayment.id,
+            payload: { amount: entryAmount, entryDate: entryPayment.paidAt.toISOString(), description: "Recebimento da entrada da venda #" + sale.number },
+          });
         }
       }
 
