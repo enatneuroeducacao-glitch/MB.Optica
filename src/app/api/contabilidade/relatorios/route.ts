@@ -34,7 +34,10 @@ export async function GET(request: Request) {
           ? event.payload as Record<string, unknown>
           : {};
         const date = new Date(String(payload.entryDate || event.createdAt.toISOString()));
-        const day = Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);\n        const startDay = period.startDate.toISOString().slice(0, 10);\n        const endDay = period.endDate.toISOString().slice(0, 10);\n        return Boolean(day) && day >= startDay && day <= endDay;
+        const day = Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
+        const startDay = period.startDate.toISOString().slice(0, 10);
+        const endDay = period.endDate.toISOString().slice(0, 10);
+        return Boolean(day) && day >= startDay && day <= endDay;
       });
       const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
       const pendingEvents = periodEvents.filter((event) => event.status !== "PROCESSADO");
