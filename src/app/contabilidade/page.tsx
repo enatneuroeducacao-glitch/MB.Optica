@@ -146,7 +146,7 @@ export default function ContabilidadePage() {
         <button disabled={busy||!reportPeriodId||(reportType==="razao"&&!reportAccountId)} style={{...button,marginTop:14,opacity:busy?0.65:1}} onClick={async()=>{setBusy(true);setMessage("");try{const params=new URLSearchParams({periodId:reportPeriodId,report:reportType});if(reportType==="razao")params.set("accountId",reportAccountId);const response=await fetch("/api/contabilidade/relatorios?"+params.toString(),{cache:"no-store"});const data=await response.json();if(!response.ok)throw new Error(data.error||"Falha ao gerar relatório.");setReportData(data);}catch(err){setMessage(err instanceof Error?err.message:"Falha ao gerar relatório.");}finally{setBusy(false);}}}>{busy?"Gerando…":"Gerar relatório"}</button>
       </div>
       {reportData && <div style={card}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}><h2 style={{fontSize:18,marginTop:0}}>{reportType==="balancete"?"Balancete de verificação":reportType==="diario"?"Livro Diário":"Livro Razão"}</h2><button style={secondary} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}><h2 style={{fontSize:18,marginTop:0}}>{reportType==="balancete"?"Balancete de verificação":reportType==="diario"?"Livro Diário":reportType==="razao"?"Livro Razão":"Reconciliação contábil"}</h2><button style={secondary} onClick={()=>window.print()}>Imprimir / salvar PDF</button></div>
         {reportType==="reconciliacao" ? <div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,marginBottom:16}}>
             {[
