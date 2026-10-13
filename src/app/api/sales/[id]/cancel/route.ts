@@ -23,7 +23,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         include:{
           payments:{include:{method:true}},
           items:true,
-          accounts:{where:{type:"RECEBER"},include:{settlements:{include:{payment:true}}}},
+          accounts:{where:{type:"RECEBER"},include:{settlements:{include:{payment:true,paymentMethod:true}}}},
           fiscalDocument:true
         }
       });
@@ -32,7 +32,11 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       if(sale.fiscalDocument) throw new Error("Esta venda possui documento fiscal vinculado. Resolva o cancelamento fiscal primeiro; depois cancele a venda para estornar o financeiro.");
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
+      const unlinkedSettlements=sale.accounts.flatMap(account=>account.settlements.filter(s=>!s.reversedAt&&!s.payment));
+      if(unlinkedSettlements.some(s=>!s.paymentMethod)) throw new Error("Há recebimentos conciliados sem meio de pagamento identificado. Regularize-os no financeiro antes de cancelar a venda.");
+      if((activePayments.some(p=>!p.method.isCash)||unlinkedSettlements.some(s=>!s.paymentMethod!.isCash))&&!reference) throw new Error("Informe a referência do estorno externo (NSU, protocolo ou comprovante) para os recebimentos que não são em dinheiro.");
       let cashRefunds=0;
+      let pendingRefunds=0;
 
       for(const payment of activePayments){
         if(payment.method.isCash){
@@ -52,6 +56,9 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
             }
           });
           cashRefunds++;
+        }else{
+          await tx.account.create({data:{type:"PAGAR",description:"Reembolso pendente da venda #"+sale.number,customerId:sale.customerId||undefined,saleId:sale.id,dueDate:new Date(),amount:payment.amount,paidAmount:0,status:"PENDENTE",notes:reason+(reference?" | Referência do estorno: "+reference:"")}});
+          pendingRefunds++;
         }
 
         const reversedAt=new Date();
@@ -81,6 +88,21 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
             data:{reversedAt:new Date()}
           });
           reversedSettlements+=activeSettlements.length;
+          for(const settlement of activeSettlements){
+            if(settlement.payment) continue;
+            const method=settlement.paymentMethod;
+            if(!method) throw new Error("Meio de pagamento do recebimento não identificado; cancelamento bloqueado.");
+            if(method.isCash){
+              const session=await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}});
+              if(!session) throw new Error("É necessário um caixa aberto para devolver recebimento em dinheiro.");
+              await tx.cashMovement.create({data:{sessionId:session.id,kind:"SAIDA",amount:settlement.amount,description:"Devolução de recebimento da venda #"+sale.number,referenceId:sale.id}});
+              cashRefunds++;
+            }else{
+              await tx.account.create({data:{type:"PAGAR",description:"Reembolso pendente da venda #"+sale.number,customerId:sale.customerId||undefined,saleId:sale.id,dueDate:new Date(),amount:settlement.amount,paidAmount:0,status:"PENDENTE",notes:reason+(reference?" | Referência do estorno: "+reference:"")}});
+              pendingRefunds++;
+            }
+            await enqueueAccountingEvent(tx,{eventType:"PAYMENT_REVERSED",sourceType:"AccountSettlement",sourceId:settlement.id,idempotencyKey:"PAYMENT_REVERSED:SETTLEMENT:"+settlement.id,payload:{amount:Number(settlement.amount),entryDate:new Date().toISOString(),description:"Estorno do recebimento da venda #"+sale.number+" — "+reason}});
+          }
         }
 
         await tx.account.update({
@@ -141,6 +163,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           restoredMovements:movements.length,
           reversedPayments:activePayments.length,
           cashRefunds,
+          pendingRefunds,
           reversedSettlements,
           canceledAccounts
         }
