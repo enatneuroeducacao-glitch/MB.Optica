@@ -50,7 +50,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
   ],
   VENDEDOR: ["dashboard", "mensagens", "agenda", "clientes", "receitas", "orcamentos", "pedidos", "vendas", "produtos", "armacoesTerceiros"],
   FINANCEIRO: ["dashboard", "mensagens", "vendas", "financeiro", "relatorios"],
-  LABORATORIO: ["dashboard", "mensagens", "pedidos", "laboratorio", "produtos", "estoque"],
+  LABORATORIO: ["dashboard", "mensagens", "pedidos", "laboratorio", "produtos", "estoque", "armacoesTerceiros"],
 };
 
 export const API_PERMISSIONS: Record<string, string> = {
