@@ -8,7 +8,7 @@ import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
   try{
-    const actor=await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
+    await requireRole(["ADMIN","GERENTE","FINANCEIRO"]);
     const {id}=await params;
     const b=await req.json().catch(()=>({}));
     const reason=String(b.reason||"Cancelamento da venda").trim();
