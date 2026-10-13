@@ -4,6 +4,7 @@ import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
 import {requireRole} from "@/lib/auth";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request){
   try{
@@ -105,6 +106,14 @@ export async function POST(req:Request){
           items:{create:items}
         },
         include:{items:true}
+      });
+
+      await enqueueAccountingEvent(tx, {
+        eventType: "SALE_RECOGNIZED",
+        sourceType: "Sale",
+        sourceId: sale.id,
+        idempotencyKey: "SALE_RECOGNIZED:" + sale.id,
+        payload: { amount: total, entryDate: sale.createdAt.toISOString(), description: "Reconhecimento da venda #" + sale.number },
       });
 
       let createdAccounts:any[]=[];
