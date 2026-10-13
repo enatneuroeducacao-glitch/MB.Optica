@@ -29,10 +29,10 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       });
       if(!sale) throw new Error("Venda não encontrada");
       if(sale.canceled) return sale;
-      if(sale.fiscalDocument) throw new Error("Esta venda possui documento fiscal vinculado. Resolva o cancelamento fiscal primeiro; depois cancele a venda para estornar o financeiro.");
+      if(sale.fiscalDocument&&!["CANCELADO","REJEITADO","INUTILIZADO"].includes(sale.fiscalDocument.status)) throw new Error("Esta venda possui documento fiscal ativo. Resolva o cancelamento fiscal primeiro; depois cancele a venda para estornar o financeiro.");
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
-      const unlinkedSettlements=sale.accounts.flatMap(account=>account.settlements.filter(s=>!s.reversedAt&&!s.payment));
+      const unlinkedSettlements=sale.accounts.flatMap(account=>account.settlements.filter(s=>!s.reversedAt&&(!s.payment||s.payment.reversedAt)));
       if(unlinkedSettlements.some(s=>!s.paymentMethod)) throw new Error("Há recebimentos conciliados sem meio de pagamento identificado. Regularize-os no financeiro antes de cancelar a venda.");
       if((activePayments.some(p=>!p.method.isCash)||unlinkedSettlements.some(s=>!s.paymentMethod!.isCash))&&!reference) throw new Error("Informe a referência do estorno externo (NSU, protocolo ou comprovante) para os recebimentos que não são em dinheiro.");
       let cashRefunds=0;
@@ -89,7 +89,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           });
           reversedSettlements+=activeSettlements.length;
           for(const settlement of activeSettlements){
-            if(settlement.payment) continue;
+            if(settlement.payment&&!settlement.payment.reversedAt) continue;
             const method=settlement.paymentMethod;
             if(!method) throw new Error("Meio de pagamento do recebimento não identificado; cancelamento bloqueado.");
             if(method.isCash){
