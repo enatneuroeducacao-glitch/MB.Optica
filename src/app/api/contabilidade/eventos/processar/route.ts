@@ -35,6 +35,18 @@ export async function POST(request: Request) {
       if (event.eventType === "PAYMENT_RECEIVED" && (!payload.paymentMethodId || typeof payload.paymentMethodName !== "string" || typeof payload.isCash !== "boolean")) {
         throw new Error("Recebimento sem dados do meio de pagamento. Revise o evento antes de contabilizar.");
       }
+      if (event.eventType === "PAYMENT_RECEIVED") {
+        const fee = payload.cardFeeAmount == null ? 0 : Number(payload.cardFeeAmount);
+        const net = payload.cardNetAmount == null ? amount : Number(payload.cardNetAmount);
+        const methodName = String(payload.paymentMethodName || "").toLocaleLowerCase("pt-BR");
+        const isCard = methodName.includes("cartão") || methodName.includes("cartao");
+        if (!Number.isFinite(fee) || fee < 0 || !Number.isFinite(net) || net < 0 || Math.abs(money(amount - fee) - money(net)) > 0.01) {
+          throw new Error("Dados de taxa e valor líquido do cartão inconsistentes. Evento não contabilizado; revise os dados do pagamento.");
+        }
+        if (isCard && fee > 0) {
+          throw new Error("Este recebimento possui taxa de cartão. O processamento contábil ainda não separa automaticamente valor bruto, taxa e valor líquido. Evento mantido sem lançamento para evitar divergência.");
+        }
+      }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
       if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
       const paymentMethodId = event.eventType === "PAYMENT_RECEIVED" ? String(payload.paymentMethodId || "") : null;
