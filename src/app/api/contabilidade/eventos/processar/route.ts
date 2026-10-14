@@ -33,7 +33,9 @@ export async function POST(request: Request) {
       }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
       if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
-      const paymentMethodId = event.eventType === "PAYMENT_RECEIVED" ? String(payload.paymentMethodId || "") : null;\n      if (event.eventType === "PAYMENT_RECEIVED" && !paymentMethodId) throw new Error("Recebimento sem meio de pagamento identificado; revise o evento antes de contabilizar.");\n      const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, paymentMethodId, active: true } });
+      const paymentMethodId = event.eventType === "PAYMENT_RECEIVED" ? String(payload.paymentMethodId || "") : null;
+      if (event.eventType === "PAYMENT_RECEIVED" && !paymentMethodId) throw new Error("Recebimento sem meio de pagamento identificado; revise o evento antes de contabilizar.");
+      const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, paymentMethodId, active: true } });
       if (activeMappings.length === 0) throw new Error("Não há mapeamento ativo para este tipo de evento.");
       if (activeMappings.length !== 1) throw new Error("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
       const mapping = activeMappings[0];
