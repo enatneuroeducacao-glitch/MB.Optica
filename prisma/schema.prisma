@@ -500,14 +500,7 @@ total Decimal @default(0) @db.Decimal(12,2)
 sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
 product Product? @relation(fields:[productId],references:[id])
 }
-model PaymentMethod {
-id String @id @default(cuid())
-name String @unique
-active Boolean @default(true)
-isCash Boolean @default(true)
-payments Payment[]
-settlements AccountSettlement[]
-}
+model PaymentMethod {\nid String @id @default(cuid())\nname String @unique\nactive Boolean @default(true)\nisCash Boolean @default(true)\npayments Payment[]\nsettlements AccountSettlement[]\naccountingMappings AccountingMapping[]\n}
 
 model CardMachine {
   id String @id @default(cuid())
