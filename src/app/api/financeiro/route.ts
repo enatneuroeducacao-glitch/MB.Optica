@@ -196,7 +196,11 @@ export async function POST(req:Request){
       if(type==="RECEBER"&&supplierId)throw new Error("Conta a receber não pode estar vinculada a fornecedor");
       if(type==="PAGAR"&&String(b.description).startsWith("Fornecedores")&&!supplierId)throw new Error("Selecione o fornecedor para este lançamento.");
       if(supplierId){const supplier=await db.supplier.findUnique({where:{id:supplierId,active:true}});if(!supplier)throw new Error("Fornecedor não encontrado ou inativo");}
-      const account=await db.account.create({data:{type,classification:type==="PAGAR"?classification:"OUTRA_OBRIGACAO",description:String(b.description).trim(),customerId:b.customerId||undefined,supplierId,dueDate,amount:Number(b.amount),notes:b.notes?String(b.notes).trim():undefined}});
+      const account=await db.$transaction(async tx=>{
+        const created=await tx.account.create({data:{type,classification:type==="PAGAR"?classification:"OUTRA_OBRIGACAO",description:String(b.description).trim(),customerId:b.customerId||undefined,supplierId,dueDate,amount:Number(b.amount),notes:b.notes?String(b.notes).trim():undefined}});
+        if(type==="PAGAR") await tx.accountingEvent.create({data:{eventType:"SUPPLIER_EXPENSE_RECOGNIZED",sourceType:"SUPPLIER",sourceId:created.id,idempotencyKey:"ACCOUNT_PAYABLE_CREATED:"+created.id,payload:{amount:Number(b.amount),entryDate:dueDate.toISOString(),description:String(b.description).trim(),classification,supplierId:supplierId||null,accountId:created.id}}});
+        return created;
+      });
       return NextResponse.json(account,{status:201});
     }
     if(b.action==="EDIT_ACCOUNT"){
