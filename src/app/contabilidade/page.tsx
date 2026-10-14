@@ -12,7 +12,12 @@ const eventLabels: Record<string,string> = {
   PAYMENT_RECEIVED: "Recebimento de venda",
   SALE_REFUNDED: "Devolução de venda",
   PAYMENT_REVERSED: "Estorno de recebimento",
-  SUPPLIER_EXPENSE_RECOGNIZED: "Despesa de fornecedor reconhecida",
+  SUPPLIER_EXPENSE_RECOGNIZED: "Despesa de fornecedor reconhecida (legado)",
+  SUPPLIER_EXPENSE_RECOGNIZED_MERCADORIA_REVENDA: "Despesa: mercadorias para revenda",
+  SUPPLIER_EXPENSE_RECOGNIZED_DESPESA_OPERACIONAL: "Despesa: despesa operacional",
+  SUPPLIER_EXPENSE_RECOGNIZED_IMPOSTO_TAXA: "Despesa: impostos e taxas",
+  SUPPLIER_EXPENSE_RECOGNIZED_PROLABORE_RETIRADA: "Despesa: pró-labore/retirada",
+  SUPPLIER_EXPENSE_RECOGNIZED_OUTRA_OBRIGACAO: "Despesa: outra obrigação",
   SUPPLIER_PAYMENT_MADE: "Pagamento a fornecedor",
 };
 const sourceLabels: Record<string,string> = { SALE: "Venda", PAYMENT: "Pagamento", SUPPLIER: "Fornecedor", MANUAL: "Manual" };
