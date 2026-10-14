@@ -73,7 +73,7 @@ export async function GET(){
     });
     accounts.forEach((a:any)=>{
       if(n(a.paidAmount)>n(a.amount)+0.01)push("CRÍTICO","FINANCEIRO","Conta com pagamento superior ao valor: "+a.description,"Account",a.id);
-      if(a.dueDate<today&&a.status!=="PAGO"&&a.status!=="CANCELADO")push("ATENÇÃO","VENCIMENTO","Título vencido: "+a.description,"Account",a.id);
+      if(a.dueDate<today&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt)push("ATENÇÃO","VENCIMENTO","Título vencido: "+a.description,"Account",a.id);
     });
     sales.forEach((s:any)=>{
       const itemTotal=s.items.reduce((a:number,i:any)=>a+n(i.total),0);
