@@ -75,7 +75,18 @@ export async function POST(req:Request){
         sourceType: "Payment",
         sourceId: payment.id,
         idempotencyKey: "PAYMENT_RECEIVED:" + payment.id,
-        payload: { amount, entryDate: payment.paidAt.toISOString(), description: "Recebimento da venda #" + sale.number },
+        payload: {
+          amount,
+          entryDate: payment.paidAt.toISOString(),
+          description: "Recebimento da venda #" + sale.number,
+          paymentMethodId: method.id,
+          paymentMethodName: method.name,
+          isCash: method.isCash,
+          cardMachineId: cardMachine?.id ?? null,
+          cardFeeAmount,
+          cardNetAmount,
+          reference: payment.reference ?? null
+        },
       });
 
       const movement=method.isCash&&session
