@@ -15,7 +15,7 @@ const EVENT_TYPES = new Set([
 export async function GET() {
   try {
     await requireRole(["ADMIN"]);
-    const [mappings, events, accounts, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
+    const [mappings, events, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
       db.accountingMapping.findMany({
         orderBy: [{ eventType: "asc" }, { createdAt: "desc" }],
         include: {
@@ -25,6 +25,7 @@ export async function GET() {
       }),
       db.accountingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
       db.chartOfAccount.findMany({ where: { active: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, active: true } }),
+      db.paymentMethod.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, isCash: true } }),
       db.sale.count(),
       db.payment.count(),
       db.accountingEvent.count({ where: { eventType: "SALE_RECOGNIZED" } }),
@@ -32,7 +33,7 @@ export async function GET() {
       db.accountingEvent.count({ where: { status: { in: ["PENDENTE", "ERRO"] } } }),
     ]);
     return NextResponse.json({
-      mappings, events, accounts, supportedEventTypes: [...EVENT_TYPES],
+      mappings, events, accounts, paymentMethods, supportedEventTypes: [...EVENT_TYPES],
       integrationDiagnostics: {
         salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount,
         note: "Contagens históricas totais; não equivalem a falhas de integração. Compare operações novas feitas após a publicação."
@@ -83,14 +84,21 @@ export async function POST(request: Request) {
 
     if (action === "CREATE_MAPPING") {
       const eventType = String(body.eventType || "");
+      const paymentMethodId = body.paymentMethodId ? String(body.paymentMethodId) : null;
       const debitAccountId = String(body.debitAccountId || "");
       const creditAccountId = String(body.creditAccountId || "");
       const description = String(body.description || "").trim() || null;
       if (!EVENT_TYPES.has(eventType)) return NextResponse.json({ error: "Tipo de evento contábil não permitido." }, { status: 400 });
+      if (eventType === "PAYMENT_RECEIVED" && !paymentMethodId) return NextResponse.json({ error: "Selecione o meio de pagamento para este mapeamento." }, { status: 400 });
+      if (eventType !== "PAYMENT_RECEIVED" && paymentMethodId) return NextResponse.json({ error: "O meio de pagamento só pode ser definido para recebimentos de venda." }, { status: 400 });
       if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return NextResponse.json({ error: "Selecione contas diferentes para débito e crédito." }, { status: 400 });
-      const existingMapping = await db.accountingMapping.findFirst({ where: { eventType } });
+      const existingMapping = await db.accountingMapping.findFirst({ where: { eventType, paymentMethodId } });
       if (existingMapping) {
         return NextResponse.json({ error: "Já existe um mapeamento para este evento. Revise o cadastro existente em vez de criar outro." }, { status: 409 });
+      }
+      if (paymentMethodId) {
+        const method = await db.paymentMethod.findFirst({ where: { id: paymentMethodId, active: true } });
+        if (!method) return NextResponse.json({ error: "O meio de pagamento precisa existir e estar ativo." }, { status: 400 });
       }
       const [debit, credit] = await Promise.all([
         db.chartOfAccount.findFirst({ where: { id: debitAccountId, active: true } }),
@@ -98,10 +106,10 @@ export async function POST(request: Request) {
       ]);
       if (!debit || !credit) return NextResponse.json({ error: "As duas contas devem existir e estar ativas." }, { status: 400 });
       const mapping = await db.accountingMapping.create({
-        data: { eventType, debitAccountId, creditAccountId, description, active: false },
+        data: { eventType, paymentMethodId, debitAccountId, creditAccountId, description, active: false },
         include: { debitAccount: { select: { id: true, code: true, name: true } }, creditAccount: { select: { id: true, code: true, name: true } } },
       });
-      await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_MAPPING_CREATED", entity: "AccountingMapping", entityId: mapping.id, metadata: { eventType, debitAccountId, creditAccountId } } });
+      await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_MAPPING_CREATED", entity: "AccountingMapping", entityId: mapping.id, metadata: { eventType, paymentMethodId, debitAccountId, creditAccountId } } });
       return NextResponse.json({ mapping }, { status: 201 });
     }
 
@@ -113,7 +121,7 @@ export async function POST(request: Request) {
       if (!current) return NextResponse.json({ error: "Mapeamento não encontrado." }, { status: 404 });
       if (active) {
         const otherActive = await db.accountingMapping.findFirst({
-          where: { eventType: current.eventType, active: true, id: { not: id } },
+          where: { eventType: current.eventType, paymentMethodId: current.paymentMethodId, active: true, id: { not: id } },
         });
         if (otherActive) {
           return NextResponse.json({ error: "Já existe outro mapeamento ativo para este evento. Desative-o antes de ativar este." }, { status: 409 });

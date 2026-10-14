@@ -507,6 +507,7 @@ active Boolean @default(true)
 isCash Boolean @default(true)
 payments Payment[]
 settlements AccountSettlement[]
+accountingMappings AccountingMapping[]
 }
 
 model CardMachine {
@@ -845,16 +846,18 @@ model AccountingEntryLine {
 model AccountingMapping {
   id String @id @default(cuid())
   eventType String
+  paymentMethodId String?
   debitAccountId String
   creditAccountId String
   active Boolean @default(true)
   description String?
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
   debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId], references: [id], onDelete: Restrict)
   creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId], references: [id], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  @@unique([eventType, debitAccountId, creditAccountId])
-  @@index([eventType, active])
+  @@unique([eventType, paymentMethodId, debitAccountId, creditAccountId])
+  @@index([eventType, paymentMethodId, active])
 }
 
 model AccountingEvent {
