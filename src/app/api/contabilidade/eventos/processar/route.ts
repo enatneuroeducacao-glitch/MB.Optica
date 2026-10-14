@@ -28,6 +28,9 @@ export async function POST(request: Request) {
       const amount = money(Number(payload.amount));
       const sourceDate = new Date(String(payload.entryDate || event.createdAt.toISOString()));
       if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new Error("Evento sem valor positivo ou data válida.");
+      if (event.eventType === "PAYMENT_RECEIVED" && (!payload.paymentMethodId || typeof payload.paymentMethodName !== "string" || typeof payload.isCash !== "boolean")) {
+        throw new Error("Recebimento sem dados do meio de pagamento. Revise o evento antes de contabilizar.");
+      }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
       if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
       const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, active: true } });
