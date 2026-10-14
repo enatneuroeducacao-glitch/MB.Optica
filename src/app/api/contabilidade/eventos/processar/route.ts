@@ -21,7 +21,11 @@ export async function POST(request: Request) {
         return { alreadyProcessed: true, entry: existing };
       }
       if (event.status === "PROCESSANDO") throw new Error("Evento já está em processamento; tente novamente em instantes.");
-      if (!["SALE_RECOGNIZED", "PAYMENT_RECEIVED", "SALE_REFUNDED", "PAYMENT_REVERSED", "SUPPLIER_EXPENSE_RECOGNIZED", "SUPPLIER_PAYMENT_MADE"].includes(event.eventType)) {
+      if (!["SALE_RECOGNIZED", "PAYMENT_RECEIVED", "SALE_REFUNDED", "PAYMENT_REVERSED", "SUPPLIER_EXPENSE_RECOGNIZED", "SUPPLIER_PAYMENT_MADE", "SUPPLIER_EXPENSE_RECOGNIZED_MERCADORIA_REVENDA",
+  "SUPPLIER_EXPENSE_RECOGNIZED_DESPESA_OPERACIONAL",
+  "SUPPLIER_EXPENSE_RECOGNIZED_IMPOSTO_TAXA",
+  "SUPPLIER_EXPENSE_RECOGNIZED_PROLABORE_RETIRADA",
+  "SUPPLIER_EXPENSE_RECOGNIZED_OUTRA_OBRIGACAO"].includes(event.eventType)) {
         throw new Error("Tipo de evento não suportado.");
       }
       const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
