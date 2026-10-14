@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
-const taxRegimes = new Set(["SIMPLES_NACIONAL"]);
+const taxRegimes = new Set(["SIMEI", "SIMPLES_NACIONAL"]);
 
 export async function GET() {
   try {
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       const taxRegime = String(body.taxRegime || "");
       const accountingStartDate = body.accountingStartDate ? new Date(body.accountingStartDate) : null;
       if (!taxRegimes.has(taxRegime)) {
-        return NextResponse.json({ error: "Regime inválido. Nesta fase, selecione Simples Nacional." }, { status: 400 });
+        return NextResponse.json({ error: "Regime inválido. Selecione MEI (SIMEI) ou Simples Nacional (não MEI)." }, { status: 400 });
       }
       if (accountingStartDate && Number.isNaN(accountingStartDate.getTime())) {
         return NextResponse.json({ error: "Data inicial inválida." }, { status: 400 });
