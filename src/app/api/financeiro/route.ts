@@ -65,7 +65,7 @@ const payrollDefaults=()=>({ownerName:"Moni Becker",ownerRole:"Proprietária / A
 export async function GET(){
   try{
     const [accounts,sales,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales]=await Promise.all([
-      db.account.findMany({orderBy:{dueDate:"asc"},take:200,include:{customer:{select:{id:true,name:true}},supplier:{select:{id:true,name:true}},sale:{select:{number:true}}}}),
+      db.account.findMany({orderBy:{dueDate:"asc"},take:200,include:{customer:{select:{id:true,name:true}},supplier:{select:{id:true,name:true}},sale:{select:{number:true}},settlements:{orderBy:{paidAt:"desc"},include:{paymentMethod:{select:{name:true}}}}}}),
       db.sale.findMany({where:{canceled:false},orderBy:{createdAt:"desc"},take:100,include:{customer:{select:{name:true}},payments:{include:{method:{select:{name:true}}}}}}),
       db.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"},include:{movements:{orderBy:{createdAt:"desc"},take:100}}}),
       db.paymentMethod.findMany({where:{active:true},orderBy:{name:"asc"}}),
