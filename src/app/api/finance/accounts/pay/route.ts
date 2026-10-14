@@ -2,6 +2,7 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
 import {writeAudit} from "@/lib/audit";
+import {enqueueAccountingEvent} from "@/lib/accounting-events";
 
 export async function POST(req:Request){
   try{
@@ -59,6 +60,25 @@ export async function POST(req:Request){
             }
           })
         : null;
+
+      if (account.type === "PAGAR") {
+        await enqueueAccountingEvent(tx, {
+          eventType: "SUPPLIER_PAYMENT_MADE",
+          sourceType: "AccountSettlement",
+          sourceId: settlement.id,
+          idempotencyKey: "SUPPLIER_PAYMENT_MADE:" + settlement.id,
+          payload: {
+            amount,
+            entryDate: settlement.paidAt.toISOString(),
+            description: "Quitação de fornecedor: " + account.description,
+            accountId: account.id,
+            supplierId: account.supplierId,
+            paymentMethod: b.method || methodRecord?.name || null,
+            paymentMethodId: methodRecord?.id || null,
+            reference: b.reference || null,
+          },
+        });
+      }
 
       await writeAudit(tx,{action:"SETTLE",entity:"Account",entityId:account.id,metadata:{amount,method:b.method||methodRecord?.name||null,isCash:affectsCash}});
       return {account:updated,settlement,movement};
