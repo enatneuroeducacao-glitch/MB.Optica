@@ -28,7 +28,27 @@ export async function POST(request: Request) {
   "SUPPLIER_EXPENSE_RECOGNIZED_OUTRA_OBRIGACAO"].includes(event.eventType)) {
         throw new Error("Tipo de evento não suportado.");
       }
-      const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
+      let payload: Record<string, unknown> = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
+      // Eventos antigos de recebimento podem não conter metadados do meio de pagamento.
+      // Recupera os dados do pagamento operacional de origem, sem inventar valores nem criar outro recebimento.
+      if (event.eventType === "PAYMENT_RECEIVED" && (!payload.paymentMethodId || typeof payload.paymentMethodName !== "string" || typeof payload.isCash !== "boolean")) {
+        const sourcePayment = await tx.payment.findUnique({
+          where: { id: event.sourceId },
+          include: { method: true },
+        });
+        if (sourcePayment) {
+          payload = {
+            ...payload,
+            paymentMethodId: payload.paymentMethodId || sourcePayment.methodId,
+            paymentMethodName: typeof payload.paymentMethodName === "string" ? payload.paymentMethodName : sourcePayment.method.name,
+            isCash: typeof payload.isCash === "boolean" ? payload.isCash : sourcePayment.method.isCash,
+            cardMachineId: payload.cardMachineId ?? sourcePayment.cardMachineId ?? null,
+            cardFeeAmount: payload.cardFeeAmount ?? Number(sourcePayment.cardFeeAmount ?? 0),
+            cardNetAmount: payload.cardNetAmount ?? Number(sourcePayment.cardNetAmount ?? sourcePayment.amount),
+            reference: payload.reference ?? sourcePayment.reference ?? null,
+          };
+        }
+      }
       const amount = money(Number(payload.amount));
       const sourceDate = new Date(String(payload.entryDate || event.createdAt.toISOString()));
       if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new Error("Evento sem valor positivo ou data válida.");
