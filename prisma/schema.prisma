@@ -554,6 +554,7 @@ accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],refe
 model Account {
 id String @id @default(cuid())
 type AccountType
+classification String @default("OUTRA_OBRIGACAO")
 description String
 customerId String?
 supplierId String?

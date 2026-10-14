@@ -186,13 +186,17 @@ export async function POST(req:Request){
     }
     if(b.action==="CREATE_ACCOUNT"){
       const type=b.type==="PAGAR"?"PAGAR":"RECEBER";
+      const validClassifications=new Set(["MERCADORIA_REVENDA","DESPESA_OPERACIONAL","IMPOSTO_TAXA","PROLABORE_RETIRADA","OUTRA_OBRIGACAO"]);
+      const classification=String(b.classification||"OUTRA_OBRIGACAO");
+      if(!validClassifications.has(classification)) throw new Error("Classificação financeira inválida");
+      if(type==="RECEBER"&&classification!=="OUTRA_OBRIGACAO") throw new Error("Classificação de despesa só pode ser usada em contas a pagar");
       if(!b.description||!b.dueDate||!Number.isFinite(Number(b.amount))||Number(b.amount)<=0) throw new Error("Descrição, vencimento e valor são obrigatórios");
       const dueDate=new Date(b.dueDate);if(Number.isNaN(dueDate.getTime()))throw new Error("Data de vencimento inválida");
       const supplierId=b.supplierId?String(b.supplierId):undefined;
       if(type==="RECEBER"&&supplierId)throw new Error("Conta a receber não pode estar vinculada a fornecedor");
       if(type==="PAGAR"&&String(b.description).startsWith("Fornecedores")&&!supplierId)throw new Error("Selecione o fornecedor para este lançamento.");
       if(supplierId){const supplier=await db.supplier.findUnique({where:{id:supplierId,active:true}});if(!supplier)throw new Error("Fornecedor não encontrado ou inativo");}
-      const account=await db.account.create({data:{type,description:String(b.description).trim(),customerId:b.customerId||undefined,supplierId,dueDate,amount:Number(b.amount),notes:b.notes?String(b.notes).trim():undefined}});
+      const account=await db.account.create({data:{type,classification:type==="PAGAR"?classification:"OUTRA_OBRIGACAO",description:String(b.description).trim(),customerId:b.customerId||undefined,supplierId,dueDate,amount:Number(b.amount),notes:b.notes?String(b.notes).trim():undefined}});
       return NextResponse.json(account,{status:201});
     }
     if(b.action==="EDIT_ACCOUNT"){
@@ -202,7 +206,7 @@ export async function POST(req:Request){
       const amount=Number(b.amount);if(!Number.isFinite(amount)||amount<=0)throw new Error("Valor inválido");
       const dueDate=new Date(String(b.dueDate||""));if(Number.isNaN(dueDate.getTime()))throw new Error("Vencimento inválido");
       if(amount+0.001<Number(existing.paidAmount))throw new Error("O valor não pode ficar abaixo do total já liquidado");
-      const type=b.type==="PAGAR"?"PAGAR":"RECEBER";const supplierId=b.supplierId?String(b.supplierId):undefined;
+      const type=b.type==="PAGAR"?"PAGAR":"RECEBER";const supplierId=b.supplierId?String(b.supplierId):undefined;const validClassifications=new Set(["MERCADORIA_REVENDA","DESPESA_OPERACIONAL","IMPOSTO_TAXA","PROLABORE_RETIRADA","OUTRA_OBRIGACAO"]);const classification=String(b.classification||existing.classification||"OUTRA_OBRIGACAO");if(!validClassifications.has(classification))throw new Error("Classificação financeira inválida");if(type==="RECEBER"&&classification!=="OUTRA_OBRIGACAO")throw new Error("Classificação de despesa só pode ser usada em contas a pagar");
       if(existing.settlements.length&&(type!==existing.type||String(supplierId||"")!==String(existing.supplierId||"")||String(b.customerId||"")!==String(existing.customerId||"")))throw new Error("Não é permitido trocar tipo, fornecedor ou cliente após existir liquidação");
       if(existing.saleId&&type!=="RECEBER")throw new Error("Título vinculado a venda não pode mudar de tipo");
       if(type==="RECEBER"&&supplierId)throw new Error("Conta a receber não pode estar vinculada a fornecedor");
@@ -210,7 +214,7 @@ export async function POST(req:Request){
       if(supplierId){const supplier=await db.supplier.findUnique({where:{id:supplierId,active:true}});if(!supplier)throw new Error("Fornecedor não encontrado ou inativo");}
       const customerId=b.customerId?String(b.customerId):undefined;if(customerId){const customer=await db.customer.findUnique({where:{id:customerId,active:true}});if(!customer)throw new Error("Cliente não encontrado ou inativo");}
       const status=Number(existing.paidAmount)>0?(Number(existing.paidAmount)+0.001>=amount?"PAGO":"PARCIAL"):"PENDENTE";
-      const updated=await db.account.update({where:{id:accountId},data:{type,description:String(b.description).trim(),supplierId,customerId,dueDate,amount,notes:b.notes?String(b.notes).trim():null,status}});return NextResponse.json(updated);
+      const updated=await db.account.update({where:{id:accountId},data:{type,classification:type==="PAGAR"?classification:"OUTRA_OBRIGACAO",description:String(b.description).trim(),supplierId,customerId,dueDate,amount,notes:b.notes?String(b.notes).trim():null,status}});return NextResponse.json(updated);
     }
     if(b.action==="DELETE_ACCOUNT"){
       const accountId=String(b.accountId||"");if(!accountId)throw new Error("Título não informado");
