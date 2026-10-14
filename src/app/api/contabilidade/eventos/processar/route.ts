@@ -43,9 +43,7 @@ export async function POST(request: Request) {
         if (!Number.isFinite(fee) || fee < 0 || !Number.isFinite(net) || net < 0 || Math.abs(money(amount - fee) - money(net)) > 0.01) {
           throw new Error("Dados de taxa e valor líquido do cartão inconsistentes. Evento não contabilizado; revise os dados do pagamento.");
         }
-        if (isCard && fee > 0) {
-          throw new Error("Este recebimento possui taxa de cartão. O processamento contábil ainda não separa automaticamente valor bruto, taxa e valor líquido. Evento mantido sem lançamento para evitar divergência.");
-        }
+        // O evento reconhece o recebivel bruto da operadora. A taxa so deve ser contabilizada na liquidacao efetiva da operadora.
       }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
       if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
@@ -55,8 +53,15 @@ export async function POST(request: Request) {
       if (activeMappings.length === 0) throw new Error("Não há mapeamento ativo para este tipo de evento.");
       if (activeMappings.length !== 1) throw new Error("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
       const mapping = activeMappings[0];
-      const accounts = await tx.chartOfAccount.findMany({ where: { id: { in: [mapping.debitAccountId, mapping.creditAccountId] }, active: true } });
+      const accounts = await tx.chartOfAccount.findMany({ where: { id: { in: [mapping.debitAccountId, mapping.creditAccountId] }, active: true }, select: { id: true, code: true, name: true } });
       if (accounts.length !== 2) throw new Error("As contas do mapeamento precisam estar ativas.");
+      if (event.eventType === "PAYMENT_RECEIVED" && /cart[aã]o/i.test(String(payload.paymentMethodName || ""))) {
+        const debit = accounts.find((account) => account.id === mapping.debitAccountId);
+        const credit = accounts.find((account) => account.id === mapping.creditAccountId);
+        if (debit?.code !== "1.1.03" || credit?.code !== "1.2") {
+          throw new Error("Para recebimento por cartão, configure débito em 1.1.03 — Valores a receber de cartões e crédito em 1.2 — Contas a receber de clientes. A taxa será reconhecida somente na liquidação da operadora.");
+        }
+      }
       const existingByKey = await tx.accountingEntry.findUnique({ where: { originKey: event.idempotencyKey } });
       if (existingByKey) {
         await tx.accountingEvent.update({ where: { id: event.id }, data: { status: "PROCESSADO", processedAt: new Date(), entryId: existingByKey.id, errorMessage: null } });
