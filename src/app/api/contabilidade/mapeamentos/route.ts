@@ -88,13 +88,17 @@ export async function POST(request: Request) {
       const description = String(body.description || "").trim() || null;
       if (!EVENT_TYPES.has(eventType)) return NextResponse.json({ error: "Tipo de evento contábil não permitido." }, { status: 400 });
       if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return NextResponse.json({ error: "Selecione contas diferentes para débito e crédito." }, { status: 400 });
+      const existingMapping = await db.accountingMapping.findFirst({ where: { eventType } });
+      if (existingMapping) {
+        return NextResponse.json({ error: "Já existe um mapeamento para este evento. Revise o cadastro existente em vez de criar outro." }, { status: 409 });
+      }
       const [debit, credit] = await Promise.all([
         db.chartOfAccount.findFirst({ where: { id: debitAccountId, active: true } }),
         db.chartOfAccount.findFirst({ where: { id: creditAccountId, active: true } }),
       ]);
       if (!debit || !credit) return NextResponse.json({ error: "As duas contas devem existir e estar ativas." }, { status: 400 });
       const mapping = await db.accountingMapping.create({
-        data: { eventType, debitAccountId, creditAccountId, description, active: true },
+        data: { eventType, debitAccountId, creditAccountId, description, active: false },
         include: { debitAccount: { select: { id: true, code: true, name: true } }, creditAccount: { select: { id: true, code: true, name: true } } },
       });
       await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_MAPPING_CREATED", entity: "AccountingMapping", entityId: mapping.id, metadata: { eventType, debitAccountId, creditAccountId } } });
@@ -105,6 +109,21 @@ export async function POST(request: Request) {
       const id = String(body.id || "");
       const active = body.active;
       if (!id || typeof active !== "boolean") return NextResponse.json({ error: "Informe o mapeamento e o estado desejado." }, { status: 400 });
+      const current = await db.accountingMapping.findUnique({ where: { id } });
+      if (!current) return NextResponse.json({ error: "Mapeamento não encontrado." }, { status: 404 });
+      if (active) {
+        const otherActive = await db.accountingMapping.findFirst({
+          where: { eventType: current.eventType, active: true, id: { not: id } },
+        });
+        if (otherActive) {
+          return NextResponse.json({ error: "Já existe outro mapeamento ativo para este evento. Desative-o antes de ativar este." }, { status: 409 });
+        }
+        const [debit, credit] = await Promise.all([
+          db.chartOfAccount.findFirst({ where: { id: current.debitAccountId, active: true } }),
+          db.chartOfAccount.findFirst({ where: { id: current.creditAccountId, active: true } }),
+        ]);
+        if (!debit || !credit) return NextResponse.json({ error: "As contas do mapeamento precisam estar ativas." }, { status: 400 });
+      }
       const mapping = await db.accountingMapping.update({ where: { id }, data: { active } });
       await db.auditLog.create({ data: { userId: user.id, action: active ? "ACCOUNTING_MAPPING_ACTIVATED" : "ACCOUNTING_MAPPING_DEACTIVATED", entity: "AccountingMapping", entityId: mapping.id, metadata: { eventType: mapping.eventType, active } } });
       return NextResponse.json({ mapping });
