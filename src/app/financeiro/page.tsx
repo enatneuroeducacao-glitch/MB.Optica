@@ -4,6 +4,7 @@ import {useEffect,useMemo,useState} from "react";
 import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatCard} from "@/components/StatCard";
 
+type AccountForm={type:"RECEBER"|"PAGAR";category:string;classification:string;supplierId:string;description:string;amount:string;dueDate:string;notes:string};
 type Account={id:string;type:"RECEBER"|"PAGAR";classification?:string;description:string;dueDate:string;amount:number|string;paidAmount:number|string;status:string;writtenOffAt?:string|null;writtenOffReason?:string|null;customer?:{name:string}|null;supplier?:{name:string}|null};
 type Cash={id:string;openingCash:number|string;closedAt:string|null;openedAt:string;movements:{id:string;kind:string;amount:number|string;description:string;createdAt:string}[]}|null;
 const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -20,7 +21,7 @@ export default function Financeiro(){
  const [movementFilter,setMovementFilter]=useState({type:"TODAS",status:"TODAS",search:""});
  const [tab,setTab]=useState("VISÃO");
  const [msg,setMsg]=useState("");
- const [account,setAccount]=useState({type:"RECEBER",category:"Venda de produtos",classification:"OUTRA_OBRIGACAO",supplierId:"",description:"",amount:"",dueDate:new Date().toISOString().slice(0,10),notes:""});
+ const [account,setAccount]=useState<AccountForm>({type:"RECEBER",category:"Venda de produtos",classification:"OUTRA_OBRIGACAO",supplierId:"",description:"",amount:"",dueDate:new Date().toISOString().slice(0,10),notes:""});
  const [settle,setSettle]=useState({accountId:"",amount:"",method:"PIX",reference:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"0"});
  const [cardMachines,setCardMachines]=useState<any[]>([]);
  const [cash,setCash]=useState({amount:"",description:""});
