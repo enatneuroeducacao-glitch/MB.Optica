@@ -135,7 +135,7 @@ export async function POST(req:Request){
             sourceType: "Payment",
             sourceId: payment.id,
             idempotencyKey: "PAYMENT_RECEIVED:" + payment.id,
-            payload: { amount, entryDate: payment.paidAt.toISOString(), description: "Recebimento da venda #" + sale.number },
+            payload: { amount, entryDate: payment.paidAt.toISOString(), description: "Recebimento da venda #" + sale.number, paymentMethodId: method.id, paymentMethodName: method.name, isCash: method.isCash, cardMachineId: null, cardFeeAmount: 0, cardNetAmount: amount, reference: payment.reference ?? null },
           });
           if(method.isCash&&session){
             await tx.cashMovement.create({data:{sessionId:session.id,kind:"ENTRADA",amount,description:"Pagamento da venda #"+sale.number+" — composição mista",referenceId:sale.id}});
@@ -205,7 +205,7 @@ export async function POST(req:Request){
             sourceType: "Payment",
             sourceId: entryPayment.id,
             idempotencyKey: "PAYMENT_RECEIVED:" + entryPayment.id,
-            payload: { amount: entryAmount, entryDate: entryPayment.paidAt.toISOString(), description: "Recebimento da entrada da venda #" + sale.number },
+            payload: { amount: entryAmount, entryDate: entryPayment.paidAt.toISOString(), description: "Recebimento da entrada da venda #" + sale.number, paymentMethodId: method.id, paymentMethodName: method.name, isCash: method.isCash, cardMachineId: null, cardFeeAmount: 0, cardNetAmount: entryAmount, reference: entryPayment.reference ?? null },
           });
         }
       }
