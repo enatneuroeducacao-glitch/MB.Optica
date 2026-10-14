@@ -25,7 +25,8 @@ export async function GET(request: Request) {
       debit: Number(line.debit), credit: Number(line.credit),
     })));
     if (report === "reconciliacao") {
-      const events = await db.accountingEvent.findMany({ orderBy: { createdAt: "asc" }, take: 5000 });
+      // Do not cap reconciliation at an arbitrary number: older events must not disappear silently.
+      const events = await db.accountingEvent.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
       const periodEvents = events.filter((event) => {
         const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
           ? event.payload as Record<string, unknown> : {};
@@ -35,6 +36,26 @@ export async function GET(request: Request) {
       const entriesById = new Map(entries.map((entry) => [entry.id, entry]));
       const pendingEvents = periodEvents.filter((event) => event.status !== "PROCESSADO");
       const processedWithoutEntry = periodEvents.filter((event) => event.status === "PROCESSADO" && (!event.entryId || !entriesById.has(event.entryId)));
+      const eventEntryMismatches = periodEvents.flatMap((event) => {
+        if (event.status !== "PROCESSADO" || !event.entryId) return [];
+        const entry = entriesById.get(event.entryId);
+        if (!entry) return [];
+        const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+          ? event.payload as Record<string, unknown> : {};
+        const expectedAmount = Number(payload.amount);
+        const issues: string[] = [];
+        if (entry.sourceType !== event.sourceType) issues.push("Tipo de origem do lançamento diverge do evento.");
+        if (entry.sourceId !== event.sourceId) issues.push("ID de origem do lançamento diverge do evento.");
+        if (entry.originKey !== event.idempotencyKey) issues.push("Chave de idempotência do lançamento diverge do evento.");
+        if (Number.isFinite(expectedAmount) && expectedAmount > 0
+          && Math.abs(Math.round(Number(entry.totalDebit) * 100) / 100 - Math.round(expectedAmount * 100) / 100) > 0.01) {
+          issues.push("Valor do lançamento diverge do valor do evento.");
+        }
+        return issues.length ? [{ eventId: event.id, eventType: event.eventType, entryId: entry.id, description: entry.description, issues }] : [];
+      });
+      const linkedEntryIds = new Set(periodEvents.map((event) => event.entryId).filter(Boolean));
+      const orphanEntries = entries.filter((entry) => entry.sourceType !== "MANUAL" && !linkedEntryIds.has(entry.id))
+        .map((entry) => ({ entryId: entry.id, sourceType: entry.sourceType, sourceId: entry.sourceId, description: entry.description }));
       const unbalancedEntries = entries.map((entry) => {
         const lineDebit = Math.round(entry.lines.reduce((sum, line) => sum + Number(line.debit), 0) * 100) / 100;
         const lineCredit = Math.round(entry.lines.reduce((sum, line) => sum + Number(line.credit), 0) * 100) / 100;
@@ -57,9 +78,12 @@ export async function GET(request: Request) {
           events: periodEvents.length, pendingEvents: pendingEvents.length,
           processedWithoutEntry: processedWithoutEntry.length,
           unbalancedEntries: unbalancedEntries.length,
-          balanced: pendingEvents.length === 0 && processedWithoutEntry.length === 0 && unbalancedEntries.length === 0,
+          eventEntryMismatches: eventEntryMismatches.length,
+          orphanEntries: orphanEntries.length,
+          balanced: pendingEvents.length === 0 && processedWithoutEntry.length === 0
+            && unbalancedEntries.length === 0 && eventEntryMismatches.length === 0 && orphanEntries.length === 0,
         },
-        events: reportRows, unbalancedEntries,
+        events: reportRows, unbalancedEntries, eventEntryMismatches, orphanEntries,
         pendingEventIds: pendingEvents.map((event) => event.id),
         processedWithoutEntryIds: processedWithoutEntry.map((event) => event.id),
       });

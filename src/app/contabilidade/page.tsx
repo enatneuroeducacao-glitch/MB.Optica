@@ -173,6 +173,8 @@ export default function ContabilidadePage() {
               ["Eventos pendentes",reportData.summary.pendingEvents],
               ["Processados sem lançamento no período",reportData.summary.processedWithoutEntry],
               ["Lançamentos desequilibrados",reportData.summary.unbalancedEntries],
+              ["Evento × lançamento divergente",reportData.summary.eventEntryMismatches ?? 0],
+              ["Lançamentos sem evento de origem",reportData.summary.orphanEntries ?? 0],
             ].map(([label,value]:any)=><div key={label} style={{padding:14,border:"1px solid var(--line)",borderRadius:10}}>
               <div style={{fontSize:12,color:"var(--muted)"}}>{label}</div><strong style={{fontSize:24,display:"block",marginTop:6}}>{value}</strong>
             </div>)}
