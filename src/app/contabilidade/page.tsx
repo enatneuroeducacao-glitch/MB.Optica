@@ -86,7 +86,7 @@ export default function ContabilidadePage() {
   return <section style={{padding:"28px 34px 44px",maxWidth:1400,margin:"0 auto"}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:22}}>
       <div><span className="eyebrow">ADMINISTRAÇÃO · ACESSO RESTRITO</span><h1 style={{margin:"4px 0 8px",fontSize:28}}>Contabilidade</h1><p style={{margin:0,color:"var(--muted)",maxWidth:760}}>Estrutura contábil da MB Óptica. Nesta fase, configure o período inicial, o plano de contas e os meses contábeis.</p></div>
-      <span style={{padding:"8px 11px",borderRadius:20,background:"#e8f3e8",color:"#28643a",fontSize:12,fontWeight:700}}>Simples Nacional · configuração</span>
+      <span style={{padding:"8px 11px",borderRadius:20,background:"#e8f3e8",color:"#28643a",fontSize:12,fontWeight:700}}>{settings?.taxRegime==="SIMEI"?"MEI · SIMEI":settings?.taxRegime==="SIMPLES_NACIONAL"?"Simples Nacional · configuração":"Regime não configurado"}</span>
     </div>
 
     {message && <div role="status" style={{...card,marginBottom:16,padding:12,borderColor:message.includes("Erro")||message.includes("inválid")?"#c66":"var(--line)"}}>{message}</div>}
@@ -94,7 +94,7 @@ export default function ContabilidadePage() {
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:20}}>
       <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Contas cadastradas</div><strong style={{fontSize:30,display:"block",marginTop:8}}>{accounts.length}</strong><small style={{color:"var(--muted)"}}>Plano de contas</small></div>
       <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Períodos criados</div><strong style={{fontSize:30,display:"block",marginTop:8}}>{periods.length}</strong><small style={{color:"var(--muted)"}}>Competências mensais</small></div>
-      <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Regime configurado</div><strong style={{fontSize:20,display:"block",marginTop:13}}>Simples Nacional</strong><small style={{color:"var(--muted)"}}>Confirme com a contabilidade responsável</small></div>
+      <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Regime configurado</div><strong style={{fontSize:20,display:"block",marginTop:13}}>{settings?.taxRegime==="SIMEI"?"MEI · SIMEI":settings?.taxRegime==="SIMPLES_NACIONAL"?"Simples Nacional":"Não configurado"}</strong><small style={{color:"var(--muted)"}}>Configuração informativa; não confirma enquadramento fiscal.</small></div>
     </div>
 
     <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:18}}>
@@ -105,11 +105,11 @@ export default function ContabilidadePage() {
       <h2 style={{fontSize:18,marginTop:0}}>Configuração inicial</h2>
       <div style={{border:"1px solid var(--line)",borderRadius:10,padding:14,marginBottom:16}}>
         <strong>Preparar estrutura contábil</strong>
-        <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>Cria um plano de contas inicial sugerido e abre o período do mês atual, somente se ainda não houver plano cadastrado. Não cria lançamentos nem processa eventos. As contas devem ser revisadas pela contabilidade responsável antes de configurar os mapeamentos.</p>
+        <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>Cria um plano de contas inicial sugerido e abre o período do mês atual, somente se ainda não houver plano cadastrado. Não cria lançamentos nem processa eventos. As contas são sugestões para controle interno; confira os nomes e a finalidade antes de ativar mapeamentos.</p>
         <button type="button" disabled={busy||accounts.length>0} style={{...button,opacity:busy||accounts.length>0?0.55:1}} onClick={async()=>{if(!window.confirm("Preparar o plano de contas inicial e o período atual? Isso não cria lançamentos financeiros e não poderá ser executado se já houver contas cadastradas."))return;await send({action:"PREPARE_INITIAL_STRUCTURE"});}}>{accounts.length>0?"Plano de contas já iniciado":"Preparar estrutura inicial"}</button>
       </div>
       <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>A escolha do regime nesta tela é uma configuração do sistema, não uma validação fiscal ou confirmação de enquadramento. Não há envio de declarações nem escrituração oficial nesta etapa.</p>
-      <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Regime tributário<select value={settings?.taxRegime || "SIMPLES_NACIONAL"} onChange={(e)=>setSettings({taxRegime:e.target.value,accountingStartDate:settings?.accountingStartDate})} style={field}><option value="SIMPLES_NACIONAL">Simples Nacional</option></select></label>
+      <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Regime tributário<select value={settings?.taxRegime || "SIMPLES_NACIONAL"} onChange={(e)=>setSettings({taxRegime:e.target.value,accountingStartDate:settings?.accountingStartDate})} style={field}><option value="SIMEI">MEI (SIMEI)</option><option value="SIMPLES_NACIONAL">Simples Nacional (não MEI)</option></select></label>
       <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Data inicial para organização contábil<input type="date" value={startDate} onChange={(e)=>setStartDate(e.target.value)} style={field}/></label>
       <button disabled={busy} style={{...button,marginTop:18,opacity:busy ? 0.65 : 1}} onClick={()=>send({action:"SAVE_SETTINGS",taxRegime:settings?.taxRegime||"SIMPLES_NACIONAL",accountingStartDate:startDate||null})}>{busy?"Salvando…":"Salvar configuração"}</button>
     </div>}
