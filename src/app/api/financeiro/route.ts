@@ -220,6 +220,18 @@ export async function POST(req:Request){
       const status=Number(existing.paidAmount)>0?(Number(existing.paidAmount)+0.001>=amount?"PAGO":"PARCIAL"):"PENDENTE";
       const updated=await db.account.update({where:{id:accountId},data:{type,classification:type==="PAGAR"?classification:"OUTRA_OBRIGACAO",description:String(b.description).trim(),supplierId,customerId,dueDate,amount,notes:b.notes?String(b.notes).trim():null,status}});return NextResponse.json(updated);
     }
+    if(b.action==="CANCEL_LINKED_RECEIVABLE"){
+      const accountId=String(b.accountId||"");
+      const reason=String(b.reason||"Título duplicado de venda já recebida").trim();
+      if(!accountId) throw new Error("Título não informado");
+      const existing=await db.account.findUnique({where:{id:accountId},include:{settlements:true}});
+      if(!existing) throw new Error("Título não encontrado");
+      if(existing.type!=="RECEBER"||!existing.saleId) throw new Error("Ação permitida somente para conta a receber vinculada a uma venda");
+      if(existing.status==="PAGO"||existing.status==="CANCELADO"||existing.writtenOffAt) throw new Error("Título já pago, cancelado ou baixado como perda");
+      if(Number(existing.paidAmount)>0||existing.settlements.length>0) throw new Error("Título possui histórico de liquidações; não pode ser cancelado por esta ação");
+      const updated=await db.account.update({where:{id:accountId},data:{status:"CANCELADO",notes:[existing.notes, "Cancelado em "+new Date().toISOString()+" — "+reason].filter(Boolean).join("\\n")}});
+      return NextResponse.json({ok:true,account:updated});
+    }
     if(b.action==="DELETE_ACCOUNT"){
       const accountId=String(b.accountId||"");if(!accountId)throw new Error("Título não informado");
       const existing=await db.account.findUnique({where:{id:accountId},include:{settlements:true}});if(!existing)throw new Error("Título não encontrado");
