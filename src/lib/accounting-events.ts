@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 export async function enqueueAccountingEvent(
   tx: Prisma.TransactionClient,
   input: {
-    eventType: "SALE_RECOGNIZED" | "PAYMENT_RECEIVED" | "SALE_REFUNDED" | "PAYMENT_REVERSED";
+    eventType: "SALE_RECOGNIZED" | "PAYMENT_RECEIVED" | "SALE_REFUNDED" | "PAYMENT_REVERSED" | "SUPPLIER_EXPENSE_RECOGNIZED" | "SUPPLIER_PAYMENT_MADE";
     sourceType: string;
     sourceId: string;
     idempotencyKey: string;
