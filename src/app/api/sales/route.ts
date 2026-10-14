@@ -172,7 +172,7 @@ export async function POST(req:Request){
         if(Number.isNaN(firstDue.getTime())) throw new Error("Data da primeira parcela inválida");
         const installmentValue=Number((balance/installments).toFixed(2));
         let accumulated=0;
-        for(let i=1;i<=installments;i++){
+        for(let i=1;i<=installments&&balance>=0.01;i++){
           const amount=i===installments?Number((balance-accumulated).toFixed(2)):installmentValue;
           accumulated+=amount;
           const due=new Date(firstDue);
