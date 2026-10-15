@@ -141,6 +141,24 @@ async function main() {
   finance = await api("/api/financeiro", { headers });
   assert(Math.abs(money(finance.body.summary.received)) < .01, "saldo financeiro após estornos finais");
 
+  let closeWithoutReasonFailed = false;
+  try {
+    await api("/api/cash/close", {
+      method: "POST", headers, body: JSON.stringify({ closingCash: 100 })
+    });
+  } catch {
+    closeWithoutReasonFailed = true;
+  }
+  assert(closeWithoutReasonFailed, "bloqueio de fechamento sem motivo");
+
+  const closed = await api("/api/cash/close", {
+    method: "POST", headers, body: JSON.stringify({
+      closingCash: 100, closingReason: "FIM_EXPEDIENTE", notes: "Fechamento automatizado do teste integrado"
+    })
+  });
+  assert(closed.body.session?.closedAt, "fechamento do caixa com motivo obrigatório");
+  assert(Math.abs(money(closed.body.difference) - (100 - money(closed.body.expected))) < .01, "cálculo da diferença no fechamento");
+
   const partialSale = await api("/api/sales", {
     method: "POST", headers, body: JSON.stringify({
       customerId: customer.id, sellerId: user.id,
