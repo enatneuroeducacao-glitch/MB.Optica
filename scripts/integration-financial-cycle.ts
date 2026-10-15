@@ -141,24 +141,6 @@ async function main() {
   finance = await api("/api/financeiro", { headers });
   assert(Math.abs(money(finance.body.summary.received)) < .01, "saldo financeiro após estornos finais");
 
-  let closeWithoutReasonFailed = false;
-  try {
-    await api("/api/cash/close", {
-      method: "POST", headers, body: JSON.stringify({ closingCash: 100 })
-    });
-  } catch {
-    closeWithoutReasonFailed = true;
-  }
-  assert(closeWithoutReasonFailed, "bloqueio de fechamento sem motivo");
-
-  const closed = await api("/api/cash/close", {
-    method: "POST", headers, body: JSON.stringify({
-      closingCash: 100, closingReason: "FIM_EXPEDIENTE", notes: "Fechamento automatizado do teste integrado"
-    })
-  });
-  assert(closed.body.session?.closedAt, "fechamento do caixa com motivo obrigatório");
-  assert(Math.abs(money(closed.body.difference) - (100 - money(closed.body.expected))) < .01, "cálculo da diferença no fechamento");
-
   const partialSale = await api("/api/sales", {
     method: "POST", headers, body: JSON.stringify({
       customerId: customer.id, sellerId: user.id,
@@ -214,6 +196,33 @@ async function main() {
   }
   assert(partialOverReturnFailed, "bloqueio de devolução acima do saldo do item");
 
+  const cashSummary = await api("/api/cash/summary", { headers });
+  assert(cashSummary.body.session?.id === opened.body.id, "resumo da sessão aberta");
+  assert(Array.isArray(cashSummary.body.payments), "histórico de recebimentos no resumo");
+  assert(Array.isArray(cashSummary.body.movements), "histórico de movimentações no resumo");
+  assert(Number.isFinite(money(cashSummary.body.totals.expectedCash)), "saldo esperado do caixa");
+  assert(Math.abs(money(cashSummary.body.totals.nonCashPayments)) < .01, "recebimentos estornados não entram no resumo");
+  assert(Math.abs(money(cashSummary.body.totals.cashPayments) - 240) < .01, "recebimento em dinheiro incluído no resumo");
+  assert(Math.abs(money(cashSummary.body.totals.expectedCash) - (money(cashSummary.body.session.openingCash) + money(cashSummary.body.totals.cashPayments) + money(cashSummary.body.totals.entries) - money(cashSummary.body.totals.exits))) < .01, "saldo esperado corresponde aos recebimentos em dinheiro e às movimentações reais da sessão");
+  assert(money(cashSummary.body.totals.expectedCash) >= 0, "saldo esperado não negativo após os estornos e reembolso");
+
+  let closeWithoutReasonFailed = false;
+  try {
+    await api("/api/cash/close", {
+      method: "POST", headers, body: JSON.stringify({ closingCash: 100 })
+    });
+  } catch {
+    closeWithoutReasonFailed = true;
+  }
+  assert(closeWithoutReasonFailed, "bloqueio de fechamento sem motivo");
+
+  const closed = await api("/api/cash/close", {
+    method: "POST", headers, body: JSON.stringify({
+      closingCash: 100, closingReason: "FIM_EXPEDIENTE", notes: "Fechamento automatizado do teste integrado"
+    })
+  });
+  assert(closed.body.session?.closedAt, "fechamento do caixa com motivo obrigatório");
+  assert(Math.abs(money(closed.body.difference) - (100 - money(closed.body.expected))) < .01, "cálculo da diferença no fechamento");
 
   console.log("INTEGRATION_FINANCIAL_CYCLE: PASS");
   console.log(JSON.stringify({ sale: sale.body.id, stock: money(currentLot?.quantity), received: money(finance.body.summary.received) }));
