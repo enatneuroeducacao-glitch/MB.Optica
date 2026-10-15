@@ -37,6 +37,7 @@ export default function ContabilidadePage() {
   const [journal, setJournal] = useState({entryDate:new Date().toISOString().slice(0,10),competenceDate:new Date().toISOString().slice(0,10),description:"",periodId:"",debitAccountId:"",creditAccountId:"",amount:""});
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [refreshingEvents, setRefreshingEvents] = useState(false);
   const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos"|"relatorios"|"mapeamentos"|"eventos">("resumo");
   const [mappingData, setMappingData] = useState<any>({mappings:[],events:[],accounts:[],supportedEventTypes:[],integrationDiagnostics:null});
   const [mappingForm, setMappingForm] = useState({eventType:"SALE_RECOGNIZED",paymentMethodId:"",debitAccountId:"",creditAccountId:"",description:""});
@@ -67,6 +68,22 @@ export default function ContabilidadePage() {
   }, []);
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
+
+  async function refreshAccountingEvents() {
+    setRefreshingEvents(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/contabilidade/mapeamentos", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível atualizar a fila de eventos.");
+      setMappingData(data);
+      setMessage("Fila de eventos atualizada com sucesso.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Falha ao atualizar a fila de eventos.");
+    } finally {
+      setRefreshingEvents(false);
+    }
+  }
 
   async function send(payload: Record<string, unknown>) {
     setBusy(true); setMessage("");
@@ -226,7 +243,7 @@ export default function ContabilidadePage() {
           <span style={{...secondary,cursor:"default"}}>Pendentes: {mappingData.events.filter((ev:any)=>ev.status==="PENDENTE").length}</span>
           <span style={{...secondary,cursor:"default"}}>Com erro: {mappingData.events.filter((ev:any)=>ev.status==="ERRO").length}</span>
           <span style={{...secondary,cursor:"default"}}>Processados: {mappingData.events.filter((ev:any)=>ev.status==="PROCESSADO").length}</span>
-          <button disabled={busy} style={secondary} onClick={()=>load().catch((e)=>setMessage(e.message))}>Atualizar fila</button>
+          <button type="button" disabled={busy||refreshingEvents} style={{...secondary,opacity:busy||refreshingEvents?0.65:1}} onClick={refreshAccountingEvents}>{refreshingEvents?"Atualizando…":"Atualizar fila"}</button>
         </div>
         {mappingData.events.length===0 ? <p style={{fontSize:13,color:"var(--muted)"}}>Nenhum evento contábil encontrado.</p> : <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Evento","Origem","Estado","Erro / detalhe","Ação"].map(v=><th key={v} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--line)"}}>{v}</th>)}</tr></thead><tbody>{mappingData.events.map((ev:any)=><tr key={ev.id}><td style={{padding:9,borderBottom:"1px solid var(--line)"}}><strong>{eventLabels[ev.eventType]||ev.eventType}</strong><div style={{fontSize:11,color:"var(--muted)",wordBreak:"break-word"}}>Chave de prevenção de duplicidade: {ev.idempotencyKey}</div>
                     <details style={{marginTop:8,fontSize:12}}>
