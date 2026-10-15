@@ -57,35 +57,89 @@ export async function POST(request: Request) {
     const action = String(body?.action || "");
 
     if (action === "CREATE_SAFE_BASE_MAPPINGS") {
-      const requiredCodes = ["1.2", "4.1", "2.1", "6.1"];
+      const requiredCodes = ["1.1.01", "1.1.02", "1.1.03", "1.2", "4.1", "2.1", "6.1"];
       const accounts = await db.chartOfAccount.findMany({ where: { code: { in: requiredCodes }, active: true } });
       const byCode = new Map(accounts.map((account) => [account.code, account]));
       const missing = requiredCodes.filter((code) => !byCode.has(code));
       if (missing.length) {
         return NextResponse.json({ error: "Não foi possível preparar as sugestões. Faltam contas ativas: " + missing.join(", ") + ". Revise o plano de contas." }, { status: 400 });
       }
-      const suggestions = [
-        { eventType: "SALE_RECOGNIZED", debitCode: "1.2", creditCode: "4.1", description: "SUGESTÃO — venda reconhecida: débito em clientes a receber e crédito em receita de vendas. Revisar critérios de competência e origem." },
+
+      const suggestions: { eventType: string; paymentMethodId?: string; debitCode: string; creditCode: string; description: string }[] = [
+        { eventType: "SALE_RECOGNIZED", debitCode: "1.2", creditCode: "4.1", description: "SUGESTÃO — venda a prazo/crediário: débito em clientes a receber e crédito em receita de vendas. A receita é reconhecida uma única vez pelo valor total da venda." },
         { eventType: "SUPPLIER_EXPENSE_RECOGNIZED", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa de fornecedor reconhecida: débito em despesas operacionais e crédito em fornecedores a pagar. Classificação depende da natureza da compra." },
       ];
-      const created = [];
-      const skipped = [];
+
+      // Sugere um mapeamento por meio REAL de recebimento. Crediário/carnê é condição de venda,
+      // não é conta de liquidação: as parcelas devem usar o meio efetivamente recebido (PIX, dinheiro, cartão etc.).
+      const methods = await db.paymentMethod.findMany({ where: { active: true }, orderBy: { name: "asc" } });
+      const skippedMethods: string[] = [];
+      for (const method of methods) {
+        const name = method.name.toLocaleLowerCase("pt-BR");
+        if (/credi[aá]rio|carn[eê]|fiado|a prazo/.test(name)) {
+          skippedMethods.push(method.name + " (condição de crédito, não meio de recebimento)");
+          continue;
+        }
+        let debitCode: string | null = null;
+        if (/cart[aã]o/.test(name)) debitCode = "1.1.03";
+        else if (/pix/.test(name)) debitCode = "1.1.02";
+        else if (method.isCash || /dinheiro|esp[eé]cie/.test(name)) debitCode = "1.1.01";
+        if (!debitCode) {
+          skippedMethods.push(method.name + " (conta de destino não inferida; exige revisão manual)");
+          continue;
+        }
+        suggestions.push({
+          eventType: "PAYMENT_RECEIVED",
+          paymentMethodId: method.id,
+          debitCode,
+          creditCode: "1.2",
+          description: "SUGESTÃO — recebimento por " + method.name + ": débito em " + debitCode + " e crédito em 1.2 — Contas a receber de clientes. Revisar antes de ativar.",
+        });
+      }
+
+      const created: any[] = [];
+      const skipped: string[] = [];
       for (const suggestion of suggestions) {
         const debit = byCode.get(suggestion.debitCode)!;
         const credit = byCode.get(suggestion.creditCode)!;
-        const existing = await db.accountingMapping.findFirst({ where: { eventType: suggestion.eventType } });
+        const existing = await db.accountingMapping.findFirst({
+          where: { eventType: suggestion.eventType, paymentMethodId: suggestion.paymentMethodId ?? null },
+        });
         if (existing) {
-          skipped.push(suggestion.eventType);
+          skipped.push(suggestion.eventType + (suggestion.paymentMethodId ? ":" + suggestion.paymentMethodId : ""));
           continue;
         }
         const mapping = await db.accountingMapping.create({
-          data: { eventType: suggestion.eventType, debitAccountId: debit.id, creditAccountId: credit.id, description: suggestion.description, active: false },
-          include: { debitAccount: { select: { id: true, code: true, name: true, active: true } }, creditAccount: { select: { id: true, code: true, name: true, active: true } } },
+          data: {
+            eventType: suggestion.eventType,
+            paymentMethodId: suggestion.paymentMethodId ?? null,
+            debitAccountId: debit.id,
+            creditAccountId: credit.id,
+            description: suggestion.description,
+            active: false,
+          },
+          include: {
+            debitAccount: { select: { id: true, code: true, name: true, active: true } },
+            creditAccount: { select: { id: true, code: true, name: true, active: true } },
+            paymentMethod: { select: { id: true, name: true, isCash: true } },
+          },
         });
         created.push(mapping);
       }
-      await db.auditLog.create({ data: { userId: user.id, action: "ACCOUNTING_BASE_MAPPING_SUGGESTIONS_CREATED", entity: "AccountingMapping", metadata: { created: created.map((m) => m.eventType), skipped } } });
-      return NextResponse.json({ created, skipped, note: "As sugestões foram criadas inativas. Não habilitam processamento até revisão e ativação explícita." }, { status: 201 });
+      await db.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "ACCOUNTING_BASE_MAPPING_SUGGESTIONS_CREATED",
+          entity: "AccountingMapping",
+          metadata: { created: created.map((m) => ({ eventType: m.eventType, paymentMethodId: m.paymentMethodId })), skipped, skippedMethods },
+        },
+      });
+      return NextResponse.json({
+        created,
+        skipped,
+        skippedMethods,
+        note: "As sugestões de venda e recebimentos foram criadas inativas. Nenhum mapeamento foi ativado e nenhum evento foi processado. Crediário/carnê é tratado como conta a receber; cada liquidação usa o meio efetivamente recebido.",
+      }, { status: 201 });
     }
 
     if (action === "CREATE_MAPPING") {
