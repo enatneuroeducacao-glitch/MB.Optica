@@ -26,6 +26,7 @@ export async function GET() {
         include: {
           debitAccount: { select: { id: true, code: true, name: true, active: true } },
           creditAccount: { select: { id: true, code: true, name: true, active: true } },
+          paymentMethod: { select: { id: true, name: true, isCash: true } },
         },
       }),
       db.accountingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
