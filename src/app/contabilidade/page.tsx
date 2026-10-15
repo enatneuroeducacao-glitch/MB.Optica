@@ -39,6 +39,7 @@ export default function ContabilidadePage() {
   const [busy, setBusy] = useState(false);
   const [refreshingEvents, setRefreshingEvents] = useState(false);
   const [eventToProcess, setEventToProcess] = useState<any>(null);
+  const [confirmation, setConfirmation] = useState<null | "prepare-structure" | "safe-mappings">(null);
   const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos"|"relatorios"|"mapeamentos"|"eventos">("resumo");
   const [mappingData, setMappingData] = useState<any>({mappings:[],events:[],accounts:[],supportedEventTypes:[],integrationDiagnostics:null});
   const [mappingForm, setMappingForm] = useState({eventType:"SALE_RECOGNIZED",paymentMethodId:"",debitAccountId:"",creditAccountId:"",description:""});
@@ -114,6 +115,25 @@ export default function ContabilidadePage() {
 
     {message && <div role="status" style={{...card,marginBottom:16,padding:12,borderColor:message.includes("Erro")||message.includes("inválid")?"#c66":"var(--line)"}}>{message}</div>}
 
+    {confirmation && <div role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setConfirmation(null);}} style={{position:"fixed",inset:0,zIndex:1100,background:"rgba(15,23,42,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div role="dialog" aria-modal="true" aria-labelledby="accounting-confirm-title" aria-describedby="accounting-confirm-description" style={{width:"min(100%,520px)",maxHeight:"90vh",overflowY:"auto",background:"var(--surface)",color:"var(--text)",border:"1px solid var(--line)",borderRadius:16,boxShadow:"0 24px 80px rgba(0,0,0,.28)",padding:24}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:18}}>
+          <div aria-hidden="true" style={{width:42,height:42,flexShrink:0,borderRadius:12,display:"grid",placeItems:"center",background:"rgba(180,120,40,.14)",color:"var(--accent)",fontSize:22,fontWeight:800}}>!</div>
+          <div style={{flex:1}}><h2 id="accounting-confirm-title" style={{fontSize:20,margin:"0 0 7px"}}>{confirmation==="prepare-structure"?"Preparar estrutura contábil inicial":"Preparar sugestões de mapeamento"}</h2><p id="accounting-confirm-description" style={{margin:0,fontSize:14,color:"var(--muted)",lineHeight:1.55}}>{confirmation==="prepare-structure"?"O sistema criará um plano de contas inicial sugerido e abrirá o período contábil atual, apenas se ainda não houver contas cadastradas.":"O sistema criará duas sugestões de mapeamento: venda reconhecida e despesa operacional de fornecedor. As duas ficarão inativas."}</p></div>
+          <button type="button" aria-label="Fechar janela" disabled={busy} onClick={()=>setConfirmation(null)} style={{...secondary,padding:"4px 10px"}}>✕</button>
+        </div>
+        <div style={{border:"1px solid var(--line)",borderRadius:10,padding:14,marginBottom:18,fontSize:13,lineHeight:1.6}}>
+          <strong style={{display:"block",marginBottom:5}}>O que acontecerá</strong>
+          {confirmation==="prepare-structure" ? <ul style={{margin:"0 0 0 18px",padding:0}}><li>Preparar contas e período inicial, se permitido.</li><li>Não cria vendas, pagamentos ou lançamentos financeiros.</li><li>Não processa eventos contábeis.</li></ul> : <ul style={{margin:"0 0 0 18px",padding:0}}><li>Somente cadastrar sugestões inativas.</li><li>Não ativar regras nem gerar lançamentos.</li><li>Recebimentos, cartões e estornos continuam exigindo mapeamentos próprios.</li></ul>}
+        </div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10,flexWrap:"wrap"}}>
+          <button type="button" disabled={busy} style={secondary} onClick={()=>setConfirmation(null)}>Cancelar</button>
+          <button type="button" disabled={busy} style={{...button,opacity:busy?0.65:1}} onClick={async()=>{const action=confirmation;setConfirmation(null);if(action==="prepare-structure"){await send({action:"PREPARE_INITIAL_STRUCTURE"});return;}if(action==="safe-mappings"){setBusy(true);setMessage("");try{const response=await fetch("/api/contabilidade/mapeamentos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"CREATE_SAFE_BASE_MAPPINGS"})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível preparar sugestões.");setMessage("Sugestões criadas inativas. Revise cada conta antes de ativar.");await load();}catch(err){setMessage(err instanceof Error?err.message:"Falha ao preparar sugestões.");}finally{setBusy(false);}}}}>{busy?"Processando…":confirmation==="prepare-structure"?"Confirmar preparação":"Criar sugestões inativas"}</button>
+        </div>
+      </div>
+    </div>}
+
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:20}}>
       <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Contas cadastradas</div><strong style={{fontSize:30,display:"block",marginTop:8}}>{accounts.length}</strong><small style={{color:"var(--muted)"}}>Plano de contas</small></div>
       <div style={card}><div style={{fontSize:12,color:"var(--muted)"}}>Períodos criados</div><strong style={{fontSize:30,display:"block",marginTop:8}}>{periods.length}</strong><small style={{color:"var(--muted)"}}>Competências mensais</small></div>
@@ -129,7 +149,7 @@ export default function ContabilidadePage() {
       <div style={{border:"1px solid var(--line)",borderRadius:10,padding:14,marginBottom:16}}>
         <strong>Preparar estrutura contábil</strong>
         <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>Cria um plano de contas inicial sugerido e abre o período do mês atual, somente se ainda não houver plano cadastrado. Não cria lançamentos nem processa eventos. As contas são sugestões para controle interno; confira os nomes e a finalidade antes de ativar mapeamentos.</p>
-        <button type="button" disabled={busy||accounts.length>0} style={{...button,opacity:busy||accounts.length>0?0.55:1}} onClick={async()=>{if(!window.confirm("Preparar o plano de contas inicial e o período atual? Isso não cria lançamentos financeiros e não poderá ser executado se já houver contas cadastradas."))return;await send({action:"PREPARE_INITIAL_STRUCTURE"});}}>{accounts.length>0?"Plano de contas já iniciado":"Preparar estrutura inicial"}</button>
+        <button type="button" disabled={busy||accounts.length>0} style={{...button,opacity:busy||accounts.length>0?0.55:1}} onClick={()=>setConfirmation("prepare-structure")}>{accounts.length>0?"Plano de contas já iniciado":"Preparar estrutura inicial"}</button>
       </div>
       <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>A escolha do regime nesta tela é uma configuração do sistema, não uma validação fiscal ou confirmação de enquadramento. Não há envio de declarações nem escrituração oficial nesta etapa.</p>
       <label style={{display:"block",marginTop:16,fontSize:13,fontWeight:700}}>Regime tributário<select value={settings?.taxRegime || "SIMPLES_NACIONAL"} onChange={(e)=>setSettings({taxRegime:e.target.value,accountingStartDate:settings?.accountingStartDate})} style={field}><option value="SIMEI">MEI (SIMEI)</option><option value="SIMPLES_NACIONAL">Simples Nacional (não MEI)</option></select></label>
@@ -219,7 +239,7 @@ export default function ContabilidadePage() {
       <div style={{border:"1px solid var(--line)",borderRadius:10,padding:14,marginBottom:16}}>
         <strong>Preparar sugestões iniciais (inativas)</strong>
         <p style={{fontSize:13,color:"var(--muted)",lineHeight:1.6}}>Cria apenas duas sugestões: venda reconhecida e despesa operacional de fornecedor. Elas ficam inativas e não geram lançamentos. Recebimentos, cartões, estornos e pagamentos ficam pendentes porque exigem regras específicas para evitar duplicidade ou classificar incorretamente dinheiro, bancos e valores a receber.</p>
-        <button type="button" disabled={busy||mappingData.accounts.length<4} style={{...button,opacity:busy||mappingData.accounts.length<4?0.55:1}} onClick={async()=>{if(!window.confirm("Criar as duas sugestões contábeis inativas? Elas não serão usadas até revisão e ativação manual."))return;setBusy(true);setMessage("");try{const response=await fetch("/api/contabilidade/mapeamentos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"CREATE_SAFE_BASE_MAPPINGS"})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível preparar sugestões.");setMessage("Sugestões criadas inativas. Revise cada conta antes de ativar.");await load();}catch(err){setMessage(err instanceof Error?err.message:"Falha ao preparar sugestões.");}finally{setBusy(false);}}}>Preparar sugestões inativas</button>
+        <button type="button" disabled={busy||mappingData.accounts.length<4} style={{...button,opacity:busy||mappingData.accounts.length<4?0.55:1}} onClick={()=>setConfirmation("safe-mappings")}>Preparar sugestões inativas</button>
       </div>
       <p style={{fontSize:13,color:"var(--muted)"}}>Defina quais contas serão usadas para cada tipo de evento. O cadastro do mapeamento não ativa a contabilização automática; a integração só será habilitada após homologação das regras com a contabilidade responsável.</p>
       <form onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage("");try{const response=await fetch("/api/contabilidade/mapeamentos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"CREATE_MAPPING",...mappingForm,paymentMethodId:mappingForm.eventType==="PAYMENT_RECEIVED"?mappingForm.paymentMethodId:null})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Não foi possível salvar o mapeamento.");setMessage("Mapeamento cadastrado.");setMappingForm({...mappingForm,paymentMethodId:"",description:""});await load();}catch(err){setMessage(err instanceof Error?err.message:"Falha ao salvar mapeamento.");}finally{setBusy(false);}}}>
