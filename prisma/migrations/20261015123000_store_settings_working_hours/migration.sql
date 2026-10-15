@@ -1,0 +1,3 @@
+ALTER TABLE "StoreSettings" ADD COLUMN "shiftStartTime" TEXT NOT NULL DEFAULT '09:00';
+ALTER TABLE "StoreSettings" ADD COLUMN "shiftEndTime" TEXT NOT NULL DEFAULT '18:00';
+ALTER TABLE "StoreSettings" ADD COLUMN "timeTrackingEnabled" BOOLEAN NOT NULL DEFAULT true;
