@@ -49,7 +49,7 @@ async function main() {
   const card = await db.paymentMethod.create({ data: { name: "CI Cartão " + suffix, isCash: false } });
 
   const opened = await api("/api/cash/session", {
-    method: "POST", headers, body: JSON.stringify({ openingCash: 100 })
+    method: "POST", headers, body: JSON.stringify({ openingCash: 100, openingReason: "INICIO_EXPEDIENTE", notes: "Abertura automatizada do teste integrado" })
   });
 
   const sale = await api("/api/sales", {
