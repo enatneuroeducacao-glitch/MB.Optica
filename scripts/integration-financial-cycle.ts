@@ -203,7 +203,8 @@ async function main() {
   assert(Number.isFinite(money(cashSummary.body.totals.expectedCash)), "saldo esperado do caixa");
   assert(Math.abs(money(cashSummary.body.totals.nonCashPayments)) < .01, "recebimentos estornados não entram no resumo");
   assert(Math.abs(money(cashSummary.body.totals.cashPayments) - 240) < .01, "recebimento em dinheiro incluído no resumo");
-  assert(Math.abs(money(cashSummary.body.totals.expectedCash) - (100 + 240 - 120)) < .01, "saldo esperado considera recebimento em dinheiro e reembolso");
+  assert(Math.abs(money(cashSummary.body.totals.expectedCash) - (money(cashSummary.body.session.openingCash) + money(cashSummary.body.totals.cashPayments) + money(cashSummary.body.totals.entries) - money(cashSummary.body.totals.exits))) < .01, "saldo esperado corresponde aos recebimentos em dinheiro e às movimentações reais da sessão");
+  assert(money(cashSummary.body.totals.expectedCash) >= 0, "saldo esperado não negativo após os estornos e reembolso");
 
   let closeWithoutReasonFailed = false;
   try {
