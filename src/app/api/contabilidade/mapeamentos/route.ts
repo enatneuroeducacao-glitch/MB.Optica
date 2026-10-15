@@ -157,6 +157,38 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ error: "Ação de mapeamento desconhecida." }, { status: 400 });
   } catch (error) {
+    // Diagnose a Prisma unique-constraint conflict that escaped the pre-check.
+    const prismaError = error as { code?: string; meta?: { target?: unknown } };
+    if (prismaError?.code === "P2002") {
+      try {
+        const body = await request.clone().json();
+        if (String(body?.action || "") === "CREATE_MAPPING") {
+          const eventType = String(body.eventType || "");
+          const paymentMethodId = body.paymentMethodId ? String(body.paymentMethodId) : null;
+          const debitAccountId = String(body.debitAccountId || "");
+          const creditAccountId = String(body.creditAccountId || "");
+          const existingMapping = await db.accountingMapping.findFirst({
+            where: { eventType, paymentMethodId, debitAccountId, creditAccountId },
+            include: {
+              debitAccount: { select: { id: true, code: true, name: true, active: true } },
+              creditAccount: { select: { id: true, code: true, name: true, active: true } },
+              paymentMethod: { select: { id: true, name: true, isCash: true } },
+            },
+          });
+          return NextResponse.json({
+            error: "Este mapeamento já existe com a mesma combinação de evento, meio de pagamento, débito e crédito.",
+            existingMapping,
+            conflictType: "UNIQUE_CONSTRAINT",
+            constraint: prismaError.meta?.target ?? null,
+            guidance: existingMapping
+              ? "O registro correspondente já está na lista. Não é necessário cadastrá-lo novamente."
+              : "A restrição de unicidade foi acionada, mas não foi possível localizar a linha exata. Nenhum registro foi alterado; revisar os dados e a restrição no banco.",
+          }, { status: 409 });
+        }
+      } catch {
+        // Fall through to the generic API error without changing records.
+      }
+    }
     return apiError(error, "Não foi possível salvar o mapeamento contábil.");
   }
 }
