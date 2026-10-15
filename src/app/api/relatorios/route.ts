@@ -9,6 +9,7 @@ export async function GET(){
   try{
     const today=startOfDay(new Date());
     const since=daysAgo(365);
+    const storeSettings=await db.storeSettings.findFirst({where:{active:true},select:{shiftStartTime:true,shiftEndTime:true,timeTrackingEnabled:true,timezone:true}});
     const [customers,products,orders,sales,accounts,settlements,cashSessions,stockMovements,quotes,prescriptions,appointments,auditLogs,fiscalDocuments,users,suppliers]=await Promise.all([
       db.customer.findMany({select:{id:true,name:true,cpfCnpj:true,phone:true,active:true,createdAt:true}}),
       db.product.findMany({include:{category:{select:{name:true}},supplier:{select:{name:true}},movements:true}}),
@@ -100,7 +101,7 @@ export async function GET(){
       sales:{monthly,paymentMethods:Object.entries(paymentMap).map(([name,value])=>({name,value})),bySeller:Object.entries(sellerMap).map(([name,total])=>({name,total})),topItems},
       stock:{items:stock,lowStock,zeroStock,recentMovements:stockMovements.slice(0,100)},
       orders:{byStatus:orderStatus,recent:orders.slice(0,100).map((o:any)=>({number:o.number,status:o.status,customer:o.customer.name,seller:o.seller?.name||"",laboratory:o.laboratory||"",dueDate:o.dueDate,createdAt:o.createdAt}))},
-      finance:{accounts:accounts.slice(0,300),settlements:settlements.slice(0,300),cashSessions:cashSessions.slice(0,90)},
+      finance:{accounts:accounts.slice(0,300),settlements:settlements.slice(0,300),cashSessions:cashSessions.slice(0,90),timeTracking:{enabled:storeSettings?.timeTrackingEnabled??true,shiftStartTime:storeSettings?.shiftStartTime||"09:00",shiftEndTime:storeSettings?.shiftEndTime||"18:00",timezone:storeSettings?.timezone||"America/Sao_Paulo"}},
       customers:{new30:customers.filter((c:any)=>c.createdAt>=daysAgo(30)).length,active:customers.filter((c:any)=>c.active).length,withPhone:customers.filter((c:any)=>c.phone).length,withoutDocument:customers.filter((c:any)=>!c.cpfCnpj).length},
       quotes:{open:quotes.filter((q:any)=>q.status==="ABERTO").length,expired:quotes.filter((q:any)=>q.status==="ABERTO"&&q.validUntil&&q.validUntil<today).length,converted:quotes.filter((q:any)=>q.order).length},
       prescriptions:{total:prescriptions.length,valid:prescriptions.filter((p:any)=>!p.validUntil||p.validUntil>=today).length,expired:prescriptions.filter((p:any)=>p.validUntil&&p.validUntil<today).length},
