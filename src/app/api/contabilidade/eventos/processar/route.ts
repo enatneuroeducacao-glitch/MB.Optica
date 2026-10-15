@@ -84,6 +84,11 @@ export async function POST(request: Request) {
       }
       const existingByKey = await tx.accountingEntry.findUnique({ where: { originKey: event.idempotencyKey } });
       if (existingByKey) {
+        // Never relink an event to an entry that has already been reversed.
+        // Reprocessing must not silently report a reversed entry as a valid accounting result.
+        if (existingByKey.status === "ESTORNADO" || existingByKey.reversedAt) {
+          throw new Error("Este evento possui um lançamento original já estornado. Não é seguro reprocessá-lo automaticamente; revise o histórico e gere um novo evento de origem após corrigir a operação.");
+        }
         await tx.accountingEvent.update({ where: { id: event.id }, data: { status: "PROCESSADO", processedAt: new Date(), entryId: existingByKey.id, errorMessage: null } });
         return { alreadyProcessed: true, entry: existingByKey };
       }
