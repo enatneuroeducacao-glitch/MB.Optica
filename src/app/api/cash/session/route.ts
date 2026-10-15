@@ -9,7 +9,17 @@ export async function GET(){
     orderBy:{openedAt:"desc"},
     include:{movements:{orderBy:{createdAt:"asc"}}}
   });
-  return NextResponse.json(session);
+  if(!session) return NextResponse.json(null);
+  const now=new Date();
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now);
+  const part=(key:string)=>parts.find(p=>p.type===key)?.value||"00";
+  const localHour=Number(part("hour"));
+  const localMinute=Number(part("minute"));
+  const today=part("year")+"-"+part("month")+"-"+part("day");
+  const openedDay=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(session.openedAt);
+  const closingPending=localHour>=19 && openedDay<=today;
+  const pendingSinceMinutes=closingPending?Math.max(0,(localHour-19)*60+localMinute):0;
+  return NextResponse.json({...session,closingPending,pendingSinceMinutes,closingTime:"19:00",businessDate:today});
 }
 
 export async function POST(req:Request){
