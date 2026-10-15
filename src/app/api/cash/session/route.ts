@@ -10,22 +10,20 @@ export async function GET(){
     include:{movements:{orderBy:{createdAt:"asc"}}}
   });
   if(!session) return NextResponse.json(null);
-  const now=new Date();
-  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now);
-  const part=(key:string)=>parts.find(p=>p.type===key)?.value||"00";
-  const localHour=Number(part("hour"));
-  const localMinute=Number(part("minute"));
-  const today=part("year")+"-"+part("month")+"-"+part("day");
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
   const openedDay=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(session.openedAt);
-  const closingPending=localHour>=19 && openedDay<=today;
-  const pendingSinceMinutes=closingPending?Math.max(0,(localHour-19)*60+localMinute):0;
-  return NextResponse.json({...session,closingPending,pendingSinceMinutes,closingTime:"19:00",businessDate:today});
+  const closingPending=openedDay<today;
+  return NextResponse.json({...session,closingPending,businessDate:today});
 }
 
 export async function POST(req:Request){
   try{
     const b=await req.json();
     const openingCash=Number(b.openingCash);
+    const openingAtRaw=String(b.openingAt||"");
+    const openingAt=new Date(openingAtRaw);
+    if(!openingAtRaw||Number.isNaN(openingAt.getTime())) throw new Error("Informe o horário de abertura");
+    if(openingAt.getTime()>Date.now()+60000) throw new Error("O horário de abertura não pode estar no futuro");
     const openingReason=String(b.openingReason||"");
     const allowedReasons=new Set(["INICIO_EXPEDIENTE","REABERTURA","TROCA_OPERADOR","OUTRO"]);
     if(!Number.isFinite(openingCash)||openingCash<0) throw new Error("Valor de abertura inválido");
@@ -38,9 +36,9 @@ export async function POST(req:Request){
       const open=await tx.cashSession.findFirst({where:{closedAt:null}});
       if(open) throw new Error("Já existe um caixa aberto");
       const session=await tx.cashSession.create({
-        data:{openingCash,notes:sessionNotes||undefined}
+        data:{openingCash,openedAt:openingAt,notes:sessionNotes||undefined}
       });
-      await writeAudit(tx,{action:"OPEN",entity:"CashSession",entityId:session.id,metadata:{openingCash,openingReason,notes:String(b.notes||"").trim()||null}});
+      await writeAudit(tx,{action:"OPEN",entity:"CashSession",entityId:session.id,metadata:{openingCash,openingAt:openingAt.toISOString(),serverRecordedAt:new Date().toISOString(),openingReason,notes:String(b.notes||"").trim()||null}});
       return session;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(session,{status:201});
