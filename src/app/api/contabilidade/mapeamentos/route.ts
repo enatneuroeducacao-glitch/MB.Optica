@@ -100,7 +100,19 @@ export async function POST(request: Request) {
       if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return NextResponse.json({ error: "Selecione contas diferentes para débito e crédito." }, { status: 400 });
       const existingMapping = await db.accountingMapping.findFirst({ where: { eventType, paymentMethodId } });
       if (existingMapping) {
-        return NextResponse.json({ error: "Já existe um mapeamento para este evento. Revise o cadastro existente em vez de criar outro." }, { status: 409 });
+        const existingDetails = await db.accountingMapping.findUnique({
+          where: { id: existingMapping.id },
+          include: {
+            debitAccount: { select: { code: true, name: true } },
+            creditAccount: { select: { code: true, name: true } },
+            paymentMethod: { select: { id: true, name: true, isCash: true } },
+          },
+        });
+        return NextResponse.json({
+          error: "Já existe um mapeamento para este evento e meio de pagamento.",
+          existingMapping: existingDetails,
+          guidance: "Confira a linha correspondente na lista. Se ela não aparecer, atualize a fila e verifique se o meio de pagamento continua ativo.",
+        }, { status: 409 });
       }
       if (paymentMethodId) {
         const method = await db.paymentMethod.findFirst({ where: { id: paymentMethodId, active: true } });
