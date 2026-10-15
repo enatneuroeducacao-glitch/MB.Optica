@@ -32,13 +32,18 @@ export async function POST(req:Request){
         .filter(m=>m.kind==="SAIDA"||m.kind==="SANGRIA")
         .reduce((s,m)=>s+Number(m.amount),0);
       if(closingAt<session.openedAt) throw new Error("O horário de fechamento não pode ser anterior à abertura");
-      const expected=Number(session.openingCash)+entradas-saidas;
+      const cashPayments=await tx.payment.findMany({
+        where:{paidAt:{gte:session.openedAt,lte:closingAt},reversedAt:null,method:{isCash:true}},
+        select:{amount:true}
+      });
+      const cashReceived=cashPayments.reduce((sum,p)=>sum+Number(p.amount),0);
+      const expected=Number(session.openingCash)+cashReceived+entradas-saidas;
 
       const closed=await tx.cashSession.update({
         where:{id:session.id},
         data:{closedAt:closingAt,closingCash:countedCash,notes:[session.notes,"Fechamento: "+closingReasonLabel,String(b.notes||"").trim()].filter(Boolean).join(" — ")||undefined}
       });
-      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected,closingAt:closingAt.toISOString(),serverRecordedAt:new Date().toISOString(),closingReason,notes:String(b.notes||"").trim()||null}});
+      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,cashReceived,countedCash,difference:countedCash-expected,closingAt:closingAt.toISOString(),serverRecordedAt:new Date().toISOString(),closingReason,notes:String(b.notes||"").trim()||null}});
       return {session:closed,expected,difference:countedCash-expected};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(result);
