@@ -201,7 +201,9 @@ async function main() {
   assert(Array.isArray(cashSummary.body.payments), "histórico de recebimentos no resumo");
   assert(Array.isArray(cashSummary.body.movements), "histórico de movimentações no resumo");
   assert(Number.isFinite(money(cashSummary.body.totals.expectedCash)), "saldo esperado do caixa");
-  assert(Math.abs(money(cashSummary.body.totals.nonCashPayments) - 120) < .01, "recebimentos não monetários separados no resumo");
+  assert(Math.abs(money(cashSummary.body.totals.nonCashPayments)) < .01, "recebimentos estornados não entram no resumo");
+  assert(Math.abs(money(cashSummary.body.totals.cashPayments) - 240) < .01, "recebimento em dinheiro incluído no resumo");
+  assert(Math.abs(money(cashSummary.body.totals.expectedCash) - (100 + 240 - 120)) < .01, "saldo esperado considera recebimento em dinheiro e reembolso");
 
   let closeWithoutReasonFailed = false;
   try {
