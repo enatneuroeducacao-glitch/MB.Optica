@@ -48,8 +48,19 @@ async function main() {
   const pix = await db.paymentMethod.create({ data: { name: "CI Pix " + suffix, isCash: false } });
   const card = await db.paymentMethod.create({ data: { name: "CI Cartão " + suffix, isCash: false } });
 
+  let openingWithoutTimeFailed = false;
+  try {
+    await api("/api/cash/session", {
+      method: "POST", headers, body: JSON.stringify({ openingCash: 100, openingReason: "INICIO_EXPEDIENTE" })
+    });
+  } catch {
+    openingWithoutTimeFailed = true;
+  }
+  assert(openingWithoutTimeFailed, "bloqueio de abertura sem horário de ponto");
+
+  const openingAt = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const opened = await api("/api/cash/session", {
-    method: "POST", headers, body: JSON.stringify({ openingCash: 100, openingReason: "INICIO_EXPEDIENTE", notes: "Abertura automatizada do teste integrado" })
+    method: "POST", headers, body: JSON.stringify({ openingCash: 100, openingAt, openingReason: "INICIO_EXPEDIENTE", notes: "Abertura automatizada do teste integrado" })
   });
 
   const sale = await api("/api/sales", {
@@ -216,9 +227,19 @@ async function main() {
   }
   assert(closeWithoutReasonFailed, "bloqueio de fechamento sem motivo");
 
+  let closingWithoutTimeFailed = false;
+  try {
+    await api("/api/cash/close", {
+      method: "POST", headers, body: JSON.stringify({ closingCash: 100, closingReason: "FIM_EXPEDIENTE" })
+    });
+  } catch {
+    closingWithoutTimeFailed = true;
+  }
+  assert(closingWithoutTimeFailed, "bloqueio de fechamento sem horário de ponto");
+
   const closed = await api("/api/cash/close", {
     method: "POST", headers, body: JSON.stringify({
-      closingCash: 100, closingReason: "FIM_EXPEDIENTE", notes: "Fechamento automatizado do teste integrado"
+      closingCash: 100, closingAt: new Date().toISOString(), closingReason: "FIM_EXPEDIENTE", notes: "Fechamento automatizado do teste integrado"
     })
   });
   assert(closed.body.session?.closedAt, "fechamento do caixa com motivo obrigatório");
