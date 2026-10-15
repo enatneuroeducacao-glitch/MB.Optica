@@ -7,7 +7,12 @@ export async function POST(req:Request){
   try{
     const b=await req.json().catch(()=>({}));
     const countedCash=Number(b.closingCash);
+    const closingReason=String(b.closingReason||"");
+    const allowedReasons=new Set(["FIM_EXPEDIENTE","TROCA_OPERADOR","FECHAMENTO_PARCIAL","DIVERGENCIA","OUTRO"]);
     if(!Number.isFinite(countedCash)||countedCash<0) throw new Error("Informe o valor contado no fechamento");
+    if(!allowedReasons.has(closingReason)) throw new Error("Selecione um motivo válido para o fechamento");
+    if((closingReason==="DIVERGENCIA"||closingReason==="OUTRO")&&!String(b.notes||"").trim()) throw new Error("Justifique a divergência ou o motivo do fechamento");
+    const closingReasonLabel=({FIM_EXPEDIENTE:"Fim do expediente",TROCA_OPERADOR:"Troca de operador",FECHAMENTO_PARCIAL:"Fechamento parcial",DIVERGENCIA:"Divergência de caixa",OUTRO:"Outro motivo"} as Record<string,string>)[closingReason];
     const result=await db.$transaction(async(tx)=>{
       const session=await tx.cashSession.findFirst({
         where:{closedAt:null},
@@ -26,9 +31,9 @@ export async function POST(req:Request){
 
       const closed=await tx.cashSession.update({
         where:{id:session.id},
-        data:{closedAt:new Date(),closingCash:countedCash,notes:b.notes||session.notes||undefined}
+        data:{closedAt:new Date(),closingCash:countedCash,notes:[session.notes,"Fechamento: "+closingReasonLabel,String(b.notes||"").trim()].filter(Boolean).join(" — ")||undefined}
       });
-      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected}});
+      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected,closingReason,notes:String(b.notes||"").trim()||null}});
       return {session:closed,expected,difference:countedCash-expected};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(result);
