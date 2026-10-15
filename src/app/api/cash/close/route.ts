@@ -7,6 +7,10 @@ export async function POST(req:Request){
   try{
     const b=await req.json().catch(()=>({}));
     const countedCash=Number(b.closingCash);
+    const closingAtRaw=String(b.closingAt||"");
+    const closingAt=new Date(closingAtRaw);
+    if(!closingAtRaw||Number.isNaN(closingAt.getTime())) throw new Error("Informe o horário de fechamento");
+    if(closingAt.getTime()>Date.now()+60000) throw new Error("O horário de fechamento não pode estar no futuro");
     const closingReason=String(b.closingReason||"");
     const allowedReasons=new Set(["FIM_EXPEDIENTE","TROCA_OPERADOR","FECHAMENTO_PARCIAL","DIVERGENCIA","OUTRO"]);
     if(!Number.isFinite(countedCash)||countedCash<0) throw new Error("Informe o valor contado no fechamento");
@@ -27,13 +31,14 @@ export async function POST(req:Request){
       const saidas=session.movements
         .filter(m=>m.kind==="SAIDA"||m.kind==="SANGRIA")
         .reduce((s,m)=>s+Number(m.amount),0);
+      if(closingAt<session.openedAt) throw new Error("O horário de fechamento não pode ser anterior à abertura");
       const expected=Number(session.openingCash)+entradas-saidas;
 
       const closed=await tx.cashSession.update({
         where:{id:session.id},
-        data:{closedAt:new Date(),closingCash:countedCash,notes:[session.notes,"Fechamento: "+closingReasonLabel,String(b.notes||"").trim()].filter(Boolean).join(" — ")||undefined}
+        data:{closedAt:closingAt,closingCash:countedCash,notes:[session.notes,"Fechamento: "+closingReasonLabel,String(b.notes||"").trim()].filter(Boolean).join(" — ")||undefined}
       });
-      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected,closingReason,notes:String(b.notes||"").trim()||null}});
+      await writeAudit(tx,{action:"CLOSE",entity:"CashSession",entityId:session.id,metadata:{expected,countedCash,difference:countedCash-expected,closingAt:closingAt.toISOString(),serverRecordedAt:new Date().toISOString(),closingReason,notes:String(b.notes||"").trim()||null}});
       return {session:closed,expected,difference:countedCash-expected};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
     return NextResponse.json(result);
