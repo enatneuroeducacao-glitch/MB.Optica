@@ -301,9 +301,40 @@ export async function POST(req:Request){
               amount,
               method:method.name,
               methodId:method.id,
+              cardMachineId:isCard?cardMachineId:undefined,
+              cardInstallments:isCard?cardInstallments:undefined,
+              cardFeeRate:isCard?cardFeeRate:undefined,
+              cardFeeAmount:isCard?cardFeeAmount:undefined,
+              cardNetAmount:isCard?cardNetAmount:undefined,
               reference:b.reference||undefined,
               notes:b.notes||undefined,
               payment:{connect:{id:payment.id}}
+            }
+          });
+
+          // A quitação de parcela vinculada a uma venda também precisa alimentar a fila contábil.
+          // O evento fica pendente e só será contabilizado após ativação explícita do mapeamento.
+          await tx.accountingEvent.create({
+            data:{
+              eventType:"PAYMENT_RECEIVED",
+              sourceType:"PAYMENT",
+              sourceId:payment.id,
+              idempotencyKey:"PAYMENT_RECEIVED:"+payment.id,
+              payload:{
+                amount,
+                entryDate:new Date().toISOString(),
+                description:"Recebimento de parcela da venda #"+sale.number,
+                paymentMethodId:method.id,
+                paymentMethodName:method.name,
+                isCash:method.isCash,
+                cardMachineId:isCard?cardMachineId:null,
+                cardFeeAmount:isCard?cardFeeAmount:0,
+                cardNetAmount:isCard?cardNetAmount:amount,
+                reference:b.reference||null,
+                accountId:account.id,
+                settlementId:settlement.id,
+                saleId:sale.id
+              }
             }
           });
           const paidAmount=Number(account.paidAmount)+amount;
