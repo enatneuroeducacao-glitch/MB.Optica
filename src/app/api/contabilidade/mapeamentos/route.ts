@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       if (eventType === "PAYMENT_RECEIVED" && !paymentMethodId) return NextResponse.json({ error: "Selecione o meio de pagamento para este mapeamento." }, { status: 400 });
       if (eventType !== "PAYMENT_RECEIVED" && paymentMethodId) return NextResponse.json({ error: "O meio de pagamento só pode ser definido para recebimentos de venda." }, { status: 400 });
       if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return NextResponse.json({ error: "Selecione contas diferentes para débito e crédito." }, { status: 400 });
-      const existingMapping = await db.accountingMapping.findFirst({ where: { eventType, paymentMethodId } });
+      const existingMapping = await db.accountingMapping.findFirst({ where: { eventType, paymentMethodId, debitAccountId, creditAccountId } });
       if (existingMapping) {
         const existingDetails = await db.accountingMapping.findUnique({
           where: { id: existingMapping.id },
@@ -109,9 +109,9 @@ export async function POST(request: Request) {
           },
         });
         return NextResponse.json({
-          error: "Já existe um mapeamento para este evento e meio de pagamento.",
+          error: "Já existe um mapeamento com este evento, meio de pagamento e a mesma combinação de contas.",
           existingMapping: existingDetails,
-          guidance: "Confira a linha correspondente na lista. Se ela não aparecer, atualize a fila e verifique se o meio de pagamento continua ativo.",
+          guidance: "Mapeamentos inativos diferentes podem coexistir para o mesmo meio de pagamento. A combinação idêntica de evento, meio de pagamento, débito e crédito não pode ser duplicada. Confira o ID retornado na lista.",
         }, { status: 409 });
       }
       if (paymentMethodId) {
