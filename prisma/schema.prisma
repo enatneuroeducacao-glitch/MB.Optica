@@ -210,6 +210,7 @@ model MailContactPreference {
   email String
   contactType String
   hidden Boolean @default(false)
+  deleted Boolean @default(false)
   blocked Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
