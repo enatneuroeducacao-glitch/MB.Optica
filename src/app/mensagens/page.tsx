@@ -8,7 +8,8 @@ type Email={
   _state?:{read:boolean;archived:boolean;deleted:boolean}
 };
 type Folder="inbox"|"unread"|"sent"|"archive"|"trash";
-type Contact={id:string;name:string;email:string;phone?:string|null;hidden?:boolean;blocked?:boolean};
+type Contact={id:string;name:string;email:string;phone?:string|null;hidden?:boolean;deleted?:boolean;blocked?:boolean};
+type ContactAction="hide"|"restore"|"delete"|"undelete";
 
 const dateBR=(v?:string)=>v?new Date(v).toLocaleString("pt-BR"):"—";
 const bytes=(n=0)=>n<1024?n+" B":n<1024*1024?(n/1024).toFixed(1)+" KB":(n/1024/1024).toFixed(1)+" MB";
@@ -32,7 +33,9 @@ export default function Mensagens(){
   const [contactType,setContactType]=useState<"clientes"|"fornecedores">("clientes");
   const [contacts,setContacts]=useState<Contact[]>([]);
   const [contactSearch,setContactSearch]=useState("");
-  const [showHiddenContacts,setShowHiddenContacts]=useState(false);
+  const [contactView,setContactView]=useState<"active"|"hidden"|"deleted">("active");
+  const [contactDialog,setContactDialog]=useState<{contact:Contact;action:ContactAction}|null>(null);
+  const [contactActionLoading,setContactActionLoading]=useState(false);
   const [contactsLoading,setContactsLoading]=useState(false);
   const fileRef=useRef<HTMLInputElement|null>(null);
 
@@ -51,26 +54,31 @@ export default function Mensagens(){
   const loadContacts=async(type=contactType)=>{
     setContactsLoading(true);
     try{
-      const r=await fetch("/api/messages/contacts?type="+type+"&includeHidden="+showHiddenContacts,{cache:"no-store"});
+      const r=await fetch("/api/messages/contacts?type="+type+"&view="+contactView,{cache:"no-store"});
       const d=await r.json();
       setContacts(Array.isArray(d.data)?d.data:[]);
       if(!r.ok)setError(d.error||"Não foi possível carregar os contatos.");
     }catch{setError("Não foi possível carregar os contatos.");}
     finally{setContactsLoading(false);}
   };
-  useEffect(()=>{loadContacts(contactType)},[contactType,showHiddenContacts]);
+  useEffect(()=>{loadContacts(contactType)},[contactType,contactView]);
 
-  const setContactVisibility=async(contact:Contact)=>{
-    const action=showHiddenContacts?"restore":"hide";
-    const label=action==="hide"?"ocultar":"restaurar";
-    if(action==="hide"&&!window.confirm("Ocultar "+contact.email+" apenas da lista de Mensagens? O cadastro original será preservado."))return;
-    setError("");
+  const executeContactAction=async()=>{
+    if(!contactDialog)return;
+    const {contact,action}=contactDialog;
+    const labels:Record<ContactAction,string>={hide:"ocultar",restore:"restaurar",delete:"excluir da lista",undelete:"restaurar"};
+    setContactActionLoading(true);setError("");
     try{
       const r=await fetch("/api/messages/contacts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:contact.email,type:contactType,action})});
       const d=await r.json();
-      if(!r.ok){setError(d.error||"Não foi possível "+label+" o contato.");return;}
+      if(!r.ok){setError(d.error||"Não foi possível "+labels[action]+" o contato.");return;}
+      setContactDialog(null);
+      if(action==="delete")setContactView("deleted");
+      else if(action==="hide")setContactView("hidden");
+      else setContactView("active");
       await loadContacts(contactType);
     }catch{setError("Não foi possível atualizar o contato.");}
+    finally{setContactActionLoading(false);}
   };
 
   const filteredContacts=contacts.filter(c=>(c.name+" "+c.email+" "+(c.phone||"")).toLowerCase().includes(contactSearch.toLowerCase()));
@@ -226,10 +234,23 @@ export default function Mensagens(){
 
     <div className="panel" style={{padding:16,marginTop:12}}>
       <div className="panel-heading" style={{padding:0,marginBottom:12}}><div><span className="eyebrow">CONTATOS</span><h2 style={{margin:"4px 0"}}>Clientes e fornecedores</h2><p style={{margin:0,color:"var(--muted)"}}>Use os e-mails cadastrados no MB Gestão sem precisar digitá-los.</p></div><button className="secondary" onClick={()=>loadContacts(contactType)}>↻ Atualizar</button></div>
-      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}><button className={contactType==="clientes"?"primary":"secondary"} onClick={()=>{setContactType("clientes");setContactSearch("")}}>👥 Clientes</button><button className={contactType==="fornecedores"?"primary":"secondary"} onClick={()=>{setContactType("fornecedores");setContactSearch("")}}>🏢 Fornecedores</button><button className="secondary" onClick={()=>setShowHiddenContacts(v=>!v)}>{showHiddenContacts?"← Voltar aos contatos":"Ocultos"}</button></div>
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}><button className={contactType==="clientes"?"primary":"secondary"} onClick={()=>{setContactType("clientes");setContactSearch("")}}>👥 Clientes</button><button className={contactType==="fornecedores"?"primary":"secondary"} onClick={()=>{setContactType("fornecedores");setContactSearch("")}}>🏢 Fornecedores</button><span style={{width:1,background:"var(--line)",margin:"0 4px"}}/><button className={contactView==="active"?"primary":"secondary"} onClick={()=>setContactView("active")}>Ativos</button><button className={contactView==="hidden"?"primary":"secondary"} onClick={()=>setContactView("hidden")}>Ocultos</button><button className={contactView==="deleted"?"primary":"secondary"} onClick={()=>setContactView("deleted")}>Excluídos</button></div>
       <input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder="Buscar nome ou e-mail..." style={{marginBottom:10}}/>
-      {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum contato com e-mail cadastrado encontrado.</div>:<div className="table"><div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span>Ações</span></div>{filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{!showHiddenContacts&&<button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button>}<button className="link-button" onClick={()=>setContactVisibility(c)}>{showHiddenContacts?"Restaurar":"Ocultar"}</button></div></div>)}</div>}
+      {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum contato com e-mail cadastrado encontrado.</div>:<div className="table"><div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span>Ações</span></div>{filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{contactView==="active"&&<><button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button><button className="link-button" onClick={()=>setContactDialog({contact:c,action:"hide"})}>Ocultar</button><button className="link-button" style={{color:"#b42318"}} onClick={()=>setContactDialog({contact:c,action:"delete"})}>Excluir</button></>}{contactView==="hidden"&&<><button className="link-button" onClick={()=>setContactDialog({contact:c,action:"restore"})}>Restaurar</button><button className="link-button" style={{color:"#b42318"}} onClick={()=>setContactDialog({contact:c,action:"delete"})}>Excluir</button></>}{contactView==="deleted"&&<button className="link-button" onClick={()=>setContactDialog({contact:c,action:"undelete"})}>Restaurar</button>}</div></div>)}</div>}
     </div>
+
+
+
+    {contactDialog&&<div role="presentation" onClick={()=>!contactActionLoading&&setContactDialog(null)} style={{position:"fixed",inset:0,zIndex:80,background:"rgba(18,24,33,.58)",backdropFilter:"blur(3px)",display:"grid",placeItems:"center",padding:20}}>
+      <section role="dialog" aria-modal="true" aria-labelledby="contact-dialog-title" onClick={e=>e.stopPropagation()} style={{width:"min(460px,100%)",background:"var(--surface)",color:"var(--foreground)",border:"1px solid var(--line)",borderRadius:18,boxShadow:"0 24px 80px rgba(0,0,0,.28)",overflow:"hidden"}}>
+        <div style={{padding:"22px 24px 18px",borderBottom:"1px solid var(--line)",display:"flex",gap:14,alignItems:"flex-start"}}>
+          <div style={{flexShrink:0,width:44,height:44,borderRadius:13,display:"grid",placeItems:"center",background:contactDialog.action==="delete"?"#fef3f2":"var(--surface-soft)",color:contactDialog.action==="delete"?"#b42318":"var(--primary)",fontSize:21}}>{contactDialog.action==="delete"?"🗑":contactDialog.action==="hide"?"⊖":"↩"}</div>
+          <div style={{minWidth:0}}><h3 id="contact-dialog-title" style={{fontSize:19,fontWeight:750,margin:"1px 0 6px"}}>{contactDialog.action==="delete"?"Excluir contato da lista?":contactDialog.action==="hide"?"Ocultar contato?":"Restaurar contato?"}</h3><p style={{fontSize:13,lineHeight:1.55,color:"var(--muted)",margin:0}}>{contactDialog.action==="delete"?"O contato sairá da lista de Mensagens e ficará em Excluídos, onde poderá ser restaurado. O cadastro original de cliente ou fornecedor não será apagado.":contactDialog.action==="hide"?"O contato será movido para Ocultos. Você poderá restaurá-lo a qualquer momento. O cadastro original será preservado.":"O contato voltará à lista principal de Mensagens."}</p></div>
+        </div>
+        <div style={{padding:"16px 24px",background:"var(--surface-soft)"}}><div style={{fontSize:11,textTransform:"uppercase",letterSpacing:".06em",fontWeight:700,color:"var(--muted)",marginBottom:5}}>Contato selecionado</div><div style={{fontWeight:700,overflowWrap:"anywhere"}}>{contactDialog.contact.name}</div><div style={{fontSize:13,color:"var(--muted)",overflowWrap:"anywhere",marginTop:3}}>{contactDialog.contact.email}</div></div>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10,padding:"16px 24px 22px",flexWrap:"wrap"}}><button className="secondary" disabled={contactActionLoading} onClick={()=>setContactDialog(null)} style={{minWidth:100}}>Cancelar</button><button className="primary" disabled={contactActionLoading} onClick={executeContactAction} style={{minWidth:135,background:contactDialog.action==="delete"?"#b42318":undefined,borderColor:contactDialog.action==="delete"?"#b42318":undefined}}>{contactActionLoading?"Processando...":contactDialog.action==="delete"?"Excluir da lista":contactDialog.action==="hide"?"Ocultar contato":"Restaurar contato"}</button></div>
+      </section>
+    </div>}
 
     {compose&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.58)",backdropFilter:"blur(4px)",display:"grid",placeItems:"center",zIndex:50,padding:16}}>
       <div className="panel" style={{width:"min(860px,100%)",maxHeight:"94vh",overflowY:"auto",padding:0,borderRadius:18,boxShadow:"0 24px 70px rgba(0,0,0,.24)"}}>
