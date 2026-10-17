@@ -8,7 +8,7 @@ type Email={
   _state?:{read:boolean;archived:boolean;deleted:boolean}
 };
 type Folder="inbox"|"unread"|"sent"|"archive"|"trash";
-type Contact={id:string;name:string;email:string;phone?:string|null};
+type Contact={id:string;name:string;email:string;phone?:string|null;hidden?:boolean;blocked?:boolean};
 
 const dateBR=(v?:string)=>v?new Date(v).toLocaleString("pt-BR"):"—";
 const bytes=(n=0)=>n<1024?n+" B":n<1024*1024?(n/1024).toFixed(1)+" KB":(n/1024/1024).toFixed(1)+" MB";
@@ -32,6 +32,7 @@ export default function Mensagens(){
   const [contactType,setContactType]=useState<"clientes"|"fornecedores">("clientes");
   const [contacts,setContacts]=useState<Contact[]>([]);
   const [contactSearch,setContactSearch]=useState("");
+  const [showHiddenContacts,setShowHiddenContacts]=useState(false);
   const [contactsLoading,setContactsLoading]=useState(false);
   const fileRef=useRef<HTMLInputElement|null>(null);
 
@@ -50,14 +51,27 @@ export default function Mensagens(){
   const loadContacts=async(type=contactType)=>{
     setContactsLoading(true);
     try{
-      const r=await fetch("/api/messages/contacts?type="+type,{cache:"no-store"});
+      const r=await fetch("/api/messages/contacts?type="+type+"&includeHidden="+showHiddenContacts,{cache:"no-store"});
       const d=await r.json();
       setContacts(Array.isArray(d.data)?d.data:[]);
       if(!r.ok)setError(d.error||"Não foi possível carregar os contatos.");
     }catch{setError("Não foi possível carregar os contatos.");}
     finally{setContactsLoading(false);}
   };
-  useEffect(()=>{loadContacts(contactType)},[contactType]);
+  useEffect(()=>{loadContacts(contactType)},[contactType,showHiddenContacts]);
+
+  const setContactVisibility=async(contact:Contact)=>{
+    const action=showHiddenContacts?"restore":"hide";
+    const label=action==="hide"?"ocultar":"restaurar";
+    if(action==="hide"&&!window.confirm("Ocultar "+contact.email+" apenas da lista de Mensagens? O cadastro original será preservado."))return;
+    setError("");
+    try{
+      const r=await fetch("/api/messages/contacts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:contact.email,type:contactType,action})});
+      const d=await r.json();
+      if(!r.ok){setError(d.error||"Não foi possível "+label+" o contato.");return;}
+      await loadContacts(contactType);
+    }catch{setError("Não foi possível atualizar o contato.");}
+  };
 
   const filteredContacts=contacts.filter(c=>(c.name+" "+c.email+" "+(c.phone||"")).toLowerCase().includes(contactSearch.toLowerCase()));
   const filteredRows=useMemo(()=>{
@@ -212,9 +226,9 @@ export default function Mensagens(){
 
     <div className="panel" style={{padding:16,marginTop:12}}>
       <div className="panel-heading" style={{padding:0,marginBottom:12}}><div><span className="eyebrow">CONTATOS</span><h2 style={{margin:"4px 0"}}>Clientes e fornecedores</h2><p style={{margin:0,color:"var(--muted)"}}>Use os e-mails cadastrados no MB Gestão sem precisar digitá-los.</p></div><button className="secondary" onClick={()=>loadContacts(contactType)}>↻ Atualizar</button></div>
-      <div style={{display:"flex",gap:6,marginBottom:10}}><button className={contactType==="clientes"?"primary":"secondary"} onClick={()=>{setContactType("clientes");setContactSearch("")}}>👥 Clientes</button><button className={contactType==="fornecedores"?"primary":"secondary"} onClick={()=>{setContactType("fornecedores");setContactSearch("")}}>🏢 Fornecedores</button></div>
+      <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}><button className={contactType==="clientes"?"primary":"secondary"} onClick={()=>{setContactType("clientes");setContactSearch("")}}>👥 Clientes</button><button className={contactType==="fornecedores"?"primary":"secondary"} onClick={()=>{setContactType("fornecedores");setContactSearch("")}}>🏢 Fornecedores</button><button className="secondary" onClick={()=>setShowHiddenContacts(v=>!v)}>{showHiddenContacts?"← Voltar aos contatos":"Ocultos"}</button></div>
       <input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder="Buscar nome ou e-mail..." style={{marginBottom:10}}/>
-      {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum contato com e-mail cadastrado encontrado.</div>:<div className="table"><div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span></span></div>{filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button></div>)}</div>}
+      {contactsLoading?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Carregando contatos...</div>:filteredContacts.length===0?<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhum contato com e-mail cadastrado encontrado.</div>:<div className="table"><div className="row header"><span>Nome</span><span>E-mail</span><span>Telefone</span><span>Ações</span></div>{filteredContacts.map(c=><div className="row" key={c.id}><strong>{c.name}</strong><span>{c.email}</span><span>{c.phone||"—"}</span><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{!showHiddenContacts&&<button className="link-button" onClick={()=>useContact(c.email)}>Usar e-mail</button>}<button className="link-button" onClick={()=>setContactVisibility(c)}>{showHiddenContacts?"Restaurar":"Ocultar"}</button></div></div>)}</div>}
     </div>
 
     {compose&&<div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.58)",backdropFilter:"blur(4px)",display:"grid",placeItems:"center",zIndex:50,padding:16}}>
