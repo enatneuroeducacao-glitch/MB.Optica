@@ -106,6 +106,7 @@ export default function Mensagens(){
     const r=await fetch("/api/messages/action",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messageId:id,action:actionName})});
     const d=await r.json();
     if(!r.ok){setError(d.error||"Não foi possível executar a ação.");return false}
+    if(actionName==="read"||actionName==="unread"||actionName==="delete"||actionName==="restore")window.dispatchEvent(new Event("mb:messages-updated"));
     if(refresh)await load(folder);
     return true;
   };
