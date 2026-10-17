@@ -187,6 +187,7 @@ orders OpticalOrder[]
 quotes Quote[]
 auditLogs AuditLog[]
   mailStates MailMessageState[]
+  mailContactPreferences MailContactPreference[]
 }
 
 model MailMessageState {
