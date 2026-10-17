@@ -49,7 +49,7 @@ export async function GET(req:Request){
       if(!target)return true;
       const recipients=[...(e.to||[]),...(e.cc||[])].map((x:string)=>x.toLowerCase());
       return recipients.length===0||recipients.includes(target);
-    }).map((e:any)=>({...e,_state:byId.get(e.id)||null}));
+    }).filter((e:any)=>folder!=="unread"||!byId.get(e.id)?.read).map((e:any)=>({...e,_state:byId.get(e.id)||null}));
 
     const hasMore=results.some(r=>Boolean(r.data?.has_more));
     return NextResponse.json({configured:true,data:visible,has_more:hasMore,mbEmail:actor.mbEmail||null,folder});
