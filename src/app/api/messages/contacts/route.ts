@@ -13,7 +13,7 @@ export async function GET(req:Request){
     const url=new URL(req.url);
     const type=url.searchParams.get("type")||"clientes";
     const view=url.searchParams.get("view")||"active";
-    if(type!=="clientes"&&type!=="fornecedores"){
+    if(type!=="clientes"&&type!=="fornecedores"&&type!=="loja"){
       return NextResponse.json({error:"Tipo de contato inválido."},{status:422});
     }
     if(!["active","hidden","deleted"].includes(view)){
@@ -21,7 +21,18 @@ export async function GET(req:Request){
     }
     const rows=type==="clientes"
       ? await db.customer.findMany({where:{active:true,email:{not:null}},select:{id:true,name:true,email:true,phone:true},orderBy:{name:"asc"},take:1000})
-      : await db.supplier.findMany({where:{active:true,email:{not:null}},select:{id:true,name:true,email:true,phone:true},orderBy:{name:"asc"},take:1000});
+      : type==="fornecedores"
+      ? await db.supplier.findMany({where:{active:true,email:{not:null}},select:{id:true,name:true,email:true,phone:true},orderBy:{name:"asc"},take:1000})
+      : await (async()=>{
+          const [settings,users]=await Promise.all([
+            db.storeSettings.findFirst({where:{active:true},select:{id:true,tradeName:true,email:true,phone:true}}),
+            db.user.findMany({where:{active:true,mbEmail:{not:null}},select:{id:true,name:true,mbEmail:true},orderBy:{name:"asc"}})
+          ]);
+          const list:any[]=[];
+          if(settings?.email)list.push({id:"store-"+settings.id,name:(settings.tradeName||"Loja")+" · E-mail geral",email:settings.email,phone:settings.phone||null});
+          for(const user of users)if(user.mbEmail)list.push({id:"user-"+user.id,name:user.name+" · Caixa MB",email:user.mbEmail,phone:null});
+          return list;
+        })();
     const preferences=await db.mailContactPreference.findMany({where:{userId:actor.id,contactType:type}});
     const byEmail=new Map(preferences.map(p=>[p.email.toLowerCase(),p]));
     const seen=new Set<string>();
@@ -50,7 +61,7 @@ export async function POST(req:Request){
     const email=typeof body.email==="string"?body.email.trim().toLowerCase():"";
     const type=body.type;
     const action=body.action;
-    if(!email||!/^\S+@\S+\.\S+$/.test(email)||!["clientes","fornecedores"].includes(type)||!["hide","restore","delete","undelete"].includes(action)){
+    if(!email||!/^\S+@\S+\.\S+$/.test(email)||!["clientes","fornecedores","loja"].includes(type)||!["hide","restore","delete","undelete"].includes(action)){
       return NextResponse.json({error:"Dados inválidos para atualizar o contato."},{status:422});
     }
     const values=action==="hide"?{hidden:true,deleted:false}
