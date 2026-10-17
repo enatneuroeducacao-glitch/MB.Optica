@@ -51,10 +51,10 @@ export default function Mensagens(){
   };
   useEffect(()=>{load(folder)},[folder]);
 
-  const loadContacts=async(type=contactType)=>{
+  const loadContacts=async(type=contactType,view=contactView)=>{
     setContactsLoading(true);
     try{
-      const r=await fetch("/api/messages/contacts?type="+type+"&view="+contactView,{cache:"no-store"});
+      const r=await fetch("/api/messages/contacts?type="+type+"&view="+view,{cache:"no-store"});
       const d=await r.json();
       setContacts(Array.isArray(d.data)?d.data:[]);
       if(!r.ok)setError(d.error||"Não foi possível carregar os contatos.");
@@ -76,7 +76,8 @@ export default function Mensagens(){
       if(action==="delete")setContactView("deleted");
       else if(action==="hide")setContactView("hidden");
       else setContactView("active");
-      await loadContacts(contactType);
+      const nextView=action==="delete"?"deleted":action==="hide"?"hidden":"active";
+      await loadContacts(contactType,nextView);
     }catch{setError("Não foi possível atualizar o contato.");}
     finally{setContactActionLoading(false);}
   };
