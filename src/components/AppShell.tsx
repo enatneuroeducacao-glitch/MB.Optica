@@ -40,8 +40,10 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     checkAlerts();
     const timer=window.setInterval(checkAlerts,60000);
     const onFocus=()=>checkAlerts();
+    const onMessagesUpdated=()=>checkAlerts();
     window.addEventListener("focus",onFocus);
-    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus)};
+    window.addEventListener("mb:messages-updated",onMessagesUpdated);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("mb:messages-updated",onMessagesUpdated)};
   },[user?.email,path]);
 
   useEffect(()=>{let active=true;const checkCash=async()=>{try{const r=await fetch("/api/cash/session",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(active)setCashSession(d)}catch{}};checkCash();const timer=window.setInterval(checkCash,60000);const onFocus=()=>checkCash();window.addEventListener("focus",onFocus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus)}},[path]);
