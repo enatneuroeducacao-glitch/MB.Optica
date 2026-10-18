@@ -72,7 +72,8 @@ export async function GET(){
       db.payrollSettings.findFirst({orderBy:{updatedAt:"desc"}}),
       db.fiscalConfig.findFirst({where:{active:true},orderBy:{updatedAt:"desc"}}),
       db.payrollRecord.findMany({orderBy:{competence:"desc"},take:60}),
-      db.legacyRecord.findMany({where:{collectionKey:"Venda",source:"BEEPSTART"},select:{payload:true}}),\n      db.legacyRecord.findMany({where:{collectionKey:"FATURAMENTO_MENSAL",source:"BEEPSTART_AGREGADO"},select:{payload:true}})
+      db.legacyRecord.findMany({where:{collectionKey:"Venda",source:"BEEPSTART"},select:{payload:true}}),
+      db.legacyRecord.findMany({where:{collectionKey:"FATURAMENTO_MENSAL",source:"BEEPSTART_AGREGADO"},select:{payload:true}})
     ]);
     let settings=payrollSettings;
     if(!settings){
