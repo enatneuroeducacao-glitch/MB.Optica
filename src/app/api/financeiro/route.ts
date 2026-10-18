@@ -90,7 +90,7 @@ export async function GET(){
       const p=r.payload||{};
       const month=String(p.month||"");
       const revenue=Number(p.total||0);
-      if(/^\\d{4}-(0[1-9]|1[0-2])$/.test(month)&&Number.isFinite(revenue)&&revenue>=0){
+      if(/^\d{4}-(0[1-9]|1[0-2])$/.test(month)&&Number.isFinite(revenue)&&revenue>=0){
         aggregateMonths.add(month);
         const row=monthlyMap.get(month)||{month,revenue:0,sales:0};
         row.revenue=money(revenue);
@@ -143,7 +143,7 @@ export async function GET(){
     const historicalBillingRows=legacyAggregates.map((r:any)=>{
       const p=r.payload||{};
       return {month:String(p.month||r.legacyId||""),total:Math.round(Number(p.total||0)*100)/100};
-    }).filter((r:any)=>/^\\d{4}-(0[1-9]|1[0-2])$/.test(r.month)).sort((a:any,b:any)=>a.month.localeCompare(b.month));
+    }).filter((r:any)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(r.month)).sort((a:any,b:any)=>a.month.localeCompare(b.month));
     const historicalBilling={months:historicalBillingRows,total:Math.round(historicalBillingRows.reduce((sum:number,r:any)=>sum+r.total,0)*100)/100,source:"BEEPSTART_AGREGADO"};
     return NextResponse.json({accounts,sales,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
   }catch(error){return NextResponse.json({error:"Não foi possível carregar o centro financeiro",detail:String(error)},{status:500})}
