@@ -42,7 +42,8 @@ footer{border-top:1px solid var(--line);margin-top:28px;padding-top:18px;color:v
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url === "/health" || req.url === "/api/health") {
+  const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
+  if (pathname === "/health" || pathname === "/api/health") {
     return send(res, 200, "application/json; charset=utf-8", JSON.stringify({
       ok: true,
       service: "mb-cloud-control-plane",
@@ -53,7 +54,7 @@ const server = http.createServer((req, res) => {
       backupScheduleConfigured: Boolean(process.env.MB_CLOUD_BACKUP_SCHEDULE)
     }));
   }
-  if (req.method !== "GET" || (req.url !== "/" && req.url !== "/index.html")) {
+  if (req.method !== "GET" || (pathname !== "/" && pathname !== "/index.html")) {
     return send(res, 404, "application/json; charset=utf-8", JSON.stringify({ error: "not_found" }));
   }
   return send(res, 200, "text/html; charset=utf-8", page());
