@@ -1,0 +1,8 @@
+{
+  "name": "mb-cloud-control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MB Cloud control plane for independent database, backup and recovery operations",
+  "scripts": {"start": "node server.js", "check": "node --check server.js"},
+  "engines": {"node": ">=22"}
+}
