@@ -10,47 +10,35 @@ This lab is intentionally separate from every production database. It creates a 
 - Use a disposable lab password. It is supplied through the shell environment and is not stored in the repository.
 - A successful lab restore does not prove that a managed production database supports pgBackRest.
 
-## Start (PowerShell)
+## Run the smoke test (PowerShell)
 
-From this directory, set a temporary lab-only password and start the container:
+Open PowerShell in this directory and run:
 
 ```powershell
-$env:LAB_POSTGRES_PASSWORD = Read-Host "Temporary password for the local lab"
-docker compose up -d --build
+.\test-lab.ps1
+```
+
+The script builds the image, starts the isolated database, creates the pgBackRest stanza, inserts a harmless test row, takes a full backup, and displays backup metadata. It is safe to rerun and does not delete Docker volumes. If it fails, capture the error and inspect:
+
+```powershell
+docker compose logs --tail 100 pgbackrest-lab
 docker compose ps
 ```
 
-Initialize the stanza and take the first full backup:
+The script requires Docker Desktop with Docker Compose available and a local Docker engine running.
 
-```powershell
-docker compose exec -u postgres pgbackrest-lab pgbackrest --stanza=mbcloud stanza-create
-docker compose exec -u postgres pgbackrest-lab pgbackrest --stanza=mbcloud check
-docker compose exec -u postgres pgbackrest-lab pgbackrest --stanza=mbcloud --type=full backup
-docker compose exec -u postgres pgbackrest-lab pgbackrest info
-```
+## What the smoke test does NOT prove
 
-## Basic integrity and recovery drill
+- It does not perform a full restore into a fresh data volume.
+- It does not copy backups to an off-site destination.
+- It does not connect to or back up Render, Neon, Supabase, or any production database.
+- A local Docker volume is not a safe sole copy of business data.
 
-Create a known test record:
+## Next gates
 
-```powershell
-docker compose exec pgbackrest-lab psql -U mbcloud_lab -d mbcloud_lab -c "CREATE TABLE IF NOT EXISTS restore_probe(id integer PRIMARY KEY, marker text NOT NULL); INSERT INTO restore_probe VALUES (1, 'pgbackrest-lab-ok') ON CONFLICT (id) DO UPDATE SET marker = EXCLUDED.marker;"
-```
-
-Take another full backup after inserting the test record:
-
-```powershell
-docker compose exec -u postgres pgbackrest-lab pgbackrest --stanza=mbcloud --type=full backup
-docker compose exec -u postgres pgbackrest-lab pgbackrest info
-```
-
-**Restore must be performed only against a disposable copy**, never the active data directory. To practice the recovery process, stop the lab, preserve its existing volumes, and use a separate disposable Compose project and fresh data volume. Do not delete volumes or run `docker compose down -v` while any backup in the lab is needed. The exact restore drill will be documented after the initial container is built and the PostgreSQL/pgBackRest version behavior is verified.
-
-## Current limitations / next gates
-
-1. Run the commands locally and capture their exit status.
-2. Demonstrate a restore into a fresh disposable volume and verify `restore_probe`.
-3. Copy an encrypted backup to a genuinely separate destination and verify its checksum and retrieval.
+1. Run the smoke test locally and confirm it exits successfully.
+2. Demonstrate restore into a fresh disposable volume and verify `restore_probe`.
+3. Choose an external destination without enabling paid billing, then encrypt, checksum, upload, download and verify a backup.
 4. Check whether the managed PostgreSQL provider supports the WAL/archive capabilities needed by pgBackRest. If not, use a logical `pg_dump` backup for that managed database rather than forcing pgBackRest onto it.
 
-No production database is configured here, no backup schedule is active, and no recovery claim should be made until all gates pass.
+No production database is configured here, no backup schedule is active, and no recovery claim should be made until all gates pass. Never run `docker compose down -v` while the lab backups are needed.
