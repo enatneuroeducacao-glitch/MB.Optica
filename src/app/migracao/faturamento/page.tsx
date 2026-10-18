@@ -65,6 +65,12 @@ export default function Page(){
       <div className="settings-status"><b>● SOMENTE LEITURA</b><span>Nenhuma gravação</span></div>
     </div>
 
+    <div className="panel" style={{marginBottom:16,borderLeft:"4px solid #087f73"}}>
+      <div className="panel-heading">
+        <div><span className="eyebrow">IMPORTAÇÃO ALTERNATIVA</span><h2>Somente faturamento mensal</h2><p>Se não deseja importar as vendas individuais, use o fluxo separado para totais históricos por mês.</p></div>
+        <a className="primary" href="/migracao/faturamento-agregado">Importar faturamento agregado</a>
+      </div>
+    </div>
     {message&&<div className="panel settings-message">{message}</div>}
 
     <div className="panel" style={{marginBottom:16,borderLeft:"4px solid #087f73"}}>
