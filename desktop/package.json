@@ -1,0 +1,14 @@
+{
+  "name": "mb-gestao-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows desktop shell for MB Gestão Inteligente",
+  "scripts": {
+    "build:web": "node -e \"require('fs').mkdirSync('dist',{recursive:true}); require('fs').copyFileSync('index.html','dist/index.html')\"",
+    "tauri:icon": "tauri icon ./icons/mb-gestao.svg --output ./src-tauri/icons",
+    "tauri:build": "npm run build:web && npm run tauri:icon && tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "2.8.4"
+  }
+}
