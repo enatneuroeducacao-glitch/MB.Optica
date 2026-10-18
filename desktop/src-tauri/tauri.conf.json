@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MB Gestão Inteligente",
+  "version": "0.1.0",
+  "identifier": "br.com.mboptica.gestao",
+  "build": {
+    "beforeBuildCommand": "npm run build:web",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "MB Gestão Inteligente",
+        "width": 1360,
+        "height": 900,
+        "minWidth": 980,
+        "minHeight": 680,
+        "url": "https://gestao.mboptica.com.br/"
+      }
+    ],
+    "security": {
+      "capabilities": []
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "shortDescription": "Aplicativo Windows do MB Gestão Inteligente",
+    "longDescription": "Cliente desktop conectado ao MB Gestão Inteligente online. Requer internet e autenticação.",
+    "category": "Business"
+  }
+}

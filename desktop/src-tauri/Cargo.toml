@@ -1,0 +1,16 @@
+[package]
+name = "mb-gestao-desktop"
+version = "0.1.0"
+description = "MB Gestão Inteligente Windows desktop client"
+authors = ["MB Óptica"]
+edition = "2021"
+
+[lib]
+name = "mb_gestao_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2" }
+
+[dependencies]
+tauri = { version = "2" }
