@@ -1,0 +1,45 @@
+name: MB Cloud Backup Restore Lab
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "mb-cloud/lab/**"
+      - ".github/workflows/mb-cloud-backup-lab.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "mb-cloud/lab/**"
+      - ".github/workflows/mb-cloud-backup-lab.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-backup-restore:
+    name: Synthetic PostgreSQL backup and restore
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Disposable test-only credential. Never use for any real database.
+      MB_CLOUD_LAB_PASSWORD: mb-cloud-ci-only-not-production-2026
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify Docker Compose
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Run isolated pgBackRest backup/restore smoke test
+        run: bash mb-cloud/lab/backup-restore-smoke.sh
+
+      - name: Show lab logs on failure
+        if: failure()
+        run: docker compose -f mb-cloud/lab/compose.yaml logs --no-color || true
+
+      - name: Clean up disposable lab volumes
+        if: always()
+        run: docker compose -f mb-cloud/lab/compose.yaml down -v --remove-orphans || true
