@@ -64,7 +64,7 @@ const payrollDefaults=()=>({ownerName:"Moni Becker",ownerRole:"Proprietária / A
 
 export async function GET(){
   try{
-    const [accounts,sales,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales]=await Promise.all([
+    const [accounts,sales,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales,legacyAggregates]=await Promise.all([
       db.account.findMany({orderBy:{dueDate:"asc"},take:200,include:{customer:{select:{id:true,name:true}},supplier:{select:{id:true,name:true}},sale:{select:{number:true}},settlements:{orderBy:{paidAt:"desc"},include:{paymentMethod:{select:{name:true}}}}}}),
       db.sale.findMany({where:{canceled:false},orderBy:{createdAt:"desc"},take:100,include:{customer:{select:{name:true}},payments:{include:{method:{select:{name:true}}}}}}),
       db.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"},include:{movements:{orderBy:{createdAt:"desc"},take:100}}}),
@@ -72,7 +72,8 @@ export async function GET(){
       db.payrollSettings.findFirst({orderBy:{updatedAt:"desc"}}),
       db.fiscalConfig.findFirst({where:{active:true},orderBy:{updatedAt:"desc"}}),
       db.payrollRecord.findMany({orderBy:{competence:"desc"},take:60}),
-      db.legacyRecord.findMany({where:{collectionKey:"Venda",source:"BEEPSTART"},select:{payload:true}})
+      db.legacyRecord.findMany({where:{collectionKey:"Venda",source:"BEEPSTART"},select:{payload:true}}),
+      db.legacyRecord.findMany({where:{collectionKey:"FATURAMENTO_MENSAL",source:"BEEPSTART_AGREGADO"},select:{payload:true}})
     ]);
     let settings=payrollSettings;
     if(!settings){
@@ -84,12 +85,33 @@ export async function GET(){
       const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
       const row=monthlyMap.get(key)||{month:key,revenue:0,sales:0}; row.revenue+=revenue; row.sales+=1; monthlyMap.set(key,row);
     };
+    const aggregateMonths=new Set<string>();
+    legacyAggregates.forEach((r:any)=>{
+      const p=r.payload||{};
+      const month=String(p.month||"");
+      const revenue=Number(p.total||0);
+      if(/^\d{4}-(0[1-9]|1[0-2])$/.test(month)&&Number.isFinite(revenue)&&revenue>=0){
+        aggregateMonths.add(month);
+        const row=monthlyMap.get(month)||{month,revenue:0,sales:0};
+        row.revenue=money(revenue);
+        row.sales=0;
+        monthlyMap.set(month,row);
+      }
+    });
     legacySales.forEach((r:any)=>{
       const p=r.payload||{}; if(p.cancelada) return;
+      const dateValue=Number(p.data);
+      const d=new Date(dateValue);
+      const month=Number.isNaN(d.getTime())?"":d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      if(aggregateMonths.has(month)) return;
       const revenue=Object.values((p.valoresIDs||{}) as Record<string,unknown>).reduce((a:number,v)=>a+Number(v||0),0);
-      if(revenue>0)addSale(Number(p.data),revenue);
+      if(revenue>0)addSale(dateValue,revenue);
     });
-    sales.forEach((s:any)=>addSale(s.createdAt,money(s.total)));
+    sales.forEach((s:any)=>{
+      const d=new Date(s.createdAt);
+      const month=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+      if(!aggregateMonths.has(month))addSale(s.createdAt,money(s.total));
+    });
     const now=new Date();
     const closedMonths:number[]=[];
     for(let i=1;i<=6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");closedMonths.push(monthlyMap.get(key)?.revenue||0)}
@@ -118,7 +140,12 @@ export async function GET(){
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
     const cashOut=cashMovements.filter(m=>["SAIDA","SANGRIA"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
-    return NextResponse.json({accounts,sales,methods,openCash,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
+    const historicalBillingRows=legacyAggregates.map((r:any)=>{
+      const p=r.payload||{};
+      return {month:String(p.month||r.legacyId||""),total:Math.round(Number(p.total||0)*100)/100};
+    }).filter((r:any)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(r.month)).sort((a:any,b:any)=>a.month.localeCompare(b.month));
+    const historicalBilling={months:historicalBillingRows,total:Math.round(historicalBillingRows.reduce((sum:number,r:any)=>sum+r.total,0)*100)/100,source:"BEEPSTART_AGREGADO"};
+    return NextResponse.json({accounts,sales,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
   }catch(error){return NextResponse.json({error:"Não foi possível carregar o centro financeiro",detail:String(error)},{status:500})}
 }
 
