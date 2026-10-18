@@ -32,7 +32,7 @@ echo "[3/5] Writing synthetic marker and taking full backup"
 
 echo "[4/5] Restoring into a separate temporary data directory"
 "${COMPOSE[@]}" --profile restore run --rm --no-deps --entrypoint /bin/bash restore-check -lc \
-  'mkdir -p /tmp/restoredata && pgbackrest --stanza=mbcloud-lab --pg1-path=/tmp/restoredata restore && pg_ctl -D /tmp/restoredata -o "-p 55433 -c listen_addresses=127.0.0.1 -c archive_mode=off" -w start && psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55433 -U mbcloud -d mbcloud_lab -Atc "SELECT marker FROM backup_smoke_marker WHERE id=1" | grep -Fx "MB_CLOUD_PGBACKREST_RESTORE_OK" && pg_ctl -D /tmp/restoredata -m fast -w stop'
+  'export PATH="/usr/lib/postgresql/16/bin:$PATH"; mkdir -p /tmp/restoredata && pgbackrest --stanza=mbcloud-lab --pg1-path=/tmp/restoredata restore && pg_ctl -D /tmp/restoredata -o "-p 55433 -c listen_addresses=127.0.0.1 -c archive_mode=off" -w start && psql -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55433 -U mbcloud -d mbcloud_lab -Atc "SELECT marker FROM backup_smoke_marker WHERE id=1" | grep -Fx "MB_CLOUD_PGBACKREST_RESTORE_OK" && pg_ctl -D /tmp/restoredata -m fast -w stop'
 
 echo "[5/5] PASS — backup created and restored marker verified in isolated database"
 echo "This is a local synthetic-data lab only. It does not connect to Render, Neon, or production."
