@@ -5,7 +5,7 @@ This lab validates the pgBackRest workflow with **synthetic data only**. It does
 ## Requirements
 
 - Docker Desktop with Docker Compose v2.
-- Free local disk space for three disposable Docker volumes.
+- Free local disk space for two disposable Docker volumes.
 - No cloud account or paid service is required for this local test.
 
 ## Run on Windows PowerShell
@@ -19,7 +19,7 @@ bash mb-cloud/lab/backup-restore-smoke.sh
 
 If Bash is not available in PowerShell, run the script from WSL or Git Bash. The PostgreSQL port is bound only to `127.0.0.1:55432`; it is not exposed to the public internet.
 
-The smoke test starts an isolated PostgreSQL 16 container, configures WAL archiving, creates a pgBackRest stanza, writes a synthetic marker, creates a full backup, restores into a **separate** data directory, starts the restored database on an isolated no-network container, and checks the marker.
+The smoke test starts an isolated PostgreSQL 16 container, configures WAL archiving, creates a pgBackRest stanza, writes a synthetic marker, creates a full backup, restores into a **separate temporary data directory** in a no-network container, starts the restored database on an isolated port, and checks the marker.
 
 ## Cleanup
 
@@ -30,6 +30,10 @@ docker compose -f mb-cloud/lab/compose.yaml down -v --remove-orphans
 ```
 
 This removes only the lab's named volumes and container. Do not use this cleanup command with any production compose file.
+
+## Automated verification
+
+The GitHub Actions workflow `.github/workflows/mb-cloud-backup-lab.yml` runs this synthetic backup/restore test for relevant pull requests and pushes to `main`. It uses only disposable test data and removes the lab volumes at the end.
 
 ## What a PASS proves — and what it does not
 
