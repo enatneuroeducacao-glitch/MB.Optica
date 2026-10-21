@@ -50,6 +50,7 @@ services:
     depends_on:
       migrator:
         condition: service_completed_successfully
+    command: ["node", "server.js"]
 
 volumes:
   mb_optica_local_data:
