@@ -5,32 +5,36 @@ const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","FOLHA-PONTO","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");
- useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);useEffect(()=>{fetch("/api/relatorios/historico-manual",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>setManualHistorical(x?.entries||[])).catch(()=>{})},[]);
+ const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[historicalBilling,setHistoricalBilling]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");
+ useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);useEffect(()=>{fetch("/beepstart-historico-mensal.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setHistoricalBilling).catch(()=>{})},[]);useEffect(()=>{fetch("/api/relatorios/historico-manual",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>setManualHistorical(x?.entries||[])).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
  useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
  const s=d.summary,inc=d.inconsistencies||[];
  const download=()=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="mb-optica-relatorios.json";a.click();URL.revokeObjectURL(u)};
+ const downloadBackup=()=>{const payload={schema:"mb-optica.relatorios-backup.v1",generatedAt:new Date().toISOString(),notice:"Exportação dos dados carregados em Relatórios; não substitui backup integral do banco de dados.",reports:d,historicalBilling,manualHistorical,legacySales};const b=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="mb-optica-backup-relatorios-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(u)};
  const row=(a:any,b:any,c:any="",e:any="")=><div className="report-row"><span>{a}</span><span>{b}</span><span>{c}</span><strong>{e}</strong></div>;
  return <section className="page reports-page">
- <div className="page-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h1>Relatórios</h1><p>Informações completas do sistema, desempenho, rastreabilidade e integridade.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button><button className="primary" onClick={download}>⇩ Exportar</button></div></div>
+ <div className="page-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h1>Relatórios</h1><p>Informações completas do sistema, desempenho, rastreabilidade e integridade.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button><button className="secondary" onClick={downloadBackup} title="Exporta os dados carregados nos relatórios; não é backup integral do banco.">⇩ Backup de relatórios (JSON)</button><button className="primary" onClick={download}>⇩ Exportar</button></div></div>
  {inc.length?<div className="report-alert"><div><b>⚠ {inc.length} inconsistência(s)</b><span>Existem registros que precisam de conferência.</span></div><button className="secondary" onClick={()=>setTab("INCONSISTÊNCIAS")}>Ver alertas</button></div>:<div className="report-ok">✓ Nenhuma inconsistência automática encontrada.</div>}
  <div className="report-tabs">{tabs.map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div>
  {tab==="VISÃO"&&(()=>{
-   const operational=(d.sales?.monthly||[]).map((x:any)=>({month:String(x.month),sales:n(x.sales),total:n(x.total),received:n(x.received)}));
-   const legacyMap=new Map<string,any>((legacySales?.monthly||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"BeepStart"}]));
-   const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"Manual"}]));
-   const monthly=operational.map((op:any)=>{
-     const manual=manualMap.get(op.month);
-     const legacyRow=legacyMap.get(op.month);
-     if(op.sales>0||op.total>0)return {...op,origin:"MB Óptica"};
+   const operational=(d.sales?.monthly||[]).map((x:any)=>({month:String(x.month),sales:n(x.sales),total:n(x.total),received:n(x.received),partial:false}));
+   const historicalMap=new Map<string,any>((historicalBilling?.monthly||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"BeepStart agregado",partial:Boolean(x.partial)}]));
+   const legacyMap=new Map<string,any>((legacySales?.monthly||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"BeepStart legado",partial:false}]));
+   const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"Manual",partial:false}]));
+   const operationalMap=new Map<string,any>(operational.map((x:any)=>[x.month,x]));
+   const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...legacyMap.keys(),...manualMap.keys()])].sort();
+   const monthly=months.map((month:string)=>{
+     const op=operationalMap.get(month),manual=manualMap.get(month),aggregate=historicalMap.get(month),legacyRow=legacyMap.get(month);
+     if(op&&(op.sales>0||op.total>0))return {...op,origin:"MB Óptica",partial:false};
      if(manual)return manual;
+     if(aggregate)return aggregate;
      if(legacyRow)return legacyRow;
-     return {...op,origin:"MB Óptica"};
+     return {month,sales:0,total:0,received:0,origin:"—",partial:false};
    });
    const targetFor=(index:number)=>{
-     const previous=monthly.slice(0,index).filter((x:any)=>n(x.total)>0).slice(-3);
+     const previous=monthly.slice(0,index).filter((x:any)=>n(x.total)>0&&!x.partial).slice(-3);
      if(!previous.length)return null;
      return previous.reduce((sum:number,x:any)=>sum+n(x.total),0)/previous.length*1.10;
    };
@@ -62,7 +66,7 @@ export default function Relatorios(){
      <div className="report-table" style={{marginTop:14}}>
       <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Ticket médio</span><span>Meta</span><span>Resultado</span></div>
       {enriched.map((x:any)=><div className="report-row" key={x.month}>
-       <strong>{x.month}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.sales>0?money(x.ticket):"—"}</span><span>{x.target===null?"—":money(x.target)}</span><span><b>{x.status}</b>{x.target!==null&&x.variance>=-0.009?<><br/><small>Ultrapassou {money(Math.max(0,x.variance))}</small></>:x.target!==null?<><br/><small>Faltam {money(Math.abs(x.variance))}</small></>:<><br/><small>Sem histórico anterior para meta</small></>}</span>
+       <strong>{x.month}{x.partial&&<><br/><small>Período parcial</small></>}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.sales>0?money(x.ticket):"—"}</span><span>{x.target===null?"—":money(x.target)}</span><span><b>{x.status}</b>{x.target!==null&&x.variance>=-0.009?<><br/><small>Ultrapassou {money(Math.max(0,x.variance))}</small></>:x.target!==null?<><br/><small>Faltam {money(Math.abs(x.variance))}</small></>:<><br/><small>Sem histórico anterior para meta</small></>}</span>
       </div>)}
      </div>
      <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Regra da meta sugerida: média dos até 3 meses anteriores com faturamento positivo, acrescida de 10%. A meta é um indicador gerencial adaptativo, não altera vendas, financeiro ou dados históricos.</p>
@@ -104,16 +108,23 @@ export default function Relatorios(){
    </div>;
  })()}
  {tab==="FATURAMENTO"&&(()=>{ 
-   const monthly=(d.sales?.monthly||[]).map((x:any)=>({...x,total:n(x.total),received:n(x.received),sales:n(x.sales)}));
-   const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0};
-   const previous=monthly[monthly.length-2]||{month:"—",sales:0,total:0,received:0};
+   const operational=(d.sales?.monthly||[]).map((x:any)=>({...x,month:String(x.month),total:n(x.total),received:n(x.received),sales:n(x.sales),partial:false,origin:"MB Óptica"}));
+   const historicalRows=(historicalBilling?.monthly?.length?historicalBilling.monthly:(legacySales?.monthly||[])).map((x:any)=>({month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,partial:Boolean(x.partial),origin:x.partial?"BeepStart agregado · parcial":"BeepStart agregado"}));
+   const historicalMap=new Map<string,any>(historicalRows.map((x:any)=>[x.month,x]));
+   const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,partial:false,origin:"Manual"}]));
+   const operationalMap=new Map<string,any>(operational.map((x:any)=>[x.month,x]));
+   const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...manualMap.keys()])].sort();
+   const monthly=months.map((month:string)=>{const op=operationalMap.get(month),manual=manualMap.get(month),historic=historicalMap.get(month);if(op&&(op.sales>0||op.total>0))return {...op,partial:false};if(manual)return manual;if(historic)return historic;return {month,sales:0,total:0,received:0,partial:false,origin:"—"};});
+   const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0,partial:false};
+   const previous=monthly.filter((x:any)=>x.month<current.month&&n(x.total)>0).slice(-1)[0]||{month:"—",sales:0,total:0,received:0};
    const variation=previous.total>0?((current.total-previous.total)/previous.total)*100:null;
-   const average=monthly.length?monthly.reduce((a:any,x:any)=>a+x.total,0)/monthly.length:0;
+   const completeMonths=monthly.filter((x:any)=>n(x.total)>0&&!x.partial);
+   const average=completeMonths.length?completeMonths.reduce((a:any,x:any)=>a+x.total,0)/completeMonths.length:0;
    const receivedRate=current.total>0?(current.received/current.total)*100:null;
    const highest=monthly.reduce((a:any,x:any)=>x.total>a.total?x:a,current);
    return <div className="report-grid-2">
     <div className="panel full">
-     <div className="panel-heading"><div><span className="eyebrow">FASE 6.4</span><h2>Faturamento</h2><p>Análise do faturamento operacional dos últimos 12 meses, com comparação, recebimento e evolução.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
+     <div className="panel-heading"><div><span className="eyebrow">FASE 6.4</span><h2>Faturamento</h2><p>Histórico BeepStart e faturamento operacional por competência, com períodos parciais identificados e sem duplicar meses sobrepostos.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir relatório</button></div></div>
      <div className="report-kpis compact">
       <Card t="Faturamento do mês" v={money(current.total)} d={current.sales+" venda(s)"}/>
       <Card t="Mês anterior" v={money(previous.total)} d={previous.sales+" venda(s)"}/>
@@ -139,27 +150,27 @@ export default function Relatorios(){
       {d.sales.bySeller.slice(0,10).map((x:any)=><div className="report-row" key={x.name}><span>{x.name}</span><span></span><span></span><strong>{money(x.total)}</strong></div>)}
      </div>
     </div>
-    {legacySales?.ok&&<div className="panel full" style={{marginTop:16}}>
+    {((historicalBilling?.monthly?.length||0)>0||legacySales?.ok)&&<div className="panel full" style={{marginTop:16}}>
      <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h2>Faturamento mensal histórico</h2><p>Base BeepStart preservada separadamente das vendas atuais. Os lançamentos manuais ficam isolados e nunca criam ou alteram vendas, recebimentos ou contas do mês atual.</p></div>
       <div className="report-actions">
        <button className="primary" onClick={()=>{setManualError("");setShowManualHistorical(true)}}>＋ Inserir vendas antigas</button>
        <button className="secondary" onClick={()=>{
         const lines=["Mês;Quantidade de vendas;Faturamento;Origem"];
-        legacySales.monthly.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"BeepStart"].join(";")));
+        historicalRows.forEach((x:any)=>lines.push([x.month.split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),x.origin].join(";")));
         manualHistorical.forEach((x:any)=>lines.push([String(x.month).split("-").reverse().join("/"),String(x.sales),String(x.total).replace(".",","),"Manual"].join(";")));
         const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-historico.csv";a.click();URL.revokeObjectURL(url);
        }}>⇩ Exportar mensal</button>
        <button className="secondary" onClick={()=>{
         const lines=["Data;Valor faturado;ID legado"];
-        legacySales.sales.forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
+        (legacySales?.sales||[]).forEach((x:any)=>lines.push([x.date?new Date(x.date).toLocaleDateString("pt-BR"):"",String(x.value).replace(".",","),x.saleId].join(";")));
         const blob=new Blob(["\ufeff"+lines.join("\n")],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="faturamento-legado-beepstart-2026.csv";a.click();URL.revokeObjectURL(url);
        }}>⇩ Exportar vendas BeepStart</button>
       </div>
      </div>
-     <div className="report-kpis compact"><Card t="Vendas BeepStart" v={legacySales.count}/><Card t="Total BeepStart" v={money(legacySales.total)} d="base preservada"/><Card t="Lançamentos manuais" v={manualHistorical.length} d="sem impacto operacional"/><Card t="Vendas atuais" v={current.sales} d="mantidas separadas"/></div>
+     <div className="report-kpis compact"><Card t="Vendas BeepStart" v={historicalBilling?.summary?.sales??legacySales?.count??0}/><Card t="Total BeepStart" v={money(historicalBilling?.summary?.total??legacySales?.total??0)} d="28 competências agregadas"/><Card t="Lançamentos manuais" v={manualHistorical.length} d="sem impacto operacional"/><Card t="Vendas atuais" v={current.sales} d="mantidas separadas"/></div>
      <div className="report-table">
       <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Origem</span></div>
-      {legacySales.monthly.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>BeepStart</span></div>)}
+      {historicalRows.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}{x.partial&&<><br/><small>Período parcial</small></>}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.origin}</span></div>)}
       {manualHistorical.map((x:any)=><div className="report-row" key={"manual-"+x.id}><strong>{String(x.month).split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
      </div>
      <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Os valores BeepStart são somente leitura. O lançamento manual é apenas histórico e não altera as vendas atuais.</p>
