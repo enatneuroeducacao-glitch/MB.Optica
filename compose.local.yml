@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mb_optica_local
+      POSTGRES_USER: mb_optica_local
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD:?Defina LOCAL_DB_PASSWORD no .env.local}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - mb_optica_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mb_optica_local -d mb_optica_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrator:
+    build:
+      context: .
+      target: migrator
+    restart: "no"
+    environment:
+      DATABASE_URL: postgresql://mb_optica_local:${LOCAL_DB_PASSWORD:?Defina LOCAL_DB_PASSWORD no .env.local}@db:5432/mb_optica_local?schema=public
+      DIRECT_URL: postgresql://mb_optica_local:${LOCAL_DB_PASSWORD:?Defina LOCAL_DB_PASSWORD no .env.local}@db:5432/mb_optica_local?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://mb_optica_local:${LOCAL_DB_PASSWORD:?Defina LOCAL_DB_PASSWORD no .env.local}@db:5432/mb_optica_local?schema=public
+      DIRECT_URL: postgresql://mb_optica_local:${LOCAL_DB_PASSWORD:?Defina LOCAL_DB_PASSWORD no .env.local}@db:5432/mb_optica_local?schema=public
+      MB_SITE_SUPABASE_URL: ""
+      MB_SITE_SUPABASE_SERVICE_ROLE_KEY: ""
+      MB_OPTICA_OWNER_INSTANCE: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    command: ["node", "server.js"]
+
+volumes:
+  mb_optica_local_data:
