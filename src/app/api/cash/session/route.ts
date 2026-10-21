@@ -29,6 +29,7 @@ export async function GET(){
 export async function POST(req:Request){
   try{
     const b=await req.json();
+    if(b.openingCash===undefined||b.openingCash===null||String(b.openingCash).trim()==="") throw new Error("Informe o valor inicial contado para abrir o caixa");
     const openingCash=Number(b.openingCash);
     const openingReason=String(b.openingReason||"");
     const allowedReasons=new Set(["INICIO_EXPEDIENTE","REABERTURA","TROCA_OPERADOR","OUTRO"]);
