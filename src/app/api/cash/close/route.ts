@@ -6,10 +6,11 @@ import {writeAudit} from "@/lib/audit";
 export async function POST(req:Request){
   try{
     const b=await req.json().catch(()=>({}));
+    if(b.closingCash===undefined||b.closingCash===null||String(b.closingCash).trim()==="") throw new Error("Informe o valor contado no fechamento do caixa");
     const countedCash=Number(b.closingCash);
     const closingReason=String(b.closingReason||"");
     const allowedReasons=new Set(["FIM_EXPEDIENTE","TROCA_OPERADOR","FECHAMENTO_PARCIAL","DIVERGENCIA","OUTRO"]);
-    if(!Number.isFinite(countedCash)||countedCash<0) throw new Error("Informe o valor contado no fechamento");
+    if(!Number.isFinite(countedCash)||countedCash<0) throw new Error("Informe um valor válido contado no fechamento");
     if(!allowedReasons.has(closingReason)) throw new Error("Selecione um motivo válido para o fechamento");
     if((closingReason==="DIVERGENCIA"||closingReason==="OUTRO")&&!String(b.notes||"").trim()) throw new Error("Justifique a divergência ou o motivo do fechamento");
     const closingReasonLabel=({FIM_EXPEDIENTE:"Fim do expediente",TROCA_OPERADOR:"Troca de operador",FECHAMENTO_PARCIAL:"Fechamento parcial",DIVERGENCIA:"Divergência de caixa",OUTRO:"Outro motivo"} as Record<string,string>)[closingReason];
