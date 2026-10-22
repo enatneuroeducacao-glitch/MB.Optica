@@ -1,0 +1,37 @@
+services:
+  pgbackrest-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mb-cloud-pgbackrest-lab
+    environment:
+      POSTGRES_DB: mbcloud_lab
+      POSTGRES_USER: mbcloud_lab
+      POSTGRES_PASSWORD: ${LAB_POSTGRES_PASSWORD:?Set LAB_POSTGRES_PASSWORD in your shell before starting the lab}
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=60s
+      - -c
+      - archive_command=pgbackrest --stanza=mbcloud archive-push %p
+      - -c
+      - max_wal_senders=3
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - pgbackrest_repo:/var/lib/pgbackrest
+      - pgbackrest_spool:/var/spool/pgbackrest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mbcloud_lab -d mbcloud_lab"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
+volumes:
+  pgdata:
+  pgbackrest_repo:
+  pgbackrest_spool:
