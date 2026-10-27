@@ -10,7 +10,42 @@ type Entitlement={owner:boolean;plan:string;status:string;trial:boolean;modules:
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [notice,setNotice]=useState<{title:string;detail:string;kind:"error"|"success"}|null>(null); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
+
+  useEffect(()=>{
+    const showNotice=(event:Event)=>{
+      const detail=(event as CustomEvent<{title?:string;detail?:string;kind?:"error"|"success"}>).detail;
+      if(!detail)return;
+      setNotice({title:detail.title||"Não foi possível concluir a operação",detail:detail.detail||"Revise os dados e tente novamente.",kind:detail.kind||"error"});
+    };
+    window.addEventListener("mb:notice",showNotice);
+    return()=>window.removeEventListener("mb:notice",showNotice);
+  },[]);
+  useEffect(()=>{
+    const originalFetch=window.fetch.bind(window);
+    window.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
+      const response=await originalFetch(input,init);
+      const method=(init?.method||(input instanceof Request?input.method:"GET")).toUpperCase();
+      const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;
+      if(method!=="GET" && url.startsWith("/api/") && !response.ok){
+        try{
+          const payload=await response.clone().json();
+          const details=Array.isArray(payload?.details)?payload.details.map((item:{field?:string;message?:string})=>`${item.field||"Campo"}: ${item.message||"preenchimento inválido"}`).join("; "):"";
+          const detail=details||payload?.error||payload?.message||`A solicitação falhou (HTTP ${response.status}).`;
+          window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Erro ao salvar ou executar operação",detail,kind:"error"}}));
+        }catch{
+          window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Erro ao salvar ou executar operação",detail:`A solicitação falhou (HTTP ${response.status}).`,kind:"error"}}));
+        }
+      }
+      return response;
+    };
+    return()=>{window.fetch=originalFetch};
+  },[]);
+  useEffect(()=>{
+    if(!notice)return;
+    const timer=window.setTimeout(()=>setNotice(null),10000);
+    return()=>window.clearTimeout(timer);
+  },[notice]);
   useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{}); fetch("/api/entitlements",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d)setEntitlement(d)}).catch(()=>{})},[]);
   useEffect(()=>{
     if(!user||path==="/login"||path==="/setup"||path==="/primeiro-acesso")return;
@@ -96,5 +131,10 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
       </header>
       {children}
     </main>
+    {notice&&<div className={"global-notice "+(notice.kind==="success"?"global-notice-success":"global-notice-error")} role="alert" aria-live="assertive">
+      <div className="global-notice-icon" aria-hidden="true">{notice.kind==="success"?"✓":"!"}</div>
+      <div className="global-notice-content"><strong>{notice.title}</strong><p>{notice.detail}</p></div>
+      <button type="button" className="global-notice-close" aria-label="Fechar aviso" onClick={()=>setNotice(null)}>×</button>
+    </div>}
   </div>
 }
