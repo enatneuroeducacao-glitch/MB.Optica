@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { ZodError } from "zod";
 
 export function apiError(error: unknown, fallback = "Não foi possível concluir a operação.") {
+  if (error instanceof ZodError) return NextResponse.json({ error: "Dados inválidos.", details: error.issues.map(issue => ({ field: issue.path.join(".") || "formulário", message: issue.message })) }, { status: 422 });
   if (error instanceof Error && error.message === "UNAUTHORIZED") {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
