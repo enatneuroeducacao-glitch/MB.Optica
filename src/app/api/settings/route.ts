@@ -23,7 +23,7 @@ export async function PATCH(request:Request){
     await db.auditLog.create({data:{action:"STORE_SETTINGS_UPDATED",entity:"StoreSettings",entityId:settings.id,userId:actor.id}});
     return NextResponse.json({settings});
   }catch(error){
-    if(error instanceof z.ZodError)return NextResponse.json({error:"Configurações inválidas."},{status:422});
+    if(error instanceof z.ZodError)return NextResponse.json({error:"Configurações inválidas.",details:error.issues.map(issue=>({field:issue.path.join(".")||"formulário",message:issue.message}))},{status:422});
     return apiError(error,"Não foi possível salvar as configurações.");
   }
 }
