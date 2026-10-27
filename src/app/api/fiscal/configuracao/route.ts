@@ -65,7 +65,7 @@ export async function PATCH(request:Request){
     }});
     return NextResponse.json({config,certificate:certificateState(config)});
   }catch(error){
-    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados fiscais inválidos. Revise os campos obrigatórios."},{status:422});
+    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados fiscais inválidos.",details:error.issues.map(issue=>({field:issue.path.join(".")||"formulário",message:issue.message}))},{status:422});
     return apiError(error,"Não foi possível salvar a configuração fiscal.");
   }
 }
