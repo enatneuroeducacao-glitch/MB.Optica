@@ -23,7 +23,7 @@ export async function POST(request:Request){
     await db.auditLog.create({data:{action:"USER_CREATED",entity:"User",entityId:user.id,userId:actor.id,metadata:{role:user.role}}});
     return NextResponse.json({user:{id:user.id,name:user.name,email:user.email,mbEmail:user.mbEmail,role:user.role,active:user.active,permissions:user.permissions,mustChangePassword:user.mustChangePassword}},{status:201});
   }catch(error){
-    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados de usuário inválidos."},{status:422});
+    if(error instanceof z.ZodError)return NextResponse.json({error:"Dados de usuário inválidos.",details:error.issues.map(issue=>({field:issue.path.join(".")||"formulário",message:issue.message}))},{status:422});
     return apiError(error,"Não foi possível criar o usuário.");
   }
 }
