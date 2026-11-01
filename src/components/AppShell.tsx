@@ -112,6 +112,26 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
   if(path==="/inicio"||path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
   if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/inicio");router.refresh();}finally{setBusy(false);}}
+  async function downloadLocalBackup(){
+    try{
+      setBusy(true);
+      const response=await fetch("/api/relatorios",{cache:"no-store"});
+      if(!response.ok)throw new Error("Não foi possível gerar o backup (HTTP "+response.status+").");
+      const reports=await response.json();
+      if(reports?.error)throw new Error(reports.error);
+      const payload={schema:"mb-optica-backup-operacional.v1",generatedAt:new Date().toISOString(),notice:"Backup operacional em JSON com os dados disponibilizados pelo módulo de relatórios. Não substitui um backup integral do banco de dados.",reports};
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const link=document.createElement("a");
+      const stamp=new Date().toISOString().replace(/[:.]/g,"-");
+      link.href=url;link.download="mb-optica-backup-"+stamp+".json";
+      document.body.appendChild(link);link.click();link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+      setNotice({title:"Backup preparado para salvar no PC",detail:"O arquivo JSON foi enviado para download pelo navegador. Confira a pasta Downloads ou escolha outro local na janela de salvamento, se disponível.",kind:"success"});
+    }catch(error){
+      setNotice({title:"Não foi possível gerar o backup",detail:error instanceof Error?error.message:"Ocorreu um erro inesperado ao gerar o arquivo.",kind:"error"});
+    }finally{setBusy(false)}
+  }
   return <div className="shell">
     {menuOpen&&<button className="mobile-menu-overlay" aria-label="Fechar menu" onClick={()=>setMenuOpen(false)}/>}
     <aside className={"sidebar"+(menuOpen?" mobile-open":"")}>
@@ -122,7 +142,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     <main className="main">
       <header className="topbar">
         <div className="topbar-left"><button className="mobile-menu-button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button><div><span className="eyebrow">OPERAÇÃO</span><strong>Centro de controle</strong></div></div>
-        <div className="top-actions">{user&&<a className="version-control university-top-link" href="https://universidade.mboptica.com.br/" target="_blank" rel="noopener noreferrer" title="Abrir a Universidade MB em uma nova aba">🎓 Universidade MB ↗</a>}{user&&<Link className="version-control" href="/vendas#caixa" title={cashSession===undefined?"Consultar situação do caixa":cashSession===null?"Abrir o caixa e registrar o horário de início":"Conferir o caixa e registrar o fechamento"}>{cashSession===undefined?"Caixa":cashSession===null?"Abrir caixa":"Fechar caixa"}</Link>}{user&&cashSession&&cashSession.closingPending&&<Link className="version-control update-available" href="/vendas#caixa" title="Há um caixa aberto de dia anterior">Fechamento pendente</Link>}<button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button>{entitlement&&!entitlement.owner&&<span className="version-badge" title={entitlement.trial?"Modo degustação":"Recursos conforme assinatura"}>{entitlement.trial?"Degustação":"Plano "+entitlement.plan}</span>}<span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
+        <div className="top-actions">{user&&<a className="version-control university-top-link" href="https://universidade.mboptica.com.br/" target="_blank" rel="noopener noreferrer" title="Abrir a Universidade MB em uma nova aba">🎓 Universidade MB ↗</a>}{user&&<button className="version-control backup-top-button" type="button" onClick={downloadLocalBackup} disabled={busy} title="Gerar um backup operacional JSON para salvar no computador">⇩ Backup</button>}{user&&<Link className="version-control" href="/vendas#caixa" title={cashSession===undefined?"Consultar situação do caixa":cashSession===null?"Abrir o caixa e registrar o horário de início":"Conferir o caixa e registrar o fechamento"}>{cashSession===undefined?"Caixa":cashSession===null?"Abrir caixa":"Fechar caixa"}</Link>}{user&&cashSession&&cashSession.closingPending&&<Link className="version-control update-available" href="/vendas#caixa" title="Há um caixa aberto de dia anterior">Fechamento pendente</Link>}<button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button>{entitlement&&!entitlement.owner&&<span className="version-badge" title={entitlement.trial?"Modo degustação":"Recursos conforme assinatura"}>{entitlement.trial?"Degustação":"Plano "+entitlement.plan}</span>}<span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
       </header>
       {children}
     </main>
