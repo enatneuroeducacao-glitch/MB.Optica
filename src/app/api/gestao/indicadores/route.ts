@@ -86,6 +86,7 @@ export async function GET(){
           code:true,
           description:true,
           minimumStock:true,
+          stockControlled:true,
           cost:true,
           salePrice:true,
           supplierId:true,
@@ -191,6 +192,7 @@ export async function GET(){
         description:product.description,
         quantity,
         minimumStock:num(product.minimumStock),
+        stockControlled:product.stockControlled!==false,
         cost:money(num(product.cost)),
         salePrice:money(num(product.salePrice)),
         stockCost:money(quantity*num(product.cost)),
@@ -198,28 +200,29 @@ export async function GET(){
         supplierId:product.supplierId,
         soldThisMonth:num(soldQuantityMap.get(product.id)),
         reorderQuantity:Math.max(0,num(product.minimumStock)-quantity),
-        status:quantity<0?"NEGATIVO":quantity===0?"ZERADO":quantity<=num(product.minimumStock)?"ABAIXO_MINIMO":"OK"
+        status:product.stockControlled===false?"NAO_CONTROLADO":quantity<0?"NEGATIVO":quantity===0?"ZERADO":quantity<=num(product.minimumStock)?"ABAIXO_MINIMO":"OK"
       };
     });
 
-    const lowStock=stock.filter(item=>item.quantity>0&&item.quantity<=item.minimumStock);
+    const controlledStock=stock.filter(item=>item.stockControlled);
+    const lowStock=controlledStock.filter(item=>item.quantity>0&&item.quantity<=item.minimumStock);
     const belowCostProducts=stock
       .filter(item=>item.salePrice>0&&item.salePrice<item.cost)
       .map(item=>({id:item.id,code:item.code,description:item.description,cost:item.cost,salePrice:item.salePrice,difference:money(item.salePrice-item.cost)}))
       .slice(0,50);
-    const zeroStock=stock.filter(item=>item.quantity<=0);
-    const negativeStock=stock.filter(item=>item.quantity<0);
-    const criticalStock=stock
+    const zeroStock=controlledStock.filter(item=>item.quantity<=0);
+    const negativeStock=controlledStock.filter(item=>item.quantity<0);
+    const criticalStock=controlledStock
       .filter(item=>item.status!=="OK")
       .sort((a,b)=>{
         const rank=(x:any)=>x.status==="NEGATIVO"?0:x.status==="ZERADO"?1:2;
         return rank(a)-rank(b)||b.reorderQuantity-a.reorderQuantity;
       });
-    const replenishment=stock
+    const replenishment=controlledStock
       .filter(item=>item.reorderQuantity>0)
       .sort((a,b)=>b.reorderQuantity-a.reorderQuantity)
       .slice(0,50);
-    const stockCoverage=stock.filter(item=>item.soldThisMonth>0).map(item=>({
+    const stockCoverage=controlledStock.filter(item=>item.soldThisMonth>0).map(item=>({
       id:item.id,code:item.code,description:item.description,quantity:item.quantity,soldThisMonth:item.soldThisMonth,
       estimatedDaysCoverage:Math.round((item.quantity/item.soldThisMonth)*new Date().getDate()),
       status:item.status
@@ -718,11 +721,13 @@ export async function GET(){
       },
       estoque:{
         produtosAtivos:stock.length,
+        produtosComControleDeEstoque:controlledStock.length,
+        produtosSemControleDeEstoque:stock.length-controlledStock.length,
         estoqueBaixo:lowStock.length,
         estoqueZero:zeroStock.length,
         estoqueNegativo:negativeStock.length,
-        valorCusto:money(stock.reduce((sum,item)=>sum+item.stockCost,0)),
-        valorVenda:money(stock.reduce((sum,item)=>sum+item.stockRetail,0)),
+        valorCusto:money(controlledStock.reduce((sum,item)=>sum+item.stockCost,0)),
+        valorVenda:money(controlledStock.reduce((sum,item)=>sum+item.stockRetail,0)),
         itensCriticos:criticalStock,
         reposicaoNecessaria:replenishment,
         coberturaCritica:stockCoverage
