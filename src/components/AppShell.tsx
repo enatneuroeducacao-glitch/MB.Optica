@@ -41,11 +41,6 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     };
     return()=>{window.fetch=originalFetch};
   },[]);
-  useEffect(()=>{
-    if(!notice)return;
-    const timer=window.setTimeout(()=>setNotice(null),10000);
-    return()=>window.clearTimeout(timer);
-  },[notice]);
   useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{}); fetch("/api/entitlements",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d)setEntitlement(d)}).catch(()=>{})},[]);
   useEffect(()=>{
     if(!user||path==="/login"||path==="/setup"||path==="/primeiro-acesso")return;
