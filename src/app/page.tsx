@@ -5,7 +5,7 @@ import {StatCard} from "@/components/StatCard";
 import {money} from "@/lib/domain";
 
 type DashboardData={customers:number;products:number;integratedProducts:number;orders:number;receivables:number;payables:number;salesToday:number;receivedToday:number;cashBalance:number;cashOpen:boolean;lowStock:number;zeroStock:number;overdue:number;appointmentsToday:number;appointments:{id:string;scheduledAt:string;type:string;professionalName:string;customer:{name:string}}[];recentOrders:{id:string;number:number;status:string;dueDate:string|null;total:number;customer:{name:string}}[];laboratory:Record<string,number>};
-type EconomicAlert={severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";title:string;detail:string};
+type EconomicAlert={severity:"CRITICO"|"ATENCAO"|"INFORMATIVO";indicator:string;message:string};
 type ManagementIndicators={
  faturamento:{total:number;vendas:number;ticketMedio:number;hoje:number;mesAnterior:number;variacaoPercentual:number|null};
  margem:{custo:number;margemBruta:number;margemBrutaPercentual:number;margemMesAnterior:number};
