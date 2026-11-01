@@ -75,7 +75,7 @@ export default function Produtos(){
    if(Array.isArray(c)&&c.length===0&&!categoryBootstrapTried){setCategoryBootstrapTried(true);for(const name of ["Armações","Lentes","Lentes de contato","Tratamentos","Acessórios","Serviços","Outros"]){await fetch("/api/categories",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})})}const cc=await fetch("/api/categories").then(r=>r.json());if(Array.isArray(cc))setCats(cc);}
   }catch(e){setRows([]);setMsg(e instanceof Error?e.message:"Não foi possível carregar os produtos.");}
  };
- useEffect(()=>{load();if(typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("tab")==="estoque")setStockOpen(true)},[]);
+ useEffect(()=>{load();if(typeof window!=="undefined"){const params=new URLSearchParams(window.location.search);if(params.get("tab")==="estoque")setStockOpen(true);const supplierId=params.get("fornecedor");if(supplierId){setForm({...makeEmpty(),supplierId});setFormTab("cadastro");setOpen(true);setMsg("Novo produto: o fornecedor do alerta foi pré-selecionado. Preencha os dados do produto e salve para criar o vínculo.");}}},[]);
  const defaultCategories=["Armações","Lentes","Tratamentos","Acessórios","Serviços","Outros"];
  const createDefaultCategories=async()=>{setMsg("");try{for(const name of defaultCategories){await fetch("/api/categories",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})})}await load();setMsg("Categorias padrão criadas.");}catch(e){setMsg("Não foi possível criar as categorias padrão.")}};
 
