@@ -214,8 +214,7 @@ export async function GET(){
       .sort((a,b)=>{
         const rank=(x:any)=>x.status==="NEGATIVO"?0:x.status==="ZERADO"?1:2;
         return rank(a)-rank(b)||b.reorderQuantity-a.reorderQuantity;
-      })
-      .slice(0,50);
+      });
     const replenishment=stock
       .filter(item=>item.reorderQuantity>0)
       .sort((a,b)=>b.reorderQuantity-a.reorderQuantity)
