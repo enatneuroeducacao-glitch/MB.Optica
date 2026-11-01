@@ -774,6 +774,7 @@ export async function GET(){
         ativos:suppliers.length,
         comProdutos:suppliers.filter(supplier=>supplier.products.length>0).length,
         semProdutos:suppliersWithoutProducts.length,
+        semProdutosDetalhes:suppliersWithoutProducts.map(item=>({id:item.id,name:item.name,products:item.products,payable:item.payable,overdue:item.overdue})),
         totalAPararFornecedores:money(totalSupplierPayable),
         vencido:money(supplierIndicators.reduce((sum,item)=>sum+item.overdue,0)),
         concentracao:supplierIndicators.slice(0,10),
