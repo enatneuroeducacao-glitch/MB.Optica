@@ -10,11 +10,11 @@ type Entitlement={owner:boolean;plan:string;status:string;trial:boolean;modules:
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [notice,setNotice]=useState<{title:string;detail:string;kind:"error"|"success"}|null>(null); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [notice,setNotice]=useState<{title:string;detail:string;kind:"error"|"success"|"warning"|"info"}|null>(null); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
 
   useEffect(()=>{
     const showNotice=(event:Event)=>{
-      const detail=(event as CustomEvent<{title?:string;detail?:string;kind?:"error"|"success"}>).detail;
+      const detail=(event as CustomEvent<{title?:string;detail?:string;kind?:"error"|"success"|"warning"|"info"}>).detail;
       if(!detail)return;
       setNotice({title:detail.title||"Não foi possível concluir a operação",detail:detail.detail||"Revise os dados e tente novamente.",kind:detail.kind||"error"});
     };
@@ -131,8 +131,8 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
       </header>
       {children}
     </main>
-    {notice&&<div className={"global-notice "+(notice.kind==="success"?"global-notice-success":"global-notice-error")} role="alert" aria-live="assertive">
-      <div className="global-notice-icon" aria-hidden="true">{notice.kind==="success"?"✓":"!"}</div>
+    {notice&&<div className={"global-notice global-notice-"+notice.kind} role={notice.kind==="error"?"alert":"status"} aria-live={notice.kind==="error"?"assertive":"polite"} aria-atomic="true">
+      <div className="global-notice-icon" aria-hidden="true">{notice.kind==="success"?"✓":notice.kind==="warning"?"⚠":notice.kind==="info"?"i":"!"}</div>
       <div className="global-notice-content"><strong>{notice.title}</strong><p>{notice.detail}</p></div>
       <button type="button" className="global-notice-close" aria-label="Fechar aviso" onClick={()=>setNotice(null)}>×</button>
     </div>}
