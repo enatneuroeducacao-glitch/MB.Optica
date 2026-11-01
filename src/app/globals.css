@@ -285,3 +285,21 @@ input:focus,textarea:focus,select:focus{border-color:var(--brand)!important;box-
 
 .management-alert-row{display:flex;width:100%;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;border:0;border-bottom:1px solid var(--line);background:transparent;text-align:left;color:inherit;cursor:pointer;font:inherit}.management-alert-row>span{flex:1}.management-alert-row>strong{flex-shrink:0;color:var(--brand);font-size:11px}.management-alert-row:hover{background:var(--surface-soft,#faf7f1)}.alert-detail-backdrop{position:fixed;inset:0;z-index:2147482000;background:rgba(24,20,16,.55);display:flex;align-items:center;justify-content:center;padding:20px}.alert-detail-modal{width:min(100%,1050px);max-height:85vh;overflow:auto;margin:0;background:var(--surface,#fff)}.alert-detail-modal .table{overflow:auto}.alert-detail-modal .row{min-width:650px}.alert-detail-content{padding:18px 0}.alert-detail-footer{display:flex;justify-content:flex-end;margin-top:16px}.alert-detail-modal .panel-heading{gap:12px}
 @media(max-width:700px){.management-alert-row{align-items:flex-start;flex-direction:column;gap:6px}.alert-detail-backdrop{padding:8px}.alert-detail-modal{max-height:92vh}.alert-detail-modal .panel-heading{align-items:flex-start}}
+
+
+/* Confirmação de arquivamento integrada ao sistema, sem alertas nativos do navegador. */
+.archive-confirm-backdrop{position:fixed;inset:0;z-index:2147483001;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(28,23,18,.62);backdrop-filter:blur(4px);animation:global-notice-in .16s ease-out}
+.archive-confirm-modal{width:min(100%,480px);padding:28px;border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:0 24px 80px rgba(0,0,0,.32);color:var(--text)}
+.archive-confirm-icon{display:grid;place-items:center;width:42px;height:42px;margin-bottom:18px;border-radius:13px;background:#fff0e8;color:#a64024;font-size:23px;font-weight:800}
+.archive-confirm-modal h2{margin:6px 0 10px;font-size:22px;letter-spacing:-.035em}
+.archive-confirm-modal>p{margin:0;color:var(--muted);font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.archive-confirm-modal>p strong{color:var(--text)}
+.archive-confirm-note{display:flex;flex-direction:column;gap:5px;margin-top:18px;padding:13px 14px;border:1px solid #e9d8bb;border-radius:10px;background:#fff9ef;font-size:11px;line-height:1.6;color:#71542b}
+.archive-confirm-note strong{font-size:11px}
+.archive-confirm-error{margin-top:14px;padding:11px 12px;border:1px solid #e5aaa2;border-radius:9px;background:#fff2f0;color:#91291f;font-size:12px;line-height:1.5}
+.archive-confirm-actions{display:flex;justify-content:flex-end;gap:9px;flex-wrap:wrap;margin-top:23px}
+.archive-confirm-actions button{min-height:40px}
+.archive-confirm-danger{border:1px solid #a43d2b;border-radius:8px;padding:10px 14px;background:#a43d2b;color:white;font-size:11px;font-weight:750;cursor:pointer}
+.archive-confirm-danger:hover:not(:disabled){background:#852e21}
+.archive-confirm-danger:disabled,.archive-confirm-actions button:disabled{opacity:.6;cursor:wait}
+@media(max-width:520px){.archive-confirm-modal{padding:21px}.archive-confirm-actions{flex-direction:column-reverse}.archive-confirm-actions button{width:100%}}
