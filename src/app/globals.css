@@ -280,3 +280,5 @@ input:focus,textarea:focus,select:focus{border-color:var(--brand)!important;box-
 /* Ações da central de integridade e correção de alertas */
 .integrity-row{grid-template-columns:.8fr .8fr 2.4fr 1fr;align-items:center}.integrity-row small{display:block;margin-top:5px;color:var(--muted);font-size:10px;overflow-wrap:anywhere}.integrity-action{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--brand-dark);font-size:10px;font-weight:700;text-decoration:none;white-space:nowrap}.integrity-action:hover{background:var(--brand-soft);border-color:var(--brand)}
 @media(max-width:700px){.integrity-row{grid-template-columns:1fr 1fr}.integrity-row span:nth-child(3){grid-column:1/-1}.integrity-row span:nth-child(4){grid-column:1/-1}.integrity-action{white-space:normal}}
+
+.backup-top-button{cursor:pointer;border-color:#b88a45;background:#fff8eb;color:#805a20;font-weight:750}.backup-top-button:hover:not(:disabled){background:#f6e8ce;border-color:#9d702d}.backup-top-button:disabled{opacity:.65;cursor:wait}
