@@ -21,9 +21,10 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     const originalAlert=window.alert.bind(window);
     window.alert=(message?:any)=>{
       const detail=String(message??"O sistema precisa da sua atenção.");
-      window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Aviso do MB Gestão",detail,kind:"error",code:"SYSTEM_ALERT"}}));
-    };
-    window.addEventListener("mb:notice",showNotice);
+      const path=window.location.pathname+window.location.search;
+      const target=/sessão|acesso|permissão/i.test(detail)?"/configuracoes":path;
+      window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Aviso do MB Gestão",detail,kind:"error",actionHref:target,actionLabel:/sessão|acesso|permissão/i.test(detail)?"Verificar acesso e permissões":"Abrir módulo atual em nova aba",code:"SYSTEM_ALERT"}}));
+    };    window.addEventListener("mb:notice",showNotice);
     return()=>{window.removeEventListener("mb:notice",showNotice);window.alert=originalAlert};
   },[]);
   useEffect(()=>{
