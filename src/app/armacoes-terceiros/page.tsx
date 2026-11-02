@@ -17,7 +17,7 @@ function printBlankTerm(){
  w.document.open();w.document.write(html);w.document.close();w.onload=()=>w.print();
 }
 
-function printLabSheet(data:{customerName:string;customerId?:string;brand?:string;model?:string;source:string;purchaseDate?:string;condition:string;risks?:string;serviceRequested:string;inspectionNotes?:string;photoReferences?:string;servicePrice?:string|number|null;createdAt?:string;id?:string}){
+function printLabSheet(data:{customerName:string;customerId?:string|null;brand?:string|null;model?:string|null;source:string;purchaseDate?:string|null;condition:string;risks?:string|null;serviceRequested:string;inspectionNotes?:string|null;photoReferences?:string|null;servicePrice?:string|number|null;createdAt?:string;id?:string}){
  const esc=(v:unknown)=>String(v??"Não informado").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
  const date=data.createdAt?new Date(data.createdAt).toLocaleDateString("pt-BR"):new Date().toLocaleDateString("pt-BR");
  const sourceLabels:Record<string,string>={MARKETPLACE:"Marketplace / plataforma",OUTRA_OTICA:"Outra ótica",PRESENTE:"Presente / terceiro",OUTRA:"Outra origem"};
