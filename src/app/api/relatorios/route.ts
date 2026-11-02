@@ -82,7 +82,8 @@ export async function GET(){
       if(!s.canceled&&!s.sellerId)push("CRÍTICO","VENDA","Venda #"+s.number+" sem vendedor","Sale",s.id);
     });
     orders.forEach((o:any)=>{
-      if(["ENTREGUE","PRONTO"].includes(o.status)&&!o.dueDate)push("ALERTA","PEDIDO","Pedido #"+o.number+" sem data de entrega definida","OpticalOrder",o.id);
+      if(o.status==="PRONTO"&&!o.dueDate)push("ALERTA","PEDIDO","Pedido #"+o.number+" pronto para entrega sem data prevista definida","OpticalOrder",o.id);
+      if(o.status==="ENTREGUE"&&!o.deliveredAt)push("ATENÇÃO","PEDIDO","Pedido #"+o.number+" entregue sem data efetiva de entrega registrada. Regularize o histórico se necessário.","OpticalOrder",o.id);
       if(o.status==="EM_PRODUCAO"&&!o.laboratory)push("CRÍTICO","LABORATÓRIO","Pedido #"+o.number+" em produção sem laboratório","OpticalOrder",o.id);
     });
     fiscalDocuments.forEach((f:any)=>{
