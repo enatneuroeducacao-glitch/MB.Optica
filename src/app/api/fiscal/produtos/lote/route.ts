@@ -1,0 +1,55 @@
+import {NextResponse} from "next/server";
+import {db} from "@/lib/db";
+import {requireRole} from "@/lib/auth";
+import {apiError} from "@/lib/api-error";
+
+type FiscalRow={id?:unknown;code?:unknown;ncm?:unknown;cest?:unknown;cfop?:unknown;origin?:unknown;taxCode?:unknown};
+
+export async function POST(request:Request){
+  try{
+    const actor=await requireRole(["ADMIN","GERENTE"]);
+    const body=await request.json();
+    if(!Array.isArray(body?.products)||body.products.length===0)
+      return NextResponse.json({error:"Envie uma lista de produtos com dados fiscais conferidos."},{status:422});
+    if(body.products.length>500)
+      return NextResponse.json({error:"O limite por importação é de 500 produtos."},{status:422});
+
+    const issues:string[]=[];
+    const updates:{id:string;data:Record<string,string>}[]=[];
+    const seen=new Set<string>();
+    for(let i=0;i<body.products.length;i++){
+      const row=body.products[i] as FiscalRow;
+      const id=String(row?.id??"").trim();
+      if(!id){issues.push(`Linha ${i+2}: identificador do produto ausente.`);continue;}
+      if(seen.has(id)){issues.push(`Linha ${i+2}: produto duplicado na planilha.`);continue;}
+      seen.add(id);
+      const data:Record<string,string>={};
+      for(const key of ["ncm","cest","cfop","origin","taxCode"] as const){
+        const raw=row[key];
+        if(raw===undefined||raw===null||String(raw).trim()==="")continue;
+        const value=String(raw).trim();
+        if(key==="ncm"&&!/^\d{8}$/.test(value))issues.push(`Linha ${i+2}: NCM deve conter 8 dígitos.`);
+        else if(key==="cest"&&!/^\d{7}$/.test(value))issues.push(`Linha ${i+2}: CEST deve conter 7 dígitos.`);
+        else if(key==="cfop"&&!/^\d{4}$/.test(value))issues.push(`Linha ${i+2}: CFOP deve conter 4 dígitos.`);
+        else if(key==="origin"&&!/^[0-8]$/.test(value))issues.push(`Linha ${i+2}: origem deve ser um dígito de 0 a 8.`);
+        else if(key==="taxCode"&&value.length>30)issues.push(`Linha ${i+2}: código tributário excede 30 caracteres.`);
+        else data[key]=value;
+      }
+      if(Object.keys(data).length===0)issues.push(`Linha ${i+2}: nenhum campo fiscal informado; nenhum valor será inventado.`);
+      else updates.push({id,data});
+    }
+    if(issues.length)return NextResponse.json({error:"A importação não foi aplicada. Corrija as pendências da planilha.",details:issues.slice(0,100),totalIssues:issues.length},{status:422});
+    const ids=updates.map(x=>x.id);
+    const existing=await db.product.findMany({where:{id:{in:ids}},select:{id:true}});
+    if(existing.length!==updates.length)
+      return NextResponse.json({error:"Um ou mais produtos não existem mais. Nenhuma alteração foi aplicada; exporte uma nova planilha."},{status:409});
+    await db.$transaction(async tx=>{
+      for(const item of updates)await tx.product.update({where:{id:item.id},data:item.data});
+      await tx.auditLog.create({data:{
+        action:"FISCAL_PRODUCTS_BULK_UPDATED",entity:"ProductFiscalBatch",entityId:updates[0]?.id??null,userId:actor.id,
+        metadata:{count:updates.length,fields:[...new Set(updates.flatMap(x=>Object.keys(x.data)))],source:"validated CSV import",taxRegime:"SIMEI"}
+      }});
+    });
+    return NextResponse.json({ok:true,updated:updates.length,message:`${updates.length} produto(s) atualizado(s). Apenas campos explicitamente preenchidos e validados foram gravados.`});
+  }catch(error){return apiError(error,"Não foi possível importar os dados fiscais em lote.");}
+}
