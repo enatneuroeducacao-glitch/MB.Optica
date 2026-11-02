@@ -27,11 +27,14 @@ export async function POST(request:Request){
       for(const key of ["ncm","cest","cfop","origin","taxCode"] as const){
         const raw=row[key];
         if(raw===undefined||raw===null||String(raw).trim()==="")continue;
-        const value=String(raw).trim();
-        if(key==="ncm"&&!/^\d{8}$/.test(value))issues.push(`Linha ${i+2}: NCM deve conter 8 dígitos.`);
-        else if(key==="cest"&&!/^\d{7}$/.test(value))issues.push(`Linha ${i+2}: CEST deve conter 7 dígitos.`);
-        else if(key==="cfop"&&!/^\d{4}$/.test(value))issues.push(`Linha ${i+2}: CFOP deve conter 4 dígitos.`);
-        else if(key==="origin"&&!/^[0-8]$/.test(value))issues.push(`Linha ${i+2}: origem deve ser um dígito de 0 a 8.`);
+        let value=String(raw).trim();
+        // Treat common spreadsheet placeholders as empty and accept standard punctuation in formatted fiscal codes.
+        if(["-","—","–","N/A","NA","NULL"].includes(value.toUpperCase()))continue;
+        if(key==="ncm"||key==="cest"||key==="cfop")value=value.replace(/[.\\s/-]/g,"");
+        if(key==="ncm"&&!/^\\d{8}$/.test(value))issues.push(`Linha ${i+2}: NCM inválido ("${String(raw).trim()}"). Informe 8 dígitos, por exemplo 90049010.`);
+        else if(key==="cest"&&!/^\\d{7}$/.test(value))issues.push(`Linha ${i+2}: CEST inválido ("${String(raw).trim()}"). Informe 7 dígitos ou deixe o campo vazio se não estiver validado.`);
+        else if(key==="cfop"&&!/^\\d{4}$/.test(value))issues.push(`Linha ${i+2}: CFOP inválido ("${String(raw).trim()}"). Informe 4 dígitos ou deixe o campo vazio se não estiver validado.`);
+        else if(key==="origin"&&!/^[0-8]$/.test(value))issues.push(`Linha ${i+2}: origem inválida ("${String(raw).trim()}"). Informe um dígito de 0 a 8 ou deixe vazio.`);
         else if(key==="taxCode"&&value.length>30)issues.push(`Linha ${i+2}: código tributário excede 30 caracteres.`);
         else data[key]=value;
       }
