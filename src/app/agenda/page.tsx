@@ -15,6 +15,8 @@ export default function Agenda(){
  const [customerSearch,setCustomerSearch]=useState("");
  const [open,setOpen]=useState(false);
  const [msg,setMsg]=useState("");
+ useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/agenda";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Agenda":kind==="success"?"Agenda — operação concluída":"Informação — Agenda",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir agenda em nova aba"):undefined,code:kind==="error"?"AGENDA_OPERATION":undefined}}));setMsg("");},[msg]);
+
  const [calendarMonth,setCalendarMonth]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1)});
  const calendarDays=useMemo(()=>{
   const year=calendarMonth.getFullYear(),month=calendarMonth.getMonth();
@@ -42,7 +44,6 @@ export default function Agenda(){
  const remove=async(id:string)=>{if(!confirm("Excluir este agendamento?"))return;const r=await fetch("/api/appointments/"+id,{method:"DELETE"});const d=await r.json();if(!r.ok){setMsg(d.error||"Não foi possível excluir.");return}await load()};
  return <section className="page">
   <div className="page-heading"><div><span className="eyebrow">MB ÓPTICA</span><h1>Agenda</h1><p>Agende exames, atendimentos, retiradas, provas e entregas.</p></div><button className="primary" onClick={()=>{setForm(empty);setCustomerSearch("");setOpen(true);setMsg("")}}>+ Novo</button></div>
-  {msg&&<div className="panel" style={{padding:12,color:msg.includes("sucesso")?"#18794e":"#a33"}}>{msg}</div>}
   {open&&<div className="panel" style={{padding:20,marginTop:12}}><div className="panel-heading" style={{padding:0,marginBottom:15}}><div><h2>Novo agendamento</h2><p style={{fontSize:11,color:"var(--muted)"}}>Selecione o cliente já cadastrado e informe o profissional.</p></div><button className="secondary" onClick={()=>setOpen(false)}>Fechar</button></div>
    <form onSubmit={save} style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
     <label style={{fontSize:10,display:"grid",gap:5}}>Cliente
