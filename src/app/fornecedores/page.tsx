@@ -13,6 +13,8 @@ export default function Fornecedores(){
  const [selected,setSelected]=useState<any>(null);
  const [search,setSearch]=useState("");
  const [msg,setMsg]=useState("");
+ useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/fornecedores";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Fornecedores":kind==="success"?"Fornecedores — operação concluída":"Informação — Fornecedores",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir fornecedores em nova aba"):undefined,code:kind==="error"?"FORNECEDORES_OPERATION":undefined}}));setMsg("");},[msg]);
+
  const [loading,setLoading]=useState(false);
  const [backupInfo,setBackupInfo]=useState<{records:any[];total:number;active:number;archived:number;fileName:string}|null>(null);
  const [reconciling,setReconciling]=useState(false);
@@ -121,7 +123,6 @@ export default function Fornecedores(){
   </div>
   </div>
 
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
   {backupInfo&&<div className="panel" style={{padding:16,marginBottom:12,border:"1px solid var(--line)"}}>
    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}>
     <div><span className="eyebrow">RECONCILIAÇÃO</span><h3 style={{margin:"3px 0"}}>Backup pronto para reconciliação</h3><div style={{fontSize:12,color:"var(--muted)"}}>{backupInfo.fileName} · {backupInfo.total} fornecedores · {backupInfo.active} ativos · {backupInfo.archived} arquivados</div></div>

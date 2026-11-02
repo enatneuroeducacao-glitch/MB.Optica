@@ -116,6 +116,7 @@ export default function Pedidos(){
  const [search,setSearch]=useState("");
  const [customerQuery,setCustomerQuery]=useState("");
  const [productQueries,setProductQueries]=useState<Record<number,string>>({});
+  useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|não identificado|obrigatório|selecione|revise|bloqueou)/i.test(text)?"error":/(atualizado|criado|excluído|salvo|concluído|registrado|entregue)/i.test(text)?"success":"info";const href=/sessão administrativa|acesso|permissão/i.test(lower)?"/configuracoes":"/pedidos";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir o pedido":kind==="success"?"Pedido — operação concluída":"Informação do pedido",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir pedidos em nova aba"):undefined,code:kind==="error"?"ORDER_OPERATION":undefined}}));setMsg("");},[msg]);
 
  const load=async()=>{
   const [o,c,p,rx]=await Promise.all([fetch("/api/orders"),fetch("/api/customers"),fetch("/api/products"),fetch("/api/prescriptions")]);
@@ -261,7 +262,7 @@ export default function Pedidos(){
    <div><span className="eyebrow">OPERAÇÃO</span><h1>Pedidos</h1><p>Transforme o orçamento em produção, acompanhe o laboratório e finalize a entrega.</p></div>
    <button className="primary" onClick={openNew}>+ Novo pedido</button>
   </div>
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
+
 
   <div className="status-strip">{Object.keys(next).map(s=><div key={s}><span className="dot"></span><b>{s.replaceAll("_"," ")}</b></div>)}</div>
 

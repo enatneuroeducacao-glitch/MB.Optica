@@ -323,3 +323,13 @@ input:focus,textarea:focus,select:focus{border-color:var(--brand)!important;box-
 .product-alert-editor-error{margin:12px 20px;padding:11px 13px;border:1px solid #e5aaa2;border-radius:9px;background:#fff2f0;color:#91291f;font-size:12px}
 .product-alert-editor .alert-detail-footer{padding:0 20px 18px}
 @media(max-width:600px){.product-alert-editor-backdrop{padding:7px}.product-alert-editor{max-height:94vh}.product-alert-editor-form,.product-alert-stock-adjust{padding:14px}.product-alert-stock-adjust{margin:0 14px 14px}.product-alert-editor-grid{grid-template-columns:1fr}.product-alert-editor-wide{grid-column:auto}.product-alert-editor .panel-heading{align-items:flex-start;padding:14px}.product-alert-editor .panel-heading h2{font-size:17px}}
+
+/* Ações de correção nos avisos globais: mantém a tela atual intacta. */
+.global-notice-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid currentColor;border-color:color-mix(in srgb,currentColor 18%,transparent)}
+.global-notice-action{display:inline-flex;align-items:center;gap:7px;border:1px solid currentColor;border-radius:8px;padding:9px 12px;background:#fff;color:#302a24;font-size:11px;font-weight:800;cursor:pointer}
+.global-notice-action:hover{filter:brightness(.96);transform:translateY(-1px)}
+.global-notice-actions span{font-size:10px;line-height:1.4;opacity:.85}
+.global-notice-technical{margin-top:10px;font-size:10px}
+.global-notice-technical summary{cursor:pointer;font-weight:700}
+.global-notice-technical code{display:block;margin-top:6px;overflow-wrap:anywhere;font-size:10px}
+.global-notice-action:focus-visible,.global-notice-technical summary:focus-visible{outline:2px solid currentColor;outline-offset:3px}

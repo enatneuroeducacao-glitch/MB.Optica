@@ -38,6 +38,8 @@ export default function Mensagens(){
   const [contactActionLoading,setContactActionLoading]=useState(false);
   const [contactsLoading,setContactsLoading]=useState(false);
   const fileRef=useRef<HTMLInputElement|null>(null);
+ useEffect(()=>{if(!error)return;const text=error.trim();const kind=/(não foi possível|falha|erro|inválid|obrigatório|máximo|ultrapassar|bloqueou|não encontrado)/i.test(text)?"error":"info";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Atenção — Mensagens":"Informação — Mensagens",detail:text,kind,actionHref:kind==="error"?"/mensagens":undefined,actionLabel:kind==="error"?"Abrir mensagens em nova aba":undefined,code:kind==="error"?"MENSAGENS_ERROR":undefined}}));setError("");},[error]);
+
 
   const load=async(nextFolder=folder)=>{
     setLoading(true);setError("");setSelected(null);setBody(null);setSelectedIds([]);
@@ -184,7 +186,6 @@ export default function Mensagens(){
       </div>
     </div>
 
-    {error&&<div className="panel" style={{padding:12,marginBottom:12}}>{error}</div>}
 
     <div className="panel" style={{padding:0,overflow:"hidden"}}>
       <div style={{display:"flex",gap:6,padding:10,borderBottom:"1px solid var(--line)",flexWrap:"wrap"}}>

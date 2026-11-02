@@ -10,34 +10,64 @@ type Entitlement={owner:boolean;plan:string;status:string;trial:boolean;modules:
 const roleLabel:Record<string,string>={ADMIN:"Administrador",GERENTE:"Gerente",VENDEDOR:"Vendedor",FINANCEIRO:"Financeiro",LABORATORIO:"Laboratório"};
 
 export function AppShell({children,user}:{children:ReactNode;user:User}){
-  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [notice,setNotice]=useState<{title:string;detail:string;kind:"error"|"success"|"warning"|"info"}|null>(null); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
+  const path=usePathname(); const router=useRouter(); const [busy,setBusy]=useState(false); const [notice,setNotice]=useState<{title:string;detail:string;kind:"error"|"success"|"warning"|"info";actionLabel?:string;actionHref?:string;code?:string}|null>(null); const [entitlement,setEntitlement]=useState<Entitlement|null>(null); const [menuOpen,setMenuOpen]=useState(false); const [logo,setLogo]=useState<string|null>(null); const [version,setVersion]=useState<string>(""); const [updateAvailable,setUpdateAvailable]=useState(false); const [cashSession,setCashSession]=useState<any>(undefined); const [unreadMessages,setUnreadMessages]=useState(0); const [agendaPending,setAgendaPending]=useState(0);
 
   useEffect(()=>{
     const showNotice=(event:Event)=>{
-      const detail=(event as CustomEvent<{title?:string;detail?:string;kind?:"error"|"success"|"warning"|"info"}>).detail;
+      const detail=(event as CustomEvent<{title?:string;detail?:string;kind?:"error"|"success"|"warning"|"info";actionLabel?:string;actionHref?:string;code?:string}>).detail;
       if(!detail)return;
-      setNotice({title:detail.title||"Não foi possível concluir a operação",detail:detail.detail||"Revise os dados e tente novamente.",kind:detail.kind||"error"});
+      setNotice({title:detail.title||"Não foi possível concluir a operação",detail:detail.detail||"Revise os dados e tente novamente.",kind:detail.kind||"error",actionLabel:detail.actionLabel,actionHref:detail.actionHref,code:detail.code});
     };
-    window.addEventListener("mb:notice",showNotice);
-    return()=>window.removeEventListener("mb:notice",showNotice);
+    const originalAlert=window.alert.bind(window);
+    window.alert=(message?:any)=>{
+      const detail=String(message??"O sistema precisa da sua atenção.");
+      const path=window.location.pathname+window.location.search;
+      const target=/sessão|acesso|permissão/i.test(detail)?"/configuracoes":path;
+      window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Aviso do MB Gestão",detail,kind:"error",actionHref:target,actionLabel:/sessão|acesso|permissão/i.test(detail)?"Verificar acesso e permissões":"Abrir módulo atual em nova aba",code:"SYSTEM_ALERT"}}));
+    };    window.addEventListener("mb:notice",showNotice);
+    return()=>{window.removeEventListener("mb:notice",showNotice);window.alert=originalAlert};
   },[]);
   useEffect(()=>{
     const originalFetch=window.fetch.bind(window);
+    const routeForRequest=(url:string)=>{
+      const value=url.toLowerCase();
+      if(/auth|session|login|permission|entitlement/.test(value))return {href:"/configuracoes",label:"Abrir acesso e configurações"};
+      if(/pedido|order|laboratory|laboratorio/.test(value))return {href:"/pedidos",label:"Abrir pedidos"};
+      if(/product|stock|inventory|estoque/.test(value))return {href:"/produtos",label:"Abrir produtos e estoque"};
+      if(/client|customer|cliente/.test(value))return {href:"/clientes",label:"Abrir clientes"};
+      if(/supplier|fornecedor/.test(value))return {href:"/fornecedores",label:"Abrir fornecedores"};
+      if(/sale|cash|venda|caixa|payment|settlement/.test(value))return {href:"/vendas",label:"Abrir vendas e caixa"};
+      if(/finance|accounting|financial|financeiro|contabilidade/.test(value))return {href:"/financeiro",label:"Abrir financeiro"};
+      if(/appointment|agenda/.test(value))return {href:"/agenda",label:"Abrir agenda"};
+      if(/report|relatorio/.test(value))return {href:"/relatorios",label:"Abrir relatórios"};
+      if(/config|setting|branding/.test(value))return {href:"/configuracoes",label:"Abrir configurações"};
+      return {href:window.location.pathname+window.location.search,label:"Abrir esta tela em nova aba"};
+    };
     window.fetch=async(input:RequestInfo|URL,init?:RequestInit)=>{
-      const response=await originalFetch(input,init);
       const method=(init?.method||(input instanceof Request?input.method:"GET")).toUpperCase();
       const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;
-      if(method!=="GET" && url.startsWith("/api/") && !response.ok){
-        try{
-          const payload=await response.clone().json();
-          const details=Array.isArray(payload?.details)?payload.details.map((item:{field?:string;message?:string})=>`${item.field||"Campo"}: ${item.message||"preenchimento inválido"}`).join("; "):"";
-          const detail=details||payload?.error||payload?.message||`A solicitação falhou (HTTP ${response.status}).`;
-          window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Erro ao salvar ou executar operação",detail,kind:"error"}}));
-        }catch{
-          window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Erro ao salvar ou executar operação",detail:`A solicitação falhou (HTTP ${response.status}).`,kind:"error"}}));
+      try{
+        const response=await originalFetch(input,init);
+        if(method!=="GET" && url.startsWith("/api/") && !response.ok){
+          const destination=routeForRequest(url);
+          try{
+            const payload=await response.clone().json();
+            const details=Array.isArray(payload?.details)?payload.details.map((item:{field?:string;message?:string})=>`${item.field||"Campo"}: ${item.message||"preenchimento inválido"}`).join("; "):"";
+            const detail=details||payload?.error||payload?.message||`A solicitação falhou (HTTP ${response.status}).`;
+            const code=payload?.code||payload?.errorCode||`HTTP ${response.status}`;
+            window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"A operação não foi concluída",detail,kind:"error",actionHref:destination.href,actionLabel:destination.label,code}}));
+          }catch{
+            window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"A operação não foi concluída",detail:`A solicitação falhou (HTTP ${response.status}). Verifique os dados e tente novamente.`,kind:"error",actionHref:destination.href,actionLabel:destination.label,code:`HTTP ${response.status}`}}));
+          }
         }
+        return response;
+      }catch(error){
+        if(method!=="GET" && url.startsWith("/api/")){
+          const destination=routeForRequest(url);
+          window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Falha de comunicação com o sistema",detail:error instanceof Error?error.message:"Não foi possível conectar ao servidor. Confira a conexão antes de repetir a operação.",kind:"error",actionHref:destination.href,actionLabel:destination.label,code:"NETWORK_ERROR"}}));
+        }
+        throw error;
       }
-      return response;
     };
     return()=>{window.fetch=originalFetch};
   },[]);
@@ -148,7 +178,12 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     </main>
     {notice&&<div className={"global-notice global-notice-"+notice.kind} role={notice.kind==="error"?"alert":"status"} aria-live={notice.kind==="error"?"assertive":"polite"} aria-atomic="true">
       <div className="global-notice-icon" aria-hidden="true">{notice.kind==="success"?"✓":notice.kind==="warning"?"⚠":notice.kind==="info"?"i":"!"}</div>
-      <div className="global-notice-content"><strong>{notice.title}</strong><p>{notice.detail}</p></div>
+      <div className="global-notice-content">
+        <strong>{notice.title}</strong>
+        <p>{notice.detail}</p>
+        {notice.code&&<details className="global-notice-technical"><summary>Detalhes técnicos ({notice.code})</summary><code>{notice.code}</code></details>}
+        {notice.kind==="error"&&notice.actionHref&&<div className="global-notice-actions"><button type="button" className="global-notice-action" onClick={()=>{const target=new URL(notice.actionHref!,window.location.origin);if(target.origin===window.location.origin)window.open(target.toString(),"_blank","noopener,noreferrer");}}>{notice.actionLabel||"Abrir local para correção"} ↗</button><span>Abre em nova aba para preservar esta edição.</span></div>}
+      </div>
       <button type="button" className="global-notice-close" aria-label="Fechar aviso" onClick={()=>setNotice(null)}>×</button>
     </div>}
   </div>

@@ -16,6 +16,8 @@ const newItem=()=>({productId:"",description:"",kind:"LENTE",quantity:"1",unitPr
 
 export default function Atendimento(){
  const [stage,setStage]=useState("RECEITA"),[open,setOpen]=useState(true),[msg,setMsg]=useState(""),[loading,setLoading]=useState(true);
+ useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/atendimento";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Atendimento":kind==="success"?"Atendimento — operação concluída":"Informação — Atendimento",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir atendimento em nova aba"):undefined,code:kind==="error"?"ATENDIMENTO_OPERATION":undefined}}));setMsg("");},[msg]);
+
  const [customers,setCustomers]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[prescriptions,setPrescriptions]=useState<any[]>([]),[orders,setOrders]=useState<Order[]>([]);
  const [customerId,setCustomerId]=useState(""),[query,setQuery]=useState("");
  const todayISO=new Date().toISOString().slice(0,10);
@@ -83,7 +85,6 @@ export default function Atendimento(){
 
  return <section className="page">
   <div className="page-heading"><div><span className="eyebrow">ÓPTICA</span><h1>Atendimento</h1><p>Receita → orçamento → pedido → laboratório em uma única tela.</p></div><div style={{display:"flex",gap:8,alignItems:"center"}}><button type="button" className="secondary" onClick={()=>{setManualOSQuantity("1");setManualOSOpen(true)}}>▣ Imprimir O.S. manual</button><button type="button" className="secondary" onClick={load}>↻ Atualizar</button></div></div>
-  {msg&&<div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
   {manualOSOpen&&<div className="panel" style={{position:"fixed",inset:"0",zIndex:50,background:"rgba(0,0,0,.35)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
    <div className="panel" style={{width:"min(440px,100%)",padding:22,background:"var(--surface)",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
     <div className="panel-heading" style={{padding:0,marginBottom:16}}><div><span className="eyebrow">IMPRESSÃO</span><h2>O.S. manuais sequenciais</h2><p>O sistema reservará uma numeração diferente para cada O.S.</p></div><button type="button" className="secondary" onClick={()=>setManualOSOpen(false)}>Fechar</button></div>
