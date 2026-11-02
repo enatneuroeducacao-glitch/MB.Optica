@@ -35,8 +35,10 @@ export async function POST(request:Request){
         else if(key==="taxCode"&&value.length>30)issues.push(`Linha ${i+2}: código tributário excede 30 caracteres.`);
         else data[key]=value;
       }
-      if(Object.keys(data).length===0)issues.push(`Linha ${i+2}: nenhum campo fiscal informado; nenhum valor será inventado.`);
-      else updates.push({id,data});
+      // Linhas sem qualquer dado fiscal são permitidas no CSV exportado completo.
+      // Elas são ignoradas, pois o arquivo pode conter todos os produtos, embora só alguns tenham sido revisados.
+      if(Object.keys(data).length===0)continue;
+      updates.push({id,data});
     }
     if(issues.length)return NextResponse.json({error:"A importação não foi aplicada. Corrija as pendências da planilha.",details:issues.slice(0,100),totalIssues:issues.length},{status:422});
     const ids=updates.map(x=>x.id);
