@@ -33,6 +33,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       return NextResponse.json(current);
     }
     if(b.status==="AGUARDANDO_LABORATORIO"&&!String(current.laboratory||"").trim()){ throw new Error("Informe o laboratório antes de enviar o pedido para produção."); }
+    if(b.status==="PRONTO"&&!current.dueDate){ throw new Error("Informe a data prevista de entrega antes de marcar o pedido como pronto."); }
     if(!transitions[current.status]?.includes(b.status)){
       throw new Error(`Transição não permitida: ${current.status} → ${b.status}`);
     }
