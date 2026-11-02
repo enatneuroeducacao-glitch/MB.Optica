@@ -18,8 +18,13 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
       if(!detail)return;
       setNotice({title:detail.title||"Não foi possível concluir a operação",detail:detail.detail||"Revise os dados e tente novamente.",kind:detail.kind||"error",actionLabel:detail.actionLabel,actionHref:detail.actionHref,code:detail.code});
     };
+    const originalAlert=window.alert.bind(window);
+    window.alert=(message?:any)=>{
+      const detail=String(message??"O sistema precisa da sua atenção.");
+      window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:"Aviso do MB Gestão",detail,kind:"error",code:"SYSTEM_ALERT"}}));
+    };
     window.addEventListener("mb:notice",showNotice);
-    return()=>window.removeEventListener("mb:notice",showNotice);
+    return()=>{window.removeEventListener("mb:notice",showNotice);window.alert=originalAlert};
   },[]);
   useEffect(()=>{
     const originalFetch=window.fetch.bind(window);
