@@ -41,6 +41,7 @@ export async function POST(request:Request){
       updates.push({id,data});
     }
     if(issues.length)return NextResponse.json({error:"A importação não foi aplicada. Corrija as pendências da planilha.",details:issues.slice(0,100),totalIssues:issues.length},{status:422});
+    if(updates.length===0)return NextResponse.json({error:"Nenhuma linha contém dados fiscais para importar. Preencha ao menos um campo fiscal validado e tente novamente."},{status:422});
     const ids=updates.map(x=>x.id);
     const existing=await db.product.findMany({where:{id:{in:ids}},select:{id:true}});
     if(existing.length!==updates.length)
