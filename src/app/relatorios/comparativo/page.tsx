@@ -79,6 +79,11 @@ export default function AnaliseComparativa() {
   }).filter(r => r.total > 0 || (r.prior || 0) > 0);
   const improved = monthComparisons.filter(r => r.change !== null && r.change! > 0);
   const declined = monthComparisons.filter(r => r.change !== null && r.change! < 0);
+  const yearsAscending = years.slice().reverse();
+  const monthMatrix = Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, "0");
+    return { month, values: yearsAscending.map(year => byMonth.get(`${year}-${month}`)?.total ?? null) };
+  });
   const annualTotals = useMemo(() => years.slice().reverse().map(year => {
     const data = rows.filter(r => Number(r.month.slice(0, 4)) === year);
     return { year, total: data.reduce((s, r) => s + r.total, 0), count: data.filter(r => r.total > 0).length };
@@ -146,6 +151,13 @@ export default function AnaliseComparativa() {
           <div className="cmp-year-list">{annualTotals.map(y => <div className="cmp-year" key={y.year}><b>{y.year}</b><div className="cmp-year-track"><div className="cmp-year-fill" style={{ width: `${Math.max(1, y.total / Math.max(1, ...annualTotals.map(x => x.total)) * 100)}%` }} /></div><span className="cmp-value">{money(y.total)} <small>({y.count}m)</small></span></div>)}</div>
           <p className="cmp-note">Atenção: anos em andamento ou com histórico parcial não devem ser comparados como exercícios completos. Para a variação anual, o painel utiliza apenas competências presentes nos dois anos.</p>
         </div>
+      </div>
+
+      <div className="cmp-panel" style={{ marginBottom: 14 }}>
+        <h2>Comparação da mesma competência entre todos os anos</h2><p>Leia cada linha horizontalmente para verificar como o mesmo mês se comportou ao longo da série histórica.</p>
+        <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th>{yearsAscending.map(y => <th key={y}>{y}</th>)}</tr></thead><tbody>
+          {monthMatrix.map(row => <tr key={row.month}><td>{new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date(2020, Number(row.month) - 1, 1))}</td>{row.values.map((value, i) => <td key={yearsAscending[i]}>{value === null ? "—" : money(value)}</td>)}</tr>)}
+        </tbody></table></div>
       </div>
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
