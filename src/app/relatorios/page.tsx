@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {useEffect,useState} from "react";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
@@ -18,7 +19,7 @@ export default function Relatorios(){
  const downloadBackup=()=>{const payload={schema:"mb-optica.relatorios-backup.v1",generatedAt:new Date().toISOString(),notice:"Exportação dos dados carregados em Relatórios; não substitui backup integral do banco de dados.",reports:d,historicalBilling,manualHistorical,legacySales};const b=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="mb-optica-backup-relatorios-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(u)};
  const row=(a:any,b:any,c:any="",e:any="")=><div className="report-row"><span>{a}</span><span>{b}</span><span>{c}</span><strong>{e}</strong></div>;
  return <section className="page reports-page">
- <div className="page-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h1>Relatórios</h1><p>Informações completas do sistema, desempenho, rastreabilidade e integridade.</p></div><div className="report-actions"><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button><button className="secondary" onClick={downloadBackup} title="Exporta os dados carregados nos relatórios; não é backup integral do banco.">⇩ Backup de relatórios (JSON)</button><button className="primary" onClick={download}>⇩ Exportar</button></div></div>
+ <div className="page-heading"><div><span className="eyebrow">GESTÃO INTELIGENTE</span><h1>Relatórios</h1><p>Informações completas do sistema, desempenho, rastreabilidade e integridade.</p></div><div className="report-actions"><Link className="secondary" href="/relatorios/comparativo">📊 Análise comparativa</Link><button className="secondary" onClick={()=>window.print()}>🖨 Imprimir</button><button className="secondary" onClick={downloadBackup} title="Exporta os dados carregados nos relatórios; não é backup integral do banco.">⇩ Backup de relatórios (JSON)</button><button className="primary" onClick={download}>⇩ Exportar</button></div></div>
  {inc.length?<div className="report-alert"><div><b>⚠ {inc.length} inconsistência(s)</b><span>Existem registros que precisam de conferência.</span></div><button className="secondary" onClick={()=>setTab("INCONSISTÊNCIAS")}>Ver alertas</button></div>:<div className="report-ok">✓ Nenhuma inconsistência automática encontrada.</div>}
  <div className="report-tabs">{tabs.map(x=><button key={x} className={tab===x?"active":""} onClick={()=>setTab(x)}>{x}</button>)}</div>
  {tab==="VISÃO"&&(()=>{
