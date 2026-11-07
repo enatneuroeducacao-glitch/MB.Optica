@@ -184,7 +184,7 @@ export default function AnaliseComparativa() {
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
         <h2>Mesmo mês, anos diferentes — {activeYear}</h2><p>Identifica quais competências cresceram ou recuaram em relação ao mesmo mês do ano anterior.</p>
-        <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th><th>{selectedYear - 1}</th><th>{selectedYear}</th><th>Variação</th><th>Leitura</th></tr></thead><tbody>
+        <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th><th>{activeYear - 1}</th><th>{activeYear}</th><th>Variação</th><th>Leitura</th></tr></thead><tbody>
           {monthComparisons.map(r => <tr key={r.month}><td>{monthName(r.month)}</td><td>{r.prior === null ? "Sem base completa" : money(r.prior)}</td><td>{money(r.total)}</td><td className={r.change === null ? "cmp-neutral" : r.change >= 0 ? "cmp-up" : "cmp-down"}>{r.change === null ? "Sem base completa" : percent(r.change)}</td><td><span className="cmp-pill">{r.change === null ? "Sem comparação" : r.change > 0 ? "Evolução" : r.change < 0 ? "Regressão" : "Estável"}</span></td></tr>)}
           {!monthComparisons.length && <tr><td colSpan={5}>Ainda não existem competências suficientes para comparar este ano.</td></tr>}
         </tbody></table></div>
@@ -203,7 +203,7 @@ export default function AnaliseComparativa() {
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
         <h2>Projeção dos próximos três meses</h2><p>Estimativa baseada na média recente, tendência dos últimos meses e histórico da mesma competência em anos anteriores.</p>
-        <div className="cmp-forecast">{forecasts.map(f => <div className="cmp-forecast-card" key={f.month}><b>{monthName(f.month)}</b><strong>{f.estimate === null ? "Sem estimativa" : money(f.estimate)}</strong><small>{f.estimate === null ? f.reason : `Faixa indicativa: ${money(f.low)} a ${money(f.high)}`}</small><small>Confiança: {f.confidence} · Amostra sazonal: ${f.sample} ano(s)</small><small>{f.empirical === null ? "Frequência histórica indisponível: amostra insuficiente" : `${f.empirical}% das observações históricas deste mês superaram a média recente`}</small></div>)}</div>
+        <div className="cmp-forecast">{forecasts.map(f => <div className="cmp-forecast-card" key={f.month}><b>{monthName(f.month)}</b><strong>{f.estimate === null ? "Sem estimativa" : money(f.estimate)}</strong><small>{f.estimate === null ? f.reason : `Faixa indicativa: ${money(f.low)} a ${money(f.high)}`}</small><small>Confiança: {f.confidence} · Amostra sazonal: {f.sample} ano(s)</small><small>{f.empirical === null ? "Frequência histórica indisponível: amostra insuficiente" : `${f.empirical}% das observações históricas deste mês superaram a média recente`}</small></div>)}</div>
         <p className="cmp-note">A frequência apresentada é uma estatística descritiva histórica, não uma probabilidade calibrada de resultado futuro. A projeção usa somente meses completos e consecutivos da fonte selecionada; não preenche lacunas com zero. Com poucos dados, o painel informa insuficiência em vez de inventar uma previsão. Não substitui orçamento, meta comercial ou fluxo de caixa.</p>
       </div>
 
@@ -212,7 +212,7 @@ export default function AnaliseComparativa() {
         <div className="cmp-insights">
           <div className="cmp-insight"><b>{improved.length} competência(s) em evolução</b><span>{improved.length ? "Os meses positivos indicam crescimento no comparativo anual. Vale identificar ações comerciais, mix de produtos e campanhas que contribuíram para o resultado." : "Não há crescimento anual comprovado nos meses disponíveis. Verifique se há dados suficientes para comparação."}</span></div>
           <div className="cmp-insight"><b>{declined.length} competência(s) em regressão</b><span>{declined.length ? "Investigue sazonalidade, volume de vendas, ticket médio, disponibilidade de produtos e conversão de orçamentos nos meses apontados." : "Nenhuma regressão anual foi identificada entre os meses comparáveis."}</span></div>
-          <div className="cmp-insight"><b>Média dos últimos {period} meses: {money(recentAverage)}</b><span>Calculada apenas com competências que possuem faturamento positivo. Meses sem dados não entram na média.</span></div>
+          <div className="cmp-insight"><b>Média dos últimos {period} meses: {money(recentAverage)}</b><span>Calculada com competências completas observadas na fonte selecionada, incluindo meses com faturamento zero confirmado. Competências sem registro não entram na média.</span></div>
           <div className="cmp-insight"><b>Base de dados e cobertura</b><span>{rows.length} competências identificadas, de {rows[0]?.month || "—"} a {rows[rows.length - 1]?.month || "—"}. A fonte é selecionada explicitamente no topo. Nenhum valor operacional, histórico ou manual é somado a outra fonte. Competências ausentes permanecem sem registro; valores zero só aparecem quando a fonte confirma a competência.</span></div>
         </div>
       </div>
