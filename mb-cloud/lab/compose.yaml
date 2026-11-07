@@ -42,7 +42,6 @@ services:
       PGPORT: "55433"
     volumes:
       - repo:/var/lib/pgbackrest:ro
-      - restoredata:/var/lib/postgresql/restore
     entrypoint: ["/bin/bash", "-lc"]
     command: ["sleep infinity"]
     network_mode: "none"
@@ -51,4 +50,3 @@ services:
 volumes:
   dbdata:
   repo:
-  restoredata:
