@@ -7,7 +7,7 @@ import {apiError} from "@/lib/api-error";
 
 const n=(v:any)=>Number(v||0);
 const key=(value:any)=>{if(value===null||value===undefined||value==="")return null;const d=new Date(value);if(Number.isNaN(d.getTime()))return null;return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")};
-const saleTotal=(p:any)=>{const values=p?.valoresIDs;const gross=values&&typeof values==="object"?Object.values(values).reduce((sum:any,v:any)=>sum+n(v),0):n(p?.valor??p?.total);return Math.max(0,gross-n(p?.desconto))};
+const saleTotal=(p:any)=>{const values=p?.valoresIDs;const gross=values&&typeof values==="object"?Object.values(values as Record<string,unknown>).reduce<number>((sum,v)=>sum+n(v),0):n(p?.valor??p?.total);return Math.max(0,gross-n(p?.desconto))};
 
 export async function GET(){
  try{
