@@ -85,11 +85,11 @@ export async function PATCH(request:Request){
           maxProducts:body.maxProducts??2000,
           maxSales:body.maxSales??null,
           maxOrders:body.maxOrders??null,
-          trialDays:body.trialDays??15,
+          trialDays:body.trialDays??60,
           graceDays:body.graceDays??5,
           licenseType:body.licenseType??"SUBSCRIPTION",
           modules:body.modules??["Dashboard","Agenda","Clientes","Atendimento","Mensagens","Produtos e estoque","Fornecedores","Vendas","Financeiro","Relatórios","Configurações","Receitas","Orçamentos","Pedidos","Laboratório"],
-          trialEndsAt:body.trialEndsAt?new Date(body.trialEndsAt):new Date(Date.now()+(body.trialDays??15)*86400000),
+          trialEndsAt:body.trialEndsAt?new Date(body.trialEndsAt):new Date(Date.now()+(body.trialDays??60)*86400000),
           currentPeriodStart:body.currentPeriodStart?new Date(body.currentPeriodStart):new Date(),
           currentPeriodEnd:body.currentPeriodEnd?new Date(body.currentPeriodEnd):null,
         }});
