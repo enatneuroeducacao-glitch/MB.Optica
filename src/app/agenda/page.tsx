@@ -136,9 +136,9 @@ export default function Agenda(){
     {["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"].map(day=><div key={day} style={{background:"var(--surface)",padding:"8px 6px",fontSize:10,fontWeight:700,textAlign:"center",color:"var(--muted)"}}>{day}</div>)}
     {calendarDays.map(day=>{
       const items=appointmentsForDay(day);
-      const dayBirthdays=birthdaysForDay(day);
-      const dayHolidays=holidaysForDay(day);
       const inMonth=day.getMonth()===calendarMonth.getMonth();
+      const dayBirthdays=inMonth?birthdaysForDay(day):[];
+      const dayHolidays=inMonth?holidaysForDay(day):[];
       const today=new Date(); const isToday=day.toDateString()===today.toDateString();
       return <div key={day.toISOString()} style={{minHeight:108,background:inMonth?"#fff":"#f7f8fa",padding:6,verticalAlign:"top",opacity:inMonth?1:.55}}>
        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
