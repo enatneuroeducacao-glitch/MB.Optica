@@ -68,19 +68,22 @@ export default function Atendimento(){
     </section>`;
     }).join("");
     win.document.write(`<!doctype html><html><head><title>O.S. Manuais — MB Óptica</title><style>
-    @page{size:A4 portrait;margin:8mm}
+    @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box;print-color-adjust:exact;-webkit-print-color-adjust:exact}
-    html,body{margin:0;padding:0;width:194mm;font-family:Arial,sans-serif;color:#111;font-size:9pt}
-    .sheet{width:194mm;height:281mm;max-height:281mm;overflow:hidden;position:relative;display:block;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;padding:0}
-    .sheet:last-child{page-break-after:auto;break-after:auto}
+    html,body{margin:0!important;padding:0!important;width:210mm!important;min-width:210mm!important;font-family:Arial,sans-serif;color:#111;font-size:9pt}
+    body{display:block!important}
+    .sheet{display:block!important;position:relative;width:210mm!important;height:297mm!important;min-height:297mm!important;max-height:297mm!important;padding:8mm!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    .sheet+.sheet{break-before:page!important;page-break-before:always!important}
     .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:6px}.brand{font-size:18px;font-weight:700}.title{font-size:13px;font-weight:700}
-    .box{border:1px solid #777;padding:5px;margin-bottom:5px;break-inside:avoid}.head{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+    .box{border:1px solid #777;padding:5px;margin-bottom:5px;break-inside:avoid;page-break-inside:avoid}.head{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
     .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.field{border-bottom:1px solid #777;min-height:20px;padding:2px}.wide{grid-column:1/-1}
     .rx{display:grid;grid-template-columns:1fr 1fr;gap:5px}.eye{border:1px solid #777;padding:5px}.eye h3{text-align:center;margin:0 0 4px;font-size:10px}
     table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #999;text-align:center}th{font-size:7px;padding:4px 2px;height:19px}td{height:27px;padding:5px 2px;font-size:9px}.line{height:19px;border-bottom:1px solid #777}
     .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:13px}.sign div{border-top:1px solid #555;text-align:center;padding-top:3px}
     .cut{border-top:2px dashed #777;margin:8px 0 6px;padding-top:4px;text-align:center;font-size:7px;color:#555}
-    .stub{border:1px solid #777;padding:5px;break-inside:avoid}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.stub-field{min-height:19px;border-bottom:1px solid #777;padding:2px}.stub-title{text-align:center;font-weight:700;font-size:10px;margin-bottom:4px}
+    .stub{border:1px solid #777;padding:5px;break-inside:avoid;page-break-inside:avoid}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.stub-field{min-height:19px;border-bottom:1px solid #777;padding:2px}.stub-title{text-align:center;font-weight:700;font-size:10px;margin-bottom:4px}
+    @media screen{body{width:210mm;margin:12px auto!important}.sheet{outline:1px solid #ddd;margin:0 auto 12px!important}}
+    @media print{html,body{width:210mm!important;margin:0!important;padding:0!important}.sheet{margin:0!important}.sheet+.sheet{break-before:page!important;page-break-before:always!important}}
     </style></head><body>${pages}<script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
     win.document.close();
   }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar as O.S. manuais.")}
