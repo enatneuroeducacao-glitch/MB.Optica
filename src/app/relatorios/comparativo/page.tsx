@@ -61,7 +61,7 @@ export default function AnaliseComparativa() {
   }, [report, history, legacy, manual]);
 
   const currentKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  const byMonth = useMemo(() => new Map(rows.map(r => [r.month, r])), [rows]);
+  const byMonth = useMemo(() => new Map<string, MonthRow>(rows.map(r => [r.month, r] as [string, MonthRow])), [rows]);
   const years = useMemo(() => [...new Set(rows.map(r => Number(r.month.slice(0, 4))))].sort((a, b) => b - a), [rows]);
   const selectedYearRows = useMemo(() => rows.filter(r => Number(r.month.slice(0, 4)) === selectedYear), [rows, selectedYear]);
   const sixMonthRows = useMemo(() => Array.from({ length: period }, (_, i) => byMonth.get(shiftMonth(currentKey, i - period + 1)) || ({ month: shiftMonth(currentKey, i - period + 1), total: 0, sales: 0, origin: "Sem registro" })), [byMonth, currentKey, period]);
