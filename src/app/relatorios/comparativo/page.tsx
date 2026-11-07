@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 const num = (value: any) => Number(value || 0);
-const money = (value: number) => num(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const money = (value: number) => num(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const percent = (value: number) => `${value >= 0 ? "+" : ""}${value.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 const monthName = (key: string, short = false) => {
   const [year, month] = key.split("-").map(Number);
@@ -19,7 +19,7 @@ const pctChange = (current: number, previous: number) => previous > 0 ? ((curren
 const average = (values: number[]) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 const stddev = (values: number[]) => values.length > 1 ? Math.sqrt(average(values.map(v => (v - average(values)) ** 2))) : 0;
 
-type MonthRow = { month: string; total: number; sales: number; partial?: boolean; origin?: string };
+type MonthRow = { month: string; total: number; sales: number; partial?: boolean; origin?: string; observed?: boolean };
 
 export default function AnaliseComparativa() {
   const [operational, setOperational] = useState<any>(null);
@@ -51,9 +51,9 @@ export default function AnaliseComparativa() {
     const operationalRows: MonthRow[] = (operational?.monthly || []).map((x: any) => ({
       month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: "MB Óptica", observed: true
     }));
-    const legacyData = legacy?.monthly?.length ? legacy.monthly : history?.monthly || [];
+    const legacyData = history?.monthly?.length ? history.monthly : legacy?.monthly || [];
     const historicalRows: MonthRow[] = legacyData.map((x: any) => ({
-      month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: legacy?.monthly?.length ? "BeepStart — registros recuperados" : "BeepStart — backup histórico", observed: true
+      month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: history?.monthly?.length ? "BeepStart — backup histórico verificado" : "BeepStart — registros recuperados", observed: true
     }));
     const manualRows: MonthRow[] = (manual || []).map((x: any) => ({
       month: String(x.month), total: num(x.total), sales: num(x.sales), partial: false, origin: "Lançamento manual", observed: true
@@ -156,7 +156,7 @@ export default function AnaliseComparativa() {
       </div>
 
       <div className="cmp-grid">
-        <div className="cmp-card"><span>Faturamento no ano-base</span><strong>{money(currentYearTotal)}</strong><small>{selectedYearRows.filter(r => !r.partial).length} meses com faturamento registrado</small></div>
+        <div className="cmp-card"><span>Faturamento registrado no ano-base</span><strong>{money(currentYearTotal)}</strong><small>{selectedYearRows.filter(r => !r.partial).length} competências completas disponíveis</small></div>
         <div className="cmp-card"><span>Variação anual comparável</span><strong className={annualGrowth === null ? "" : annualGrowth >= 0 ? "cmp-up" : "cmp-down"}>{annualGrowth === null ? "Sem base" : percent(annualGrowth)}</strong><small>{activeYear} versus {activeYear - 1}, somente meses com dados nos dois anos</small></div>
         <div className="cmp-card"><span>Meses em evolução</span><strong className="cmp-up">{improved.length}</strong><small>Comparação com o mesmo mês do ano anterior</small></div>
         <div className="cmp-card"><span>Meses em regressão</span><strong className="cmp-down">{declined.length}</strong><small>Comparação com o mesmo mês do ano anterior</small></div>
@@ -169,7 +169,7 @@ export default function AnaliseComparativa() {
           <div className="cmp-source"><span>Dados operacionais</span><span>Histórico BeepStart</span><span>Lançamentos manuais</span></div>
         </div>
         <div className="cmp-panel">
-          <h2>Comparação entre anos</h2><p>Totais acumulados por ano e quantidade de meses com faturamento identificado.</p>
+          <h2>Comparação entre anos</h2><p>Totais das competências registradas por ano. Ausência de competência não é interpretada como faturamento zero.</p>
           <div className="cmp-year-list">{annualTotals.map(y => <div className="cmp-year" key={y.year}><b>{y.year}</b><div className="cmp-year-track"><div className="cmp-year-fill" style={{ width: `${Math.max(1, y.total / Math.max(1, ...annualTotals.map(x => x.total)) * 100)}%` }} /></div><span className="cmp-value">{money(y.total)} <small>({y.count} competências)</small></span></div>)}</div>
           <p className="cmp-note">Atenção: anos em andamento ou com histórico parcial não devem ser comparados como exercícios completos. Para a variação anual, o painel utiliza apenas competências presentes nos dois anos.</p>
         </div>
