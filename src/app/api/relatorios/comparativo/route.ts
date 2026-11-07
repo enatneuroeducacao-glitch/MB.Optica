@@ -36,7 +36,7 @@ export async function GET() {
     const firstObservedMonth = sales.length ? keyOf(sales[0].createdAt) : null;
     const startKey = firstObservedMonth || currentKey;
     const [startYear, startMonth] = startKey.split("-").map(Number);
-    const monthCount = Math.max(1, Math.min(36, (year - startYear) * 12 + month - startMonth + 1));
+    const monthCount = firstObservedMonth ? Math.max(1, Math.min(36, (year - startYear) * 12 + month - startMonth + 1)) : 0;
     const monthly = Array.from({ length: monthCount }, (_, index) => {
       const d = new Date(Date.UTC(startYear, startMonth - 1 + index, 1));
       const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
