@@ -250,6 +250,7 @@ accounts Account[]
 legacyRecords LegacyRecord[]
 appointments Appointment[]
 thirdPartyFrameIntakes ThirdPartyFrameIntake[]
+birthdayReminders BirthdayReminder[]
 }
 model Address {
 id String @id @default(cuid())
@@ -763,6 +764,19 @@ model Appointment {
   @@index([scheduledAt])
   @@index([customerId,scheduledAt])
 }
+model BirthdayReminder {
+  id String @id @default(cuid())
+  name String
+  birthDate DateTime
+  customerId String?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer? @relation(fields:[customerId],references:[id],onDelete:SetNull)
+  @@index([birthDate])
+  @@index([customerId])
+}
+
 model ServiceOrderSequence {
   id String @id
   nextNumber Int @default(1)
