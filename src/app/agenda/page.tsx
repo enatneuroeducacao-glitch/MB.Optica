@@ -91,7 +91,7 @@ export default function Agenda(){
     <label style={{fontSize:10,display:"grid",gap:5,gridColumn:"1 / -1"}}>Observações (opcional)<input value={birthdayNotes} onChange={e=>setBirthdayNotes(e.target.value)} placeholder="Ex.: enviar mensagem de aniversário"/></label>
     <button className="primary" type="submit">Salvar aniversariante</button>
    </form>
-  </div>
+  </div>}
   <div className="panel" style={{padding:14,marginBottom:12}}>
    <h2 style={{margin:"0 0 10px",fontSize:14}}>Aniversariantes de {calendarLabel}</h2>
    {monthBirthdays.length===0?<p style={{fontSize:11,color:"var(--muted)",margin:0}}>Nenhum aniversariante cadastrado para este mês.</p>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:8}}>
