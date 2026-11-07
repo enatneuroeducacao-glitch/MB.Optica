@@ -743,6 +743,7 @@ model StoreSettings {
   shiftStartTime String @default("09:00")
   shiftEndTime String @default("18:00")
   timeTrackingEnabled Boolean @default(true)
+  monthlySalesGoal Decimal @default(0) @db.Decimal(12,2)
   active Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
