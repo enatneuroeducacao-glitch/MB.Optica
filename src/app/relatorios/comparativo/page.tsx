@@ -68,7 +68,7 @@ export default function AnaliseComparativa() {
   const byMonth = useMemo(() => new Map<string, MonthRow>(sourceRows.map(r => [r.month, r] as [string, MonthRow])), [sourceRows]);
   const rows = useMemo(() => sourceRows.slice().sort((a,b) => a.month.localeCompare(b.month)), [sourceRows]);
   const years = useMemo(() => [...new Set(rows.map(r => Number(r.month.slice(0, 4))))].sort((a, b) => b - a), [rows]);
-  const activeYear = years.includes(selectedYear) ? selectedYear : (years[years.length - 1] || new Date().getFullYear());
+  const activeYear = years.includes(selectedYear) ? selectedYear : (years[0] || new Date().getFullYear());
   const selectedYearRows = useMemo(() => rows.filter(r => Number(r.month.slice(0, 4)) === activeYear), [rows, activeYear]);
   const sixMonthRows = useMemo(() => Array.from({ length: period }, (_, i) => {
     const month = shiftMonth(currentKey, i - period + 1);
