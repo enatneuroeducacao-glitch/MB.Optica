@@ -99,12 +99,12 @@ export default function Page(){
     setBusy(true);setMessage("");
     try{
       const r=await fetch("/api/assinatura",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({
-        plan:"BASICO",status:"AVALIACAO",billingCycle:"MENSAL",price:0,maxUsers:1,maxUnits:1,maxClients:100,maxProducts:100,maxSales:20,maxOrders:20,trialDays:15,graceDays:5,
+        plan:"BASICO",status:"AVALIACAO",billingCycle:"MENSAL",price:0,maxUsers:1,maxUnits:1,maxClients:100,maxProducts:100,maxSales:20,maxOrders:20,trialDays:60,graceDays:5,
         modules:["Dashboard","Agenda","Clientes","Atendimento","Produtos e estoque","Vendas","Receitas","Orçamentos","Pedidos"]
       })});
       const d=await r.json();
       if(!r.ok)throw new Error(d.error||"Não foi possível iniciar a degustação.");
-      setSubscription(d.subscription);setMessage("Degustação de 15 dias iniciada.");
+      setSubscription(d.subscription);setMessage("Degustação de 60 dias iniciada.");
       await load();
     }catch(e){setMessage(e instanceof Error?e.message:"Erro ao iniciar degustação.");}
     finally{setBusy(false);}
@@ -144,9 +144,9 @@ export default function Page(){
     {message&&<div className="panel settings-message">{message}</div>}
     <div className="panel" style={{padding:24}}>
       <span className="eyebrow">PRIMEIRO PASSO</span>
-      <h2 style={{marginTop:6}}>Experimente gratuitamente por 15 dias</h2>
+      <h2 style={{marginTop:6}}>Experimente gratuitamente por 60 dias</h2>
       <p style={{color:"var(--muted)",marginTop:8}}>A degustação permite conhecer a operação do sistema antes de contratar um plano. Os dados não são apagados ao final do período.</p>
-      <button className="primary" style={{marginTop:18}} disabled={busy} onClick={startTrial}>{busy?"Iniciando...":"Iniciar degustação de 15 dias"}</button>
+      <button className="primary" style={{marginTop:18}} disabled={busy} onClick={startTrial}>{busy?"Iniciando...":"Iniciar degustação de 60 dias"}</button>
     </div>
     <PlanCatalog/>
   </section>;
@@ -197,7 +197,7 @@ export default function Page(){
 
 function PlanCatalog({currentCode}:{currentCode?:PlanCode}){
   return <div style={{marginTop:24}}>
-    <div style={{marginBottom:14}}><span className="eyebrow">PLANOS</span><h2 style={{marginTop:6}}>Escolha o nível de utilização</h2><p style={{color:"var(--muted)",marginTop:5}}>Todos os novos clientes começam com 15 dias de degustação.</p></div>
+    <div style={{marginBottom:14}}><span className="eyebrow">PLANOS</span><h2 style={{marginTop:6}}>Escolha o nível de utilização</h2><p style={{color:"var(--muted)",marginTop:5}}>Todos os novos clientes começam com 60 dias de degustação.</p></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
       {PLAN_CATALOG.map(plan=><div key={plan.code} className="panel" style={{padding:18,border:plan.code===currentCode?"2px solid var(--brand,#b78b3d)":"1px solid var(--line)",position:"relative"}}>
         {plan.highlight&&<span style={{position:"absolute",top:12,right:12,fontSize:11,fontWeight:700,padding:"5px 8px",borderRadius:999,border:"1px solid var(--line)"}}>{plan.highlight}</span>}
