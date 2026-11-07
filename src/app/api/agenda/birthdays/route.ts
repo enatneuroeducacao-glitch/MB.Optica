@@ -40,7 +40,7 @@ export async function POST(req:Request){
 
 export async function DELETE(req:Request){
   try{
-    const actor=await requireRole(["ADMIN","GERENTE"]);
+    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
     const id=new URL(req.url).searchParams.get("id");
     if(!id)throw new Error("Identificador do lembrete não informado.");
     const existing=await db.birthdayReminder.findUnique({where:{id}});
