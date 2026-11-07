@@ -22,10 +22,11 @@ const stddev = (values: number[]) => values.length > 1 ? Math.sqrt(average(value
 type MonthRow = { month: string; total: number; sales: number; partial?: boolean; origin?: string };
 
 export default function AnaliseComparativa() {
-  const [report, setReport] = useState<any>(null);
+  const [operational, setOperational] = useState<any>(null);
   const [history, setHistory] = useState<any>(null);
   const [legacy, setLegacy] = useState<any>(null);
   const [manual, setManual] = useState<any[]>([]);
+  const [source, setSource] = useState("beepstart");
   const [period, setPeriod] = useState(6);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
@@ -34,82 +35,101 @@ export default function AnaliseComparativa() {
   useEffect(() => {
     let active = true;
     Promise.all([
-      fetch("/api/relatorios", { cache: "no-store" }).then(r => r.ok ? r.json() : Promise.reject(new Error("Não foi possível consultar os dados operacionais."))),
+      fetch("/api/relatorios/comparativo", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : Promise.reject(new Error("Não foi possível consultar o faturamento operacional."))),
       fetch("/beepstart-historico-mensal.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("/api/migration/financial-sales", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("/api/relatorios/historico-manual", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null)
-    ]).then(([r, h, l, m]) => {
+      fetch("/api/migration/financial-sales", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch("/api/relatorios/historico-manual", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null)
+    ]).then(([op, h, l, m]) => {
       if (!active) return;
-      setReport(r); setHistory(h); setLegacy(l); setManual(m?.entries || []);
+      setOperational(op); setHistory(h); setLegacy(l); setManual(m?.entries || []);
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar os dados."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
-  const rows = useMemo<MonthRow[]>(() => {
-    if (!report) return [];
-    const operational = new Map<string, MonthRow>((report.sales?.monthly || []).map((x: any) => [String(x.month), { month: String(x.month), total: num(x.total), sales: num(x.sales), origin: "MB Óptica" }]));
-    const historic = new Map<string, MonthRow>((history?.monthly || []).map((x: any) => [String(x.month), { month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: "BeepStart histórico" }]));
-    const legacyRows = new Map<string, MonthRow>((legacy?.monthly || []).map((x: any) => [String(x.month), { month: String(x.month), total: num(x.total), sales: num(x.sales), origin: "BeepStart legado" }]));
-    const manualRows = new Map<string, MonthRow>((manual || []).map((x: any) => [String(x.month), { month: String(x.month), total: num(x.total), sales: num(x.sales), origin: "Lançamento manual" }]));
-    const keys = [...new Set([...operational.keys(), ...historic.keys(), ...legacyRows.keys(), ...manualRows.keys()])].sort();
-    return keys.map(month => {
-      const op = operational.get(month);
-      if (op && (op.total > 0 || op.sales > 0)) return op;
-      return manualRows.get(month) || historic.get(month) || legacyRows.get(month) || { month, total: 0, sales: 0, origin: "Sem origem" };
-    });
-  }, [report, history, legacy, manual]);
+  const sourceRows = useMemo<MonthRow[]>(() => {
+    const operationalRows: MonthRow[] = (operational?.monthly || []).map((x: any) => ({
+      month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: "MB Óptica", observed: true
+    }));
+    const legacyData = legacy?.monthly?.length ? legacy.monthly : history?.monthly || [];
+    const historicalRows: MonthRow[] = legacyData.map((x: any) => ({
+      month: String(x.month), total: num(x.total), sales: num(x.sales), partial: Boolean(x.partial), origin: legacy?.monthly?.length ? "BeepStart — registros recuperados" : "BeepStart — backup histórico", observed: true
+    }));
+    const manualRows: MonthRow[] = (manual || []).map((x: any) => ({
+      month: String(x.month), total: num(x.total), sales: num(x.sales), partial: false, origin: "Lançamento manual", observed: true
+    }));
+    if (source === "operacional") return operationalRows;
+    if (source === "manual") return manualRows;
+    return historicalRows;
+  }, [operational, history, legacy, manual, source]);
 
+  const sourceLabel = source === "operacional" ? "Faturamento operacional MB Óptica" : source === "manual" ? "Lançamentos manuais" : "Histórico BeepStart";
   const currentKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
-  const byMonth = useMemo(() => new Map<string, MonthRow>(rows.map(r => [r.month, r] as [string, MonthRow])), [rows]);
+  const byMonth = useMemo(() => new Map<string, MonthRow>(sourceRows.map(r => [r.month, r] as [string, MonthRow])), [sourceRows]);
+  const rows = useMemo(() => sourceRows.slice().sort((a,b) => a.month.localeCompare(b.month)), [sourceRows]);
   const years = useMemo(() => [...new Set(rows.map(r => Number(r.month.slice(0, 4))))].sort((a, b) => b - a), [rows]);
-  const selectedYearRows = useMemo(() => rows.filter(r => Number(r.month.slice(0, 4)) === selectedYear), [rows, selectedYear]);
-  const sixMonthRows = useMemo(() => Array.from({ length: period }, (_, i) => byMonth.get(shiftMonth(currentKey, i - period + 1)) || ({ month: shiftMonth(currentKey, i - period + 1), total: 0, sales: 0, origin: "Sem registro" })), [byMonth, currentKey, period]);
-  const recentValues = sixMonthRows.filter(r => r.total > 0).map(r => r.total);
+  const activeYear = years.includes(selectedYear) ? selectedYear : (years[years.length - 1] || new Date().getFullYear());
+  const selectedYearRows = useMemo(() => rows.filter(r => Number(r.month.slice(0, 4)) === activeYear), [rows, activeYear]);
+  const sixMonthRows = useMemo(() => Array.from({ length: period }, (_, i) => {
+    const month = shiftMonth(currentKey, i - period + 1);
+    return byMonth.get(month) || ({ month, total: 0, sales: 0, origin: sourceLabel, observed: false } as MonthRow);
+  }), [byMonth, currentKey, period, sourceLabel]);
+  const recentValues = sixMonthRows.filter(r => r.observed && !r.partial).map(r => r.total);
   const recentAverage = average(recentValues);
-  const currentYearTotal = selectedYearRows.reduce((s, r) => s + r.total, 0);
-  const previousYearRows = rows.filter(r => Number(r.month.slice(0, 4)) === selectedYear - 1);
-  const comparableMonths = selectedYearRows.filter(r => byMonth.has(`${selectedYear - 1}-${r.month.slice(5, 7)}`) && num(byMonth.get(`${selectedYear - 1}-${r.month.slice(5, 7)}`)?.total) > 0 && r.total > 0);
-  const currentComparableTotal = comparableMonths.reduce((s, r) => s + r.total, 0);
-  const previousComparableTotal = comparableMonths.reduce((s, r) => s + num(byMonth.get(`${selectedYear - 1}-${r.month.slice(5, 7)}`)?.total), 0);
-  const annualGrowth = pctChange(currentComparableTotal, previousComparableTotal);
+  const currentYearTotal = selectedYearRows.filter(r => !r.partial).reduce((s, r) => s + r.total, 0);
   const monthComparisons = selectedYearRows.map(r => {
-    const prior = byMonth.get(`${selectedYear - 1}-${r.month.slice(5, 7)}`);
-    return { ...r, prior: prior?.total ?? null, change: prior && prior.total > 0 && r.total > 0 ? pctChange(r.total, prior.total) : null };
-  }).filter(r => r.total > 0 || (r.prior || 0) > 0);
-  const improved = monthComparisons.filter(r => r.change !== null && r.change! > 0);
-  const declined = monthComparisons.filter(r => r.change !== null && r.change! < 0);
+    const prior = byMonth.get(`${activeYear - 1}-${r.month.slice(5, 7)}`);
+    const comparable = Boolean(prior && !prior.partial && !r.partial);
+    return { ...r, prior: comparable ? prior!.total : null, change: comparable ? pctChange(r.total, prior!.total) : null };
+  }).filter(r => r.observed && (r.total > 0 || (r.prior ?? 0) > 0));
+  const comparableMonths = monthComparisons.filter(r => r.change !== null);
+  const currentComparableTotal = comparableMonths.reduce((s, r) => s + r.total, 0);
+  const previousComparableTotal = comparableMonths.reduce((s, r) => s + (r.prior || 0), 0);
+  const annualGrowth = pctChange(currentComparableTotal, previousComparableTotal);
+  const improved = comparableMonths.filter(r => r.change !== null && r.change! > 0);
+  const declined = comparableMonths.filter(r => r.change !== null && r.change! < 0);
   const yearsAscending = years.slice().reverse();
   const monthMatrix = Array.from({ length: 12 }, (_, index) => {
     const month = String(index + 1).padStart(2, "0");
-    return { month, values: yearsAscending.map(year => byMonth.get(`${year}-${month}`)?.total ?? null) };
+    return { month, values: yearsAscending.map(year => {
+      const row = byMonth.get(`${year}-${month}`);
+      return row && !row.partial ? row.total : null;
+    }) };
   });
   const annualTotals = useMemo(() => years.slice().reverse().map(year => {
-    const data = rows.filter(r => Number(r.month.slice(0, 4)) === year);
-    return { year, total: data.reduce((s, r) => s + r.total, 0), count: data.filter(r => r.total > 0).length };
+    const data = rows.filter(r => Number(r.month.slice(0, 4)) === year && !r.partial);
+    return { year, total: data.reduce((s, r) => s + r.total, 0), count: data.length, monthsWithSales: data.filter(r => r.total > 0).length };
   }), [years, rows]);
   const chartRows = sixMonthRows;
-  const chartMax = Math.max(1, ...chartRows.map(r => r.total));
+  const chartMax = Math.max(1, ...chartRows.filter(r => r.observed).map(r => r.total));
 
   const forecasts = useMemo(() => {
-    const known = rows.filter(r => r.total > 0 && r.month < currentKey).slice(-6);
-    const baseline = average(known.map(r => r.total)) || recentAverage;
-    const trend = known.length > 1 ? (known[known.length - 1].total - known[0].total) / (known.length - 1) : 0;
-    return [1, 2, 3].map(offset => {
+    const completed = rows.filter(r => r.observed && !r.partial && r.month < currentKey).sort((a,b) => a.month.localeCompare(b.month));
+    const tail: MonthRow[] = [];
+    for (let i = completed.length - 1; i >= 0 && tail.length < 6; i--) {
+      if (tail.length && shiftMonth(completed[i].month, 1) !== tail[0].month) break;
+      tail.unshift(completed[i]);
+    }
+    if (tail.length < 3) return [1,2,3].map(offset => ({ month: shiftMonth(currentKey, offset), estimate: null, low: null, high: null, empirical: null, sample: 0, confidence: "Insuficiente", reason: "São necessários ao menos três meses completos e consecutivos nesta fonte." }));
+    const values = tail.map(r => r.total);
+    const baseline = average(values);
+    const xMean = (values.length - 1) / 2;
+    const yMean = baseline;
+    const denominator = values.reduce((s, _, i) => s + (i - xMean) ** 2, 0);
+    const slope = denominator ? values.reduce((s, y, i) => s + (i - xMean) * (y - yMean), 0) / denominator : 0;
+    const residuals = values.map((v,i) => v - (yMean + slope * (i - xMean)));
+    const residualStd = stddev(residuals);
+    return [1,2,3].map(offset => {
       const month = shiftMonth(currentKey, offset);
       const monthNum = month.slice(5, 7);
-      const seasonal = rows.filter(r => r.month.slice(5, 7) === monthNum && Number(r.month.slice(0, 4)) < Number(currentKey.slice(0, 4)) && r.total > 0).map(r => r.total);
-      const historicalMonthAverage = average(seasonal);
-      const historicalOverall = average(rows.filter(r => r.total > 0 && r.month < currentKey).map(r => r.total));
-      const seasonIndex = historicalMonthAverage > 0 && historicalOverall > 0 ? Math.max(0.65, Math.min(1.35, historicalMonthAverage / historicalOverall)) : 1;
-      const trendBase = Math.max(0, baseline + trend * offset);
-      const estimate = Math.max(0, historicalMonthAverage > 0 ? (trendBase * 0.55 + historicalMonthAverage * 0.45) : trendBase);
-      const spread = seasonal.length > 1 ? stddev(seasonal) : estimate * 0.20;
-      const low = Math.max(0, estimate - spread);
-      const high = estimate + spread;
+      const seasonal = completed.filter(r => r.month.slice(5, 7) === monthNum && Number(r.month.slice(0,4)) < Number(currentKey.slice(0,4))).map(r => r.total);
+      const seasonalAverage = average(seasonal);
+      const trendEstimate = Math.max(0, baseline + slope * (values.length - 1 + offset));
+      const estimate = Math.max(0, seasonal.length ? trendEstimate * 0.65 + seasonalAverage * 0.35 : trendEstimate);
+      const spread = Math.max(residualStd, seasonal.length > 1 ? stddev(seasonal) : estimate * 0.20);
       const empirical = seasonal.length >= 2 ? Math.round(seasonal.filter(v => v >= recentAverage).length / seasonal.length * 100) : null;
-      const confidence = seasonal.length >= 3 && known.length >= 4 ? "Média" : seasonal.length >= 2 ? "Baixa" : "Muito baixa";
-      return { month, estimate, low, high, empirical, sample: seasonal.length, confidence, seasonIndex };
+      const confidence = seasonal.length >= 3 && tail.length >= 5 ? "Moderada" : seasonal.length >= 2 && tail.length >= 4 ? "Baixa" : "Muito baixa";
+      return { month, estimate, low: Math.max(0, estimate - spread), high: estimate + spread, empirical, sample: seasonal.length, confidence, reason: "" };
     });
   }, [rows, currentKey, recentAverage]);
 
@@ -123,32 +143,34 @@ export default function AnaliseComparativa() {
       `}</style>
 
       <div className="cmp-heading">
-        <div><span className="eyebrow">INTELIGÊNCIA GERENCIAL</span><h1>Análise comparativa</h1><p>Desempenho mensal, evolução histórica, comparação anual e projeção de faturamento.</p></div>
+        <div><span className="eyebrow">INTELIGÊNCIA GERENCIAL</span><h1>Análise comparativa</h1><p>Desempenho mensal, evolução histórica, comparação anual e projeção de faturamento.</p><p><b>Fonte selecionada:</b> {sourceLabel}. As fontes não são somadas entre si.</p></div>
         <div className="cmp-controls">
+          <label style={{fontSize:10,color:"var(--muted)"}}>Fonte dos dados</label>
+          <select value={source} onChange={e => setSource(e.target.value)}><option value="beepstart">Histórico BeepStart</option><option value="operacional">Operacional MB Óptica</option><option value="manual">Lançamentos manuais</option></select>
           <label style={{fontSize:10,color:"var(--muted)"}}>Janela recente</label>
           <select value={period} onChange={e => setPeriod(Number(e.target.value))}><option value={6}>Últimos 6 meses</option><option value={12}>Últimos 12 meses</option><option value={24}>Últimos 24 meses</option></select>
           <label style={{fontSize:10,color:"var(--muted)"}}>Ano-base</label>
-          <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
+          <select value={activeYear} onChange={e => setSelectedYear(Number(e.target.value))}>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
           <button className="secondary" onClick={() => window.print()}>Imprimir análise</button>
         </div>
       </div>
 
       <div className="cmp-grid">
-        <div className="cmp-card"><span>Faturamento no ano-base</span><strong>{money(currentYearTotal)}</strong><small>{selectedYearRows.filter(r => r.total > 0).length} meses com faturamento registrado</small></div>
-        <div className="cmp-card"><span>Variação anual comparável</span><strong className={annualGrowth === null ? "" : annualGrowth >= 0 ? "cmp-up" : "cmp-down"}>{annualGrowth === null ? "Sem base" : percent(annualGrowth)}</strong><small>{selectedYear} versus {selectedYear - 1}, somente meses com dados nos dois anos</small></div>
+        <div className="cmp-card"><span>Faturamento no ano-base</span><strong>{money(currentYearTotal)}</strong><small>{selectedYearRows.filter(r => !r.partial).length} meses com faturamento registrado</small></div>
+        <div className="cmp-card"><span>Variação anual comparável</span><strong className={annualGrowth === null ? "" : annualGrowth >= 0 ? "cmp-up" : "cmp-down"}>{annualGrowth === null ? "Sem base" : percent(annualGrowth)}</strong><small>{activeYear} versus {activeYear - 1}, somente meses com dados nos dois anos</small></div>
         <div className="cmp-card"><span>Meses em evolução</span><strong className="cmp-up">{improved.length}</strong><small>Comparação com o mesmo mês do ano anterior</small></div>
         <div className="cmp-card"><span>Meses em regressão</span><strong className="cmp-down">{declined.length}</strong><small>Comparação com o mesmo mês do ano anterior</small></div>
       </div>
 
       <div className="cmp-panels">
         <div className="cmp-panel">
-          <h2>Comparação dos últimos {period} meses</h2><p>Faturamento por competência. Meses sem registro aparecem zerados e não são tratados como queda.</p>
-          <div className="cmp-chart">{chartRows.map(r => <div className="cmp-chart-row" key={r.month}><span>{monthName(r.month, true)} <small>{r.month.slice(0,4)}</small></span><div className="cmp-track"><div className="cmp-bar" style={{ width: `${Math.max(r.total > 0 ? 1 : 0, r.total / chartMax * 100)}%` }} /></div><span className="cmp-value">{money(r.total)}</span></div>)}</div>
+          <h2>Comparação dos últimos {period} meses</h2><p>Faturamento por competência. “Sem registro” é diferente de faturamento efetivamente igual a zero; o mês atual pode estar parcial.</p>
+          <div className="cmp-chart">{chartRows.map(r => <div className="cmp-chart-row" key={r.month}><span>{monthName(r.month, true)} <small>{r.month.slice(0,4)}</small></span><div className="cmp-track"><div className="cmp-bar" style={{ width: `${Math.max(r.total > 0 ? 1 : 0, r.total / chartMax * 100)}%` }} /></div><span className="cmp-value">{r.observed ? money(r.total) : "Sem registro"}</span></div>)}</div>
           <div className="cmp-source"><span>Dados operacionais</span><span>Histórico BeepStart</span><span>Lançamentos manuais</span></div>
         </div>
         <div className="cmp-panel">
           <h2>Comparação entre anos</h2><p>Totais acumulados por ano e quantidade de meses com faturamento identificado.</p>
-          <div className="cmp-year-list">{annualTotals.map(y => <div className="cmp-year" key={y.year}><b>{y.year}</b><div className="cmp-year-track"><div className="cmp-year-fill" style={{ width: `${Math.max(1, y.total / Math.max(1, ...annualTotals.map(x => x.total)) * 100)}%` }} /></div><span className="cmp-value">{money(y.total)} <small>({y.count}m)</small></span></div>)}</div>
+          <div className="cmp-year-list">{annualTotals.map(y => <div className="cmp-year" key={y.year}><b>{y.year}</b><div className="cmp-year-track"><div className="cmp-year-fill" style={{ width: `${Math.max(1, y.total / Math.max(1, ...annualTotals.map(x => x.total)) * 100)}%` }} /></div><span className="cmp-value">{money(y.total)} <small>({y.count} competências)</small></span></div>)}</div>
           <p className="cmp-note">Atenção: anos em andamento ou com histórico parcial não devem ser comparados como exercícios completos. Para a variação anual, o painel utiliza apenas competências presentes nos dois anos.</p>
         </div>
       </div>
@@ -161,9 +183,9 @@ export default function AnaliseComparativa() {
       </div>
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
-        <h2>Mesmo mês, anos diferentes — {selectedYear}</h2><p>Identifica quais competências cresceram ou recuaram em relação ao mesmo mês do ano anterior.</p>
+        <h2>Mesmo mês, anos diferentes — {activeYear}</h2><p>Identifica quais competências cresceram ou recuaram em relação ao mesmo mês do ano anterior.</p>
         <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th><th>{selectedYear - 1}</th><th>{selectedYear}</th><th>Variação</th><th>Leitura</th></tr></thead><tbody>
-          {monthComparisons.map(r => <tr key={r.month}><td>{monthName(r.month)}</td><td>{r.prior === null ? "—" : money(r.prior)}</td><td>{money(r.total)}</td><td className={r.change === null ? "cmp-neutral" : r.change >= 0 ? "cmp-up" : "cmp-down"}>{r.change === null ? "Sem comparação" : percent(r.change)}</td><td><span className="cmp-pill">{r.change === null ? "Base incompleta" : r.change > 0 ? "Evolução" : r.change < 0 ? "Regressão" : "Estável"}</span></td></tr>)}
+          {monthComparisons.map(r => <tr key={r.month}><td>{monthName(r.month)}</td><td>{r.prior === null ? "Sem base completa" : money(r.prior)}</td><td>{money(r.total)}</td><td className={r.change === null ? "cmp-neutral" : r.change >= 0 ? "cmp-up" : "cmp-down"}>{r.change === null ? "Sem base completa" : percent(r.change)}</td><td><span className="cmp-pill">{r.change === null ? "Sem comparação" : r.change > 0 ? "Evolução" : r.change < 0 ? "Regressão" : "Estável"}</span></td></tr>)}
           {!monthComparisons.length && <tr><td colSpan={5}>Ainda não existem competências suficientes para comparar este ano.</td></tr>}
         </tbody></table></div>
       </div>
@@ -181,8 +203,8 @@ export default function AnaliseComparativa() {
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
         <h2>Projeção dos próximos três meses</h2><p>Estimativa baseada na média recente, tendência dos últimos meses e histórico da mesma competência em anos anteriores.</p>
-        <div className="cmp-forecast">{forecasts.map(f => <div className="cmp-forecast-card" key={f.month}><b>{monthName(f.month)}</b><strong>{money(f.estimate)}</strong><small>Faixa estimada: {money(f.low)} a {money(f.high)}</small><small>Confiança: {f.confidence} · Amostra sazonal: {f.sample} ano(s)</small><small>{f.empirical === null ? "Probabilidade indisponível: histórico insuficiente" : `${f.empirical}% de frequência histórica acima da média dos últimos ${period} meses`}</small></div>)}</div>
-        <p className="cmp-note">A frequência histórica é uma referência empírica, não uma garantia nem uma probabilidade estatística calibrada. A faixa é indicativa e perde confiabilidade quando há poucos anos comparáveis, meses parciais ou lacunas no histórico. Não substitui orçamento, meta comercial ou fluxo de caixa.</p>
+        <div className="cmp-forecast">{forecasts.map(f => <div className="cmp-forecast-card" key={f.month}><b>{monthName(f.month)}</b><strong>{f.estimate === null ? "Sem estimativa" : money(f.estimate)}</strong><small>{f.estimate === null ? f.reason : `Faixa indicativa: ${money(f.low)} a ${money(f.high)}`}</small><small>Confiança: {f.confidence} · Amostra sazonal: ${f.sample} ano(s)</small><small>{f.empirical === null ? "Frequência histórica indisponível: amostra insuficiente" : `${f.empirical}% das observações históricas deste mês superaram a média recente`}</small></div>)}</div>
+        <p className="cmp-note">A frequência apresentada é uma estatística descritiva histórica, não uma probabilidade calibrada de resultado futuro. A projeção usa somente meses completos e consecutivos da fonte selecionada; não preenche lacunas com zero. Com poucos dados, o painel informa insuficiência em vez de inventar uma previsão. Não substitui orçamento, meta comercial ou fluxo de caixa.</p>
       </div>
 
       <div className="cmp-panel">
@@ -191,7 +213,7 @@ export default function AnaliseComparativa() {
           <div className="cmp-insight"><b>{improved.length} competência(s) em evolução</b><span>{improved.length ? "Os meses positivos indicam crescimento no comparativo anual. Vale identificar ações comerciais, mix de produtos e campanhas que contribuíram para o resultado." : "Não há crescimento anual comprovado nos meses disponíveis. Verifique se há dados suficientes para comparação."}</span></div>
           <div className="cmp-insight"><b>{declined.length} competência(s) em regressão</b><span>{declined.length ? "Investigue sazonalidade, volume de vendas, ticket médio, disponibilidade de produtos e conversão de orçamentos nos meses apontados." : "Nenhuma regressão anual foi identificada entre os meses comparáveis."}</span></div>
           <div className="cmp-insight"><b>Média dos últimos {period} meses: {money(recentAverage)}</b><span>Calculada apenas com competências que possuem faturamento positivo. Meses sem dados não entram na média.</span></div>
-          <div className="cmp-insight"><b>Base de dados e cobertura</b><span>{rows.length} competências identificadas, de {rows[0]?.month || "—"} a {rows[rows.length - 1]?.month || "—"}. A origem de cada competência segue a prioridade operacional, manual e histórica, sem somar fontes duplicadas.</span></div>
+          <div className="cmp-insight"><b>Base de dados e cobertura</b><span>{rows.length} competências identificadas, de {rows[0]?.month || "—"} a {rows[rows.length - 1]?.month || "—"}. A fonte é selecionada explicitamente no topo. Nenhum valor operacional, histórico ou manual é somado a outra fonte. Competências ausentes permanecem sem registro; valores zero só aparecem quando a fonte confirma a competência.</span></div>
         </div>
       </div>
     </section>
