@@ -15,7 +15,7 @@ export default function PublicLanding(){
       <Link href="/inicio" className="public-brand"><span className="public-mark">MB</span><span><b>MB Óptica</b><small>Gestão inteligente</small></span></Link>
       <div className="public-header-actions">
         <Link href="/login" className="public-login">Entrar</Link>
-        <Link href="/login?trial=1" className="public-cta">Degustar 15 dias</Link>
+        <Link href="/login?trial=1" className="public-cta">Degustar 60 dias</Link>
       </div>
     </header>
 
@@ -28,7 +28,7 @@ export default function PublicLanding(){
           <Link href="/login?trial=1" className="public-cta public-cta-large">Começar degustação gratuita</Link>
           <Link href="/login" className="public-login public-login-large">Já sou cliente · Entrar</Link>
         </div>
-        <div className="public-trust"><span>✓ 15 dias para experimentar</span><span>✓ Sem compromisso</span><span>✓ Gestão centralizada</span></div>
+        <div className="public-trust"><span>✓ 60 dias para experimentar</span><span>✓ Sem compromisso</span><span>✓ Gestão centralizada</span></div>
       </div>
       <div className="public-dashboard-preview">
         <div className="preview-top"><span>MB ÓPTICA</span><b>Centro de controle</b><i>● Sistema ativo</i></div>
@@ -46,12 +46,12 @@ export default function PublicLanding(){
     </section>
 
     <section className="public-section public-pricing">
-      <div className="public-section-heading"><span className="public-eyebrow">PLANOS</span><h2>Comece pequeno. Cresça com a sua óptica.</h2><p>Todos os planos comerciais começam com 15 dias de degustação.</p></div>
+      <div className="public-section-heading"><span className="public-eyebrow">PLANOS</span><h2>Comece pequeno. Cresça com a sua óptica.</h2><p>Todos os planos comerciais começam com 60 dias de degustação.</p></div>
       <div className="public-plans">{plans.map((p,i)=><article key={p[0]} className={i===1?"featured":""}><span>{p[0]}</span><strong>{p[1]}</strong><p>{p[2]}</p><Link href="/login?trial=1">Experimentar</Link></article>)}</div>
     </section>
 
     <section className="public-final-cta">
-      <div><span className="public-eyebrow">PRONTO PARA CONHECER?</span><h2>Experimente o MB Gestão Inteligente por 15 dias.</h2><p>Entre na sua conta administrativa e inicie a degustação pelo próprio sistema.</p></div>
+      <div><span className="public-eyebrow">PRONTO PARA CONHECER?</span><h2>Experimente o MB Gestão Inteligente por 60 dias.</h2><p>Entre na sua conta administrativa e inicie a degustação pelo próprio sistema.</p></div>
       <Link href="/login?trial=1" className="public-cta public-cta-large">Iniciar degustação</Link>
     </section>
 
