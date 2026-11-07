@@ -150,7 +150,7 @@ model Subscription {
   maxProducts Int?
   maxSales Int?
   maxOrders Int?
-  trialDays Int @default(15)
+  trialDays Int @default(60)
   graceDays Int @default(5)
   licenseType String @default("SUBSCRIPTION")
   modules Json?
