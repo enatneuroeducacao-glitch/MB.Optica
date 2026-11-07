@@ -12,7 +12,6 @@ type PixKey={id:string;type:string;key:string;holderName:string;holderDocument?:
 type CardMachine={id:string;name:string;active:boolean};
 type Sale=any;
 type SaleItemForm={id:string;productId:string;description:string;quantity:string;unitPrice:string;unitCost:string};
-type LegacyFinancial={salesToday:number;salesTodayCount:number;receivedToday:number;receivable:number;billing:number;salesCount:number;clientsActive:number};
 
 const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const dt=(v:any)=>v?new Date(v).toLocaleString("pt-BR"):"—";
@@ -22,7 +21,6 @@ const pixPayload=(p:PixKey,amount:number)=>{const merchant=(p.holderName||"MB OP
 
 export default function Vendas(){
  const [sales,setSales]=useState<Sale[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[customerResults,setCustomerResults]=useState<Customer[]>([]),[products,setProducts]=useState<Product[]>([]),[orders,setOrders]=useState<Order[]>([]),[methods,setMethods]=useState<Method[]>([]),[pixKeys,setPixKeys]=useState<PixKey[]>([]),[cardMachines,setCardMachines]=useState<CardMachine[]>([]);
- const [legacy,setLegacy]=useState<LegacyFinancial|null>(null);
  const [user,setUser]=useState<any>(null),[cash,setCash]=useState<any>(null),[open,setOpen]=useState(false),[selected,setSelected]=useState<Sale|null>(null),[paying,setPaying]=useState<Sale|null>(null),[editing,setEditing]=useState<Sale|null>(null),[editForm,setEditForm]=useState({discount:"0",surcharge:"0",notes:""}),[savingEdit,setSavingEdit]=useState(false),[msg,setMsg]=useState(""),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODAS");
  const [form,setForm]=useState({saleType:"BALCAO" as SaleType,customerId:"",orderId:"",productId:"",quantity:"1",unitPrice:"",discount:"0",surcharge:"0",notes:"",paymentCondition:"AVISTA",paymentMethodId:"",installments:"2",entryAmount:"0",firstDueDate:new Date().toISOString().slice(0,10),pixPayload:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"1"});
  const [saleItems,setSaleItems]=useState<SaleItemForm[]>([]);
@@ -30,10 +28,10 @@ export default function Vendas(){
  const [customerQuery,setCustomerQuery]=useState(""),[customerError,setCustomerError]=useState(""),[productQuery,setProductQuery]=useState(""),[pay,setPay]=useState({methodId:"",amount:"",reference:"",cardMachineId:"",cardInstallments:"1",cardFeeRate:"1"}),[paymentParts,setPaymentParts]=useState([{id:crypto.randomUUID(),methodId:"",amount:"",reference:""}]),[opening,setOpening]=useState(""),[openingReason,setOpeningReason]=useState("INICIO_EXPEDIENTE"),[openingNotes,setOpeningNotes]=useState(""),[closeModal,setCloseModal]=useState(false),[cashSummary,setCashSummary]=useState<any>(null),[cashSummaryLoading,setCashSummaryLoading]=useState(false),[cashSummaryError,setCashSummaryError]=useState(""),[closingCash,setClosingCash]=useState(""),[closingReason,setClosingReason]=useState("FIM_EXPEDIENTE"),[closingNotes,setClosingNotes]=useState(""),[move,setMove]=useState({kind:"SANGRIA",amount:"",description:""}),[pixForm,setPixForm]=useState({type:"ALEATORIA",key:"",holderName:"MB Óptica",holderDocument:"",city:"Joinville"}),[showPixManager,setShowPixManager]=useState(false);
 
  const load=async()=>{
-  const [s,c,p,o,m,pk,cm,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/card-machines"),fetch("/api/auth/me"),fetch("/api/cash/session"),fetch("/api/migration/financial-summary",{cache:"no-store"})]);
-  const [sd,cd,pd,od,md,pkd,cmd,ud,csd,lfd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),cm.json(),u.json(),cs.json(),lf.json()]);
+  const [s,c,p,o,m,pk,cm,u,cs,lf]=await Promise.all([fetch("/api/sales",{cache:"no-store"}),fetch("/api/customers"),fetch("/api/products"),fetch("/api/orders"),fetch("/api/payment-methods"),fetch("/api/pix-keys"),fetch("/api/card-machines"),fetch("/api/auth/me"),fetch("/api/cash/session")]);
+  const [sd,cd,pd,od,md,pkd,cmd,ud,csd]=await Promise.all([s.json(),c.json(),p.json(),o.json(),m.json(),pk.json(),cm.json(),u.json(),cs.json()]);
   if(s.ok)setSales(Array.isArray(sd)?sd:[]);if(c.ok){setCustomers(Array.isArray(cd)?cd:[]);setCustomerResults(Array.isArray(cd)?cd:[]);}if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);
-  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(cm.ok&&Array.isArray(cmd))setCardMachines(cmd.filter((x:any)=>x.active));if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);if(lf.ok&&lfd?.ok)setLegacy(lfd);
+  if(m.ok)setMethods(Array.isArray(md)?md.filter((x:any)=>x.active):[]);if(Array.isArray(pkd))setPixKeys(pkd);if(cm.ok&&Array.isArray(cmd))setCardMachines(cmd.filter((x:any)=>x.active));if(u.ok)setUser(ud.user||ud);if(cs.ok)setCash(csd);
  };
  useEffect(()=>{load()},[]);
  useRealtimeRefresh(load,15000);
@@ -162,15 +160,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
 
   <div className="stats sales-stats"><div className="stat-card"><span>VENDAS</span><strong>{stats.count}</strong><small>histórico operacional</small></div><div className="stat-card"><span>VENDAS HOJE</span><strong>{money(stats.today)}</strong><small>valor bruto</small></div><div className="stat-card"><span>RECEBIDO</span><strong>{money(stats.paid)}</strong><small>pagamentos</small></div><div className="stat-card"><span>A RECEBER</span><strong>{money(stats.pending)}</strong><small>saldo aberto</small></div></div>
 
-  {legacy&&<div className="panel" style={{marginBottom:16}}>
-   <div className="panel-heading"><div><span className="eyebrow">ACOMPANHAMENTO DA LOJA</span><h2>Histórico BeepStart</h2><p>Indicadores históricos para acompanhar a operação enquanto o MB Óptica forma seu novo histórico.</p></div><a href="/migracao">Ver histórico completo</a></div>
-   <div className="stats sales-stats">
-    <div className="stat-card"><span>VENDAS HOJE · BEEPSTART</span><strong>{money(legacy.salesToday)}</strong><small>{legacy.salesTodayCount} venda(s) em 29/09/2026</small></div>
-    <div className="stat-card"><span>RECEBIDO HOJE · BEEPSTART</span><strong>{money(legacy.receivedToday)}</strong><small>entradas registradas hoje</small></div>
-    <div className="stat-card"><span>A RECEBER · BEEPSTART</span><strong>{money(legacy.receivable)}</strong><small>saldo histórico em aberto</small></div>
-    <div className="stat-card"><span>FATURAMENTO 2026 · BEEPSTART</span><strong>{money(legacy.billing)}</strong><small>{legacy.salesCount} vendas no histórico</small></div>
-   </div>
-  </div>}  <div className="sales-command-grid">
+  <div className="sales-command-grid">
    <div id="caixa" className="panel sales-cash"><div className="panel-heading"><div><h2>Caixa operacional</h2><p>Controle rápido do caixa do PDV.</p></div><span className={cash?"sales-online":"sales-offline"}>{cash?"CAIXA ABERTO":"CAIXA FECHADO"}</span></div>
     {cash?<>{cash.closingPending&&<div role="alert" style={{border:"1px solid #d97706",background:"#fff7ed",color:"#9a3412",borderRadius:10,padding:12,marginBottom:12}}><b>Fechamento pendente</b><p style={{margin:"6px 0"}}>O caixa continua aberto após o horário de encerramento previsto (19h). Confira o histórico da sessão, conte o dinheiro e registre o fechamento com o motivo correto. O sistema não fechará automaticamente.</p><button type="button" className="secondary" onClick={closeCash}>Conferir e fechar caixa</button></div>}<div className="cash-state"><div><b>Abertura</b><small>{money(cash.openingCash)} · {dt(cash.openedAt)}</small></div><div><b>Movimentos</b><small>{cash.movements?.length||0} lançamentos</small></div></div><form onSubmit={cashMove} className="sales-cash-move"><select value={move.kind} onChange={e=>setMove({...move,kind:e.target.value})}><option value="SANGRIA">Sangria</option><option value="REFORCO">Reforço</option><option value="SAIDA">Saída</option><option value="ENTRADA">Entrada</option></select><input required type="number" min="0.01" step="0.01" placeholder="Valor" value={move.amount} onChange={e=>setMove({...move,amount:e.target.value})}/><input required placeholder="Descrição" value={move.description} onChange={e=>setMove({...move,description:e.target.value})}/><button className="secondary">Lançar</button></form><button type="button" className="secondary" onClick={closeCash}>Fechar caixa</button></>:<div className="sales-cash-open"><input required type="number" min="0" step="0.01" placeholder="Valor de abertura" value={opening} onChange={e=>setOpening(e.target.value)}/><label>Motivo da abertura<select required value={openingReason} onChange={e=>setOpeningReason(e.target.value)}><option value="INICIO_EXPEDIENTE">Início do expediente</option><option value="REABERTURA">Reabertura após intervalo</option><option value="TROCA_OPERADOR">Troca de operador</option><option value="OUTRO">Outro motivo</option></select></label>{openingReason==="OUTRO"&&<input required placeholder="Descreva o motivo da abertura" value={openingNotes} onChange={e=>setOpeningNotes(e.target.value)}/>}<button className="primary" onClick={openCash}>Abrir caixa</button></div>}
    </div>
