@@ -1,65 +1,43 @@
 const http = require("node:http");
 
 const PORT = Number(process.env.PORT || 10000);
-const BUILD = process.env.MB_CLOUD_BUILD || "0.1.0";
+const BUILD = process.env.MB_CLOUD_BUILD || "0.1.1";
 const STARTED_AT = new Date().toISOString();
 
 function send(res, status, type, body) {
-  res.writeHead(status, {
-    "content-type": type,
-    "cache-control": "no-store",
-    "x-content-type-options": "nosniff",
-    "referrer-policy": "no-referrer",
-    "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"
-  });
+  res.writeHead(status, { "content-type": type, "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'" });
   res.end(body);
 }
 
+function statusData() {
+  const db = Boolean(process.env.MB_CLOUD_DATABASE_URL);
+  const storage = Boolean(process.env.S3_ENDPOINT && process.env.S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+  const schedule = Boolean(process.env.MB_CLOUD_BACKUP_SCHEDULE);
+  return { ok: true, service: "mb-cloud-control-plane", version: BUILD, startedAt: STARTED_AT, checkedAt: new Date().toISOString(), components: {
+    webConsole: { state: "online", detail: "Painel e API de diagnóstico respondendo." },
+    database: { state: db ? "configured_unverified" : "blocked", detail: db ? "Credencial presente; conexão real ainda precisa ser testada em ambiente isolado." : "Credencial do banco não configurada." },
+    objectStorage: { state: storage ? "configured_unverified" : "blocked", detail: storage ? "Variáveis presentes; upload, download e checksum ainda precisam ser testados." : "Armazenamento externo não configurado. Nenhum backup externo é executado." },
+    backupSchedule: { state: schedule ? "configured_unverified" : "blocked", detail: schedule ? "Agenda declarada; ainda é necessário comprovar uma execução real." : "Nenhuma rotina automática de backup está ativa." },
+    restoreDrill: { state: "lab_passed_production_pending", detail: "Laboratório local restaurado e consultado; dados reais de produção ainda não foram restaurados em isolamento." },
+    financialWrites: { state: "locked", detail: "Operações financeiras permanecem bloqueadas até a homologação dos dados reais." }
+  }, safety: { productionDatabaseTouched: false, backupExecutedByConsole: false, financialWritesEnabled: false, note: "Diagnóstico informativo. Nenhum banco é alterado por esta API." } };
+}
+
 function page() {
-  return `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MB Cloud · Centro de Controle</title>
-<style>
-:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--line:#29364b;--text:#eef4ff;--muted:#a7b5cc;--accent:#80b8ff}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172844,var(--bg) 60%);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:1050px;margin:auto;padding:32px 20px 64px}.brand{display:flex;align-items:center;gap:14px}.mark{display:grid;place-items:center;width:52px;height:52px;border:1px solid #486387;border-radius:15px;background:#1c3150;font-size:25px}
-h1{font-size:clamp(28px,5vw,42px);margin:0;letter-spacing:-.04em}h2{font-size:18px;margin:0 0 8px}.muted{color:var(--muted)}.intro{max-width:720px;margin:20px 0 26px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.card{border:1px solid var(--line);background:rgba(18,28,46,.94);border-radius:16px;padding:20px;min-height:150px}.icon{font-size:24px;margin-bottom:10px}.status{display:inline-block;margin-top:12px;padding:4px 9px;border-radius:99px;background:#3a2b17;color:#ffd99b;font-size:12px;font-weight:700}
-.banner{margin:18px 0 24px;border:1px solid #42506a;border-radius:14px;padding:16px 18px;background:#111b2d}.banner strong{display:block;margin-bottom:4px}
-footer{border-top:1px solid var(--line);margin-top:28px;padding-top:18px;color:var(--muted);font-size:13px}
-</style></head><body><main>
-<div class="brand"><div class="mark">☁</div><div><div class="muted">MB GESTÃO INTELIGENTE</div><h1>MB Cloud</h1></div></div>
-<p class="intro muted">Camada independente de infraestrutura para dados, arquivos, extensões e recuperação de desastres. O objetivo é manter os dados portáteis e restauráveis sem dependência obrigatória do Neon ou Supabase.</p>
-<div class="banner"><strong>Fundação criada · configuração operacional pendente</strong><span class="muted">Esta versão é um painel inicial. Não conecta nem altera bancos e ainda não executa backups. O banco, o armazenamento externo e as credenciais precisam ser configurados e testados antes de declarar a proteção ativa.</span></div>
-<section class="grid">
-<article class="card"><div class="icon">▤</div><h2>Banco independente</h2><p class="muted">PostgreSQL portátil, com credenciais fora do código.</p><span class="status">A configurar</span></article>
-<article class="card"><div class="icon">⇧</div><h2>Backups externos</h2><p class="muted">Cópias completas, checksum, histórico e retenção.</p><span class="status">A configurar</span></article>
-<article class="card"><div class="icon">↻</div><h2>Restauração</h2><p class="muted">Recuperação isolada e conferência antes de trocar a produção.</p><span class="status">A testar</span></article>
-<article class="card"><div class="icon">▦</div><h2>Plugins</h2><p class="muted">Extensões versionadas, com permissões e trilha de auditoria.</p><span class="status">Fase seguinte</span></article>
-</section>
-<footer>MB Cloud ${BUILD} · Iniciado em ${STARTED_AT} · Painel informativo, sem acesso a dados operacionais.</footer>
-</main></body></html>`;
+  const html = [];
+  html.push("<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>MB Cloud · Centro de Controle</title>");
+  html.push("<style>:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--line:#29364b;--text:#eef4ff;--muted:#a7b5cc;--accent:#80b8ff;--ok:#7be0b0;--warn:#ffd99b;--bad:#ff9d9d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172844,var(--bg) 60%);color:var(--text);font:16px/1.5 system-ui,sans-serif}main{max-width:1120px;margin:auto;padding:32px 20px 64px}.brand{display:flex;align-items:center;gap:14px}.mark{display:grid;place-items:center;width:52px;height:52px;border:1px solid #486387;border-radius:15px;background:#1c3150;font-size:25px}h1{font-size:clamp(28px,5vw,42px);margin:0}h2{font-size:18px;margin:0 0 8px}.muted,.detail,.live{color:var(--muted)}.intro{max-width:760px;margin:20px 0 26px}.banner,.panel{margin:18px 0;border:1px solid #42506a;border-radius:14px;padding:16px 18px;background:#111b2d}.banner strong{display:block;margin-bottom:4px}.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px}.button{border:1px solid #54749d;background:#203b5e;color:var(--text);border-radius:10px;padding:10px 14px;font:inherit;font-weight:650;cursor:pointer}.button:disabled{opacity:.6;cursor:wait}.button.secondary{background:#121c2e;border-color:var(--line)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(245px,1fr));gap:14px}.card{border:1px solid var(--line);background:rgba(18,28,46,.94);border-radius:16px;padding:20px;min-height:175px}.icon{font-size:24px;margin-bottom:10px}.status{display:inline-block;margin-top:12px;padding:4px 9px;border-radius:99px;background:#3a2b17;color:var(--warn);font-size:12px;font-weight:700}.status.ok{background:#123629;color:var(--ok)}.status.bad{background:#3b2027;color:var(--bad)}.detail{font-size:14px;min-height:42px}.list{margin:0;padding-left:20px;color:var(--muted)}.list li{margin:7px 0}.small{font-size:13px;color:var(--muted)}.hidden{display:none}footer{border-top:1px solid var(--line);margin-top:28px;padding-top:18px;color:var(--muted);font-size:13px}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}</style></head><body><main>");
+  html.push("<div class=\"brand\"><div class=\"mark\">☁</div><div><div class=\"muted\">MB GESTÃO INTELIGENTE</div><h1>MB Cloud</h1></div></div><p class=\"intro muted\">Centro de controle da infraestrutura de dados, backups e recuperação. O painel consulta a configuração do serviço; não altera o banco operacional e não declara proteção ativa sem evidências verificadas.</p>");
+  html.push("<div class=\"banner\"><strong id=\"summary-title\">Verificando configuração…</strong><span class=\"muted\" id=\"summary-text\">Consultando a API de diagnóstico.</span></div><div class=\"toolbar\"><button class=\"button\" id=\"refresh\" type=\"button\">↻ Atualizar diagnóstico</button><button class=\"button secondary\" id=\"plan-toggle\" type=\"button\" aria-expanded=\"false\">Ver próximos passos</button><span class=\"live\" id=\"last-check\" aria-live=\"polite\">Ainda não consultado</span></div><section class=\"grid\" id=\"cards\" aria-label=\"Estado dos módulos\"></section>");
+  html.push("<section class=\"panel hidden\" id=\"plan\"><h2>Plano de implementação</h2><ol class=\"list\"><li>Confirmar PostgreSQL durável e privado sem substituir a origem atual.</li><li>Configurar armazenamento externo privado sem ativar cobrança sem aprovação.</li><li>Implementar backup, manifesto SHA-256 e verificação de download.</li><li>Restaurar dados reais em ambiente isolado e validar esquema, contagens e totais financeiros.</li><li>Registrar histórico auditável e reavaliar bloqueios somente após evidências.</li></ol><p class=\"small\">Esta versão ainda não executa backups nem restaura bancos. Não insira senhas nesta página.</p></section><section class=\"panel\"><h2>Limites de segurança</h2><p class=\"muted\" id=\"safety\">O diagnóstico ainda não foi concluído.</p></section><footer>MB Cloud "+BUILD+" · Inicializado em "+STARTED_AT+" · Diagnóstico de configuração, sem acesso a registros operacionais.</footer></main>");
+  html.push("<script>const mapping=[{key:\"database\",title:\"Banco independente\",icon:\"▤\"},{key:\"objectStorage\",title:\"Backups externos\",icon:\"⇧\"},{key:\"restoreDrill\",title:\"Restauração\",icon:\"↻\"},{key:\"financialWrites\",title:\"Operações financeiras\",icon:\"▦\"}];function label(x){if(x.state===\"online\")return[\"Online\",\"ok\"];if(x.state===\"configured_unverified\")return[\"Configurado · testar\",\"\"];if(x.state===\"lab_passed_production_pending\")return[\"Laboratório aprovado\",\"\"];if(x.state===\"locked\")return[\"Bloqueado por segurança\",\"bad\"];return[\"Pendente\",\"bad\"]}async function refresh(){const b=document.getElementById(\"refresh\");b.disabled=true;document.getElementById(\"summary-title\").textContent=\"Atualizando diagnóstico…\";try{const r=await fetch(\"/api/status\",{cache:\"no-store\",headers:{accept:\"application/json\"}});if(!r.ok)throw Error(\"API respondeu HTTP \"+r.status);const d=await r.json();const c=document.getElementById(\"cards\");c.replaceChildren();mapping.forEach(function(m){const x=d.components[m.key],s=label(x),a=document.createElement(\"article\");a.className=\"card\";const i=document.createElement(\"div\");i.className=\"icon\";i.textContent=m.icon;const h=document.createElement(\"h2\");h.textContent=m.title;const p=document.createElement(\"p\");p.className=\"detail\";p.textContent=x.detail;const badge=document.createElement(\"span\");badge.className=\"status \"+s[1];badge.textContent=s[0];a.append(i,h,p,badge);c.append(a)});const ready=d.components.database.state!==\"blocked\"&&d.components.objectStorage.state!==\"blocked\"&&d.components.backupSchedule.state!==\"blocked\";document.getElementById(\"summary-title\").textContent=ready?\"Configuração declarada · validação real pendente\":\"Fundação publicada · proteção operacional pendente\";document.getElementById(\"summary-text\").textContent=ready?\"Existem configurações presentes, mas backup e restauração precisam ser comprovados.\":\"O painel responde; banco, armazenamento e rotina de backup não estão todos configurados.\";document.getElementById(\"safety\").textContent=d.safety.note+\" Banco de produção tocado: não. Backup executado por este painel: não. Escritas financeiras liberadas: não.\";document.getElementById(\"last-check\").textContent=\"Verificado em \"+new Date(d.checkedAt).toLocaleString(\"pt-BR\")}catch(e){document.getElementById(\"summary-title\").textContent=\"Falha ao consultar diagnóstico\";document.getElementById(\"summary-text\").textContent=\"A API não respondeu. Tente atualizar novamente.\";document.getElementById(\"last-check\").textContent=String(e.message||e)}finally{b.disabled=false}}document.getElementById(\"refresh\").addEventListener(\"click\",refresh);document.getElementById(\"plan-toggle\").addEventListener(\"click\",function(){const p=document.getElementById(\"plan\"),b=document.getElementById(\"plan-toggle\"),open=p.classList.contains(\"hidden\");p.classList.toggle(\"hidden\",!open);b.setAttribute(\"aria-expanded\",String(open));b.textContent=open?\"Ocultar próximos passos\":\"Ver próximos passos\"});refresh();</script></body></html>");
+  return html.join("");
 }
 
 const server = http.createServer((req, res) => {
-  const pathname = new URL(req.url, `http://${req.headers.host || "localhost"}`).pathname;
-  if (pathname === "/health" || pathname === "/api/health") {
-    return send(res, 200, "application/json; charset=utf-8", JSON.stringify({
-      ok: true,
-      service: "mb-cloud-control-plane",
-      version: BUILD,
-      startedAt: STARTED_AT,
-      databaseConfigured: Boolean(process.env.MB_CLOUD_DATABASE_URL),
-      objectStorageConfigured: Boolean(process.env.S3_ENDPOINT && process.env.S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
-      backupScheduleConfigured: Boolean(process.env.MB_CLOUD_BACKUP_SCHEDULE)
-    }));
-  }
-  if (req.method !== "GET" || (pathname !== "/" && pathname !== "/index.html")) {
-    return send(res, 404, "application/json; charset=utf-8", JSON.stringify({ error: "not_found" }));
-  }
+  const pathname = new URL(req.url, "http://" + (req.headers.host || "localhost")).pathname;
+  if (pathname === "/health" || pathname === "/api/health" || pathname === "/api/status") return send(res, 200, "application/json; charset=utf-8", JSON.stringify(statusData()));
+  if (req.method !== "GET" || (pathname !== "/" && pathname !== "/index.html")) return send(res, 404, "application/json; charset=utf-8", JSON.stringify({ error: "not_found" }));
   return send(res, 200, "text/html; charset=utf-8", page());
 });
-
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(JSON.stringify({ event: "mb_cloud_started", port: PORT, version: BUILD }));
-});
+server.listen(PORT, "0.0.0.0", () => console.log(JSON.stringify({ event: "mb_cloud_started", port: PORT, version: BUILD })));
