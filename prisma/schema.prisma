@@ -294,6 +294,7 @@ originalText String?
 customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
 orders OpticalOrder[]
 quotes Quote[]
+  frameAdaptationOrders FrameAdaptationOrder[]
 }
 model Category {
 id String @id @default(cuid())
@@ -457,7 +458,6 @@ events OrderEvent[]
 quoteId String? @unique
 quote Quote? @relation(fields:[quoteId],references:[id])
 sale Sale?
-  frameAdaptationOrder FrameAdaptationOrder?
 }
 model OpticalOrderItem {
 id String @id @default(cuid())
