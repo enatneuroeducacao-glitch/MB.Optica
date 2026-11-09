@@ -13,11 +13,22 @@ export async function POST(req:Request){
     if(!b.customerId) throw new Error("customerId é obrigatório");
     if(!b.sellerId) throw new Error("sellerId é obrigatório");
     if(!Array.isArray(b.items)||b.items.length===0) throw new Error("A venda precisa ter itens");
-    const saleTypes=["BALCAO","PEDIDO_OPTICO","ENCOMENDA","SERVICO","PRODUTOS"];
+    const saleTypes=["BALCAO","PEDIDO_OPTICO","ENCOMENDA","SERVICO","PRODUTOS","ARMACAO_ADAPTACAO"];
     const saleType=String(b.saleType||"BALCAO");
     if(!saleTypes.includes(saleType)) throw new Error("Tipo de venda inválido");
     if(saleType==="PEDIDO_OPTICO"&&!b.orderId) throw new Error("Selecione o pedido óptico para este tipo de venda");
     if(saleType!=="PEDIDO_OPTICO"&&b.orderId) throw new Error("Pedido óptico só pode ser usado em venda vinculada a pedido óptico");
+    if(saleType==="ARMACAO_ADAPTACAO"){
+      const service=b.frameAdaptation;
+      if(!service||!String(service.newFrameDescription||"").trim()) throw new Error("Informe a armação nova na ordem de serviço.");
+      if(!["CLIENTE","LOJA"].includes(String(service.lensSource||"CLIENTE"))) throw new Error("Origem das lentes inválida.");
+      if(!["COM_RECEITA","SEM_RECEITA","DADOS_CLIENTE"].includes(String(service.prescriptionStatus||"SEM_RECEITA"))) throw new Error("Situação da receita inválida.");
+      if(!["MONTAGEM_ADAPTACAO","MONTAGEM","ADAPTACAO"].includes(String(service.serviceType||"MONTAGEM_ADAPTACAO"))) throw new Error("Serviço de montagem inválido.");
+      if(service.prescriptionId){
+        const prescription=await db.prescription.findUnique({where:{id:String(service.prescriptionId)}});
+        if(!prescription||prescription.customerId!==String(b.customerId)) throw new Error("A receita informada não pertence ao cliente.");
+      }
+    }
 
     const discount=Number(b.discount||0);
     const surcharge=Number(b.surcharge||0);
@@ -107,6 +118,29 @@ export async function POST(req:Request){
         },
         include:{items:true}
       });
+
+      if(saleType==="ARMACAO_ADAPTACAO"){
+        const service=b.frameAdaptation;
+        await tx.frameAdaptationOrder.create({data:{
+          saleId:sale.id,
+          customerId:customer.id,
+          prescriptionId:service.prescriptionId?String(service.prescriptionId):undefined,
+          laboratory:String(service.laboratory||"").trim()||undefined,
+          oldFrameDescription:String(service.oldFrameDescription||"").trim()||undefined,
+          newFrameDescription:String(service.newFrameDescription).trim(),
+          lensSource:String(service.lensSource||"CLIENTE"),
+          prescriptionStatus:String(service.prescriptionStatus||"SEM_RECEITA"),
+          lensType:String(service.lensType||"").trim()||undefined,
+          lensDegreeInfo:String(service.lensDegreeInfo||"").trim()||undefined,
+          serviceType:String(service.serviceType||"MONTAGEM_ADAPTACAO"),
+          frameCondition:String(service.frameCondition||"").trim()||undefined,
+          preexistingDamage:String(service.preexistingDamage||"").trim()||undefined,
+          inspectionNotes:String(service.inspectionNotes||"").trim()||undefined,
+          photoReferences:String(service.photoReferences||"").trim()||undefined,
+          customerAcknowledged:service.customerAcknowledged===true,
+          createdByUserId:seller.id
+        }});
+      }
 
       await enqueueAccountingEvent(tx, {
         eventType: "SALE_RECOGNIZED",
@@ -280,7 +314,8 @@ export async function GET(){
         items:{include:{product:{select:{id:true,code:true,description:true}}}},
         payments:{include:{method:{select:{id:true,name:true,isCash:true}},cardMachine:{select:{id:true,name:true}}},orderBy:{paidAt:"asc"}},
         accounts:{orderBy:{dueDate:"asc"}},
-        fiscalDocument:true
+        fiscalDocument:true,
+        frameAdaptationOrder:true
       }
     });
     return NextResponse.json(rows);

@@ -250,6 +250,7 @@ accounts Account[]
 legacyRecords LegacyRecord[]
 appointments Appointment[]
 thirdPartyFrameIntakes ThirdPartyFrameIntake[]
+  frameAdaptationOrders FrameAdaptationOrder[]
 birthdayReminders BirthdayReminder[]
 }
 model Address {
@@ -293,6 +294,7 @@ originalText String?
 customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
 orders OpticalOrder[]
 quotes Quote[]
+  frameAdaptationOrders FrameAdaptationOrder[]
 }
 model Category {
 id String @id @default(cuid())
@@ -503,6 +505,7 @@ items SaleItem[]
 payments Payment[]
 accounts Account[]
 fiscalDocument FiscalDocument?
+  frameAdaptationOrder FrameAdaptationOrder?
 }
 model SaleItem {
 id String @id @default(cuid())
@@ -933,6 +936,39 @@ model ThirdPartyFrameIntake {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+  @@index([customerId])
+}
+
+
+model FrameAdaptationOrder {
+  id String @id @default(cuid())
+  number Int @unique @default(autoincrement())
+  saleId String @unique
+  customerId String
+  prescriptionId String?
+  laboratory String?
+  oldFrameDescription String?
+  newFrameDescription String
+  lensSource String @default("CLIENTE")
+  prescriptionStatus String @default("SEM_RECEITA")
+  lensType String?
+  lensDegreeInfo String?
+  serviceType String @default("MONTAGEM_ADAPTACAO")
+  frameCondition String?
+  preexistingDamage String?
+  inspectionNotes String?
+  photoReferences String?
+  customerAcknowledged Boolean @default(false)
+  status String @default("AGUARDANDO_ENVIO")
+  sentAt DateTime?
+  receivedAt DateTime?
+  createdByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
   @@index([status, createdAt])
   @@index([customerId])
 }
