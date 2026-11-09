@@ -55,6 +55,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, string[]> = {
 
 export const API_PERMISSIONS: Record<string, string> = {
   "/api/appointments": "agenda",
+  "/api/agenda/birthdays": "agenda",
+  "/api/frame-adaptation-orders": "armacoesTerceiros",
   "/api/third-party-frames": "armacoesTerceiros",
   "/api/messages": "mensagens",
   "/api/audit": "auditoria",
@@ -107,7 +109,7 @@ export const API_PUBLIC_AUTHENTICATED = new Set([
 export const ROLE_API_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
   GERENTE: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/customers",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers", "/api/site",
     "/api/orders", "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
@@ -127,7 +129,7 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/gestao/indicadores", "/api/reports/monthly-target",
   ],
   LABORATORIO: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/prescriptions",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/frame-adaptation-orders", "/api/prescriptions",
     "/api/products", "/api/categories", "/api/orders", "/api/stock", "/api/third-party-frames",
   ],
 };
@@ -146,6 +148,8 @@ export const WRITE_ROLES: Array<[string, string[]]> = [
   ["/api/orders", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/third-party-frames", ["ADMIN", "GERENTE", "VENDEDOR", "LABORATORIO"]],
   ["/api/appointments", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/agenda/birthdays", ["ADMIN", "GERENTE", "VENDEDOR"]],
+  ["/api/frame-adaptation-orders", ["ADMIN", "GERENTE", "LABORATORIO"]],
   ["/api/quotes", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/sales", ["ADMIN", "GERENTE", "VENDEDOR"]],
   ["/api/payment-methods", ["ADMIN", "GERENTE", "FINANCEIRO"]],
