@@ -119,6 +119,29 @@ export async function POST(req:Request){
         include:{items:true}
       });
 
+      if(saleType==="ARMACAO_ADAPTACAO"){
+        const service=b.frameAdaptation;
+        await tx.frameAdaptationOrder.create({data:{
+          saleId:sale.id,
+          customerId:customer.id,
+          prescriptionId:service.prescriptionId?String(service.prescriptionId):undefined,
+          laboratory:String(service.laboratory||"").trim()||undefined,
+          oldFrameDescription:String(service.oldFrameDescription||"").trim()||undefined,
+          newFrameDescription:String(service.newFrameDescription).trim(),
+          lensSource:String(service.lensSource||"CLIENTE"),
+          prescriptionStatus:String(service.prescriptionStatus||"SEM_RECEITA"),
+          lensType:String(service.lensType||"").trim()||undefined,
+          lensDegreeInfo:String(service.lensDegreeInfo||"").trim()||undefined,
+          serviceType:String(service.serviceType||"MONTAGEM_ADAPTACAO"),
+          frameCondition:String(service.frameCondition||"").trim()||undefined,
+          preexistingDamage:String(service.preexistingDamage||"").trim()||undefined,
+          inspectionNotes:String(service.inspectionNotes||"").trim()||undefined,
+          photoReferences:String(service.photoReferences||"").trim()||undefined,
+          customerAcknowledged:service.customerAcknowledged===true,
+          createdByUserId:seller.id
+        }});
+      }
+
       await enqueueAccountingEvent(tx, {
         eventType: "SALE_RECOGNIZED",
         sourceType: "Sale",
