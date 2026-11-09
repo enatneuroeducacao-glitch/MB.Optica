@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { apiError } from "@/lib/api-error";
 
+class AccountingEventValidationError extends Error {}
+
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export async function POST(request: Request) {
@@ -15,18 +17,18 @@ export async function POST(request: Request) {
 
     const result = await db.$transaction(async (tx) => {
       const event = await tx.accountingEvent.findUnique({ where: { id: eventId } });
-      if (!event) throw new Error("Evento contábil não encontrado.");
+      if (!event) throw new AccountingEventValidationError("Evento contábil não encontrado.");
       if (event.status === "PROCESSADO" && event.entryId) {
         const existing = await tx.accountingEntry.findUnique({ where: { id: event.entryId }, include: { lines: true } });
         return { alreadyProcessed: true, entry: existing };
       }
-      if (event.status === "PROCESSANDO") throw new Error("Evento já está em processamento; tente novamente em instantes.");
+      if (event.status === "PROCESSANDO") throw new AccountingEventValidationError("Evento já está em processamento; tente novamente em instantes.");
       if (!["SALE_RECOGNIZED", "PAYMENT_RECEIVED", "SALE_REFUNDED", "PAYMENT_REVERSED", "SUPPLIER_EXPENSE_RECOGNIZED", "SUPPLIER_PAYMENT_MADE", "SUPPLIER_EXPENSE_RECOGNIZED_MERCADORIA_REVENDA",
   "SUPPLIER_EXPENSE_RECOGNIZED_DESPESA_OPERACIONAL",
   "SUPPLIER_EXPENSE_RECOGNIZED_IMPOSTO_TAXA",
   "SUPPLIER_EXPENSE_RECOGNIZED_PROLABORE_RETIRADA",
   "SUPPLIER_EXPENSE_RECOGNIZED_OUTRA_OBRIGACAO"].includes(event.eventType)) {
-        throw new Error("Tipo de evento não suportado.");
+        throw new AccountingEventValidationError("Tipo de evento não suportado.");
       }
       let payload: Record<string, unknown> = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
       // Eventos antigos de recebimento podem não conter metadados do meio de pagamento.
@@ -51,9 +53,9 @@ export async function POST(request: Request) {
       }
       const amount = money(Number(payload.amount));
       const sourceDate = new Date(String(payload.entryDate || event.createdAt.toISOString()));
-      if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new Error("Evento sem valor positivo ou data válida.");
+      if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new AccountingEventValidationError("Evento sem valor positivo ou data válida.");
       if (event.eventType === "PAYMENT_RECEIVED" && (!payload.paymentMethodId || typeof payload.paymentMethodName !== "string" || typeof payload.isCash !== "boolean")) {
-        throw new Error("Recebimento sem dados do meio de pagamento. Revise o evento antes de contabilizar.");
+        throw new AccountingEventValidationError("Recebimento sem dados do meio de pagamento. Revise o evento antes de contabilizar.");
       }
       if (event.eventType === "PAYMENT_RECEIVED") {
         const fee = payload.cardFeeAmount == null ? 0 : Number(payload.cardFeeAmount);
@@ -61,25 +63,32 @@ export async function POST(request: Request) {
         const methodName = String(payload.paymentMethodName || "").toLocaleLowerCase("pt-BR");
         const isCard = methodName.includes("cartão") || methodName.includes("cartao");
         if (!Number.isFinite(fee) || fee < 0 || !Number.isFinite(net) || net < 0 || Math.abs(money(amount - fee) - money(net)) > 0.01) {
-          throw new Error("Dados de taxa e valor líquido do cartão inconsistentes. Evento não contabilizado; revise os dados do pagamento.");
+          throw new AccountingEventValidationError("Dados de taxa e valor líquido do cartão inconsistentes. Evento não contabilizado; revise os dados do pagamento.");
         }
         // O evento reconhece o recebivel bruto da operadora. A taxa so deve ser contabilizada na liquidacao efetiva da operadora.
       }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
-      if (!period) throw new Error("Não existe período contábil aberto para a data do evento.");
-      const paymentMethodId = event.eventType === "PAYMENT_RECEIVED" ? String(payload.paymentMethodId || "") : null;
-      if (event.eventType === "PAYMENT_RECEIVED" && !paymentMethodId) throw new Error("Recebimento sem meio de pagamento identificado; revise o evento antes de contabilizar.");
+      if (!period) throw new AccountingEventValidationError("Não existe período contábil aberto para a data do evento.");
+      const usesPaymentMethod = event.eventType === "PAYMENT_RECEIVED" || event.eventType === "SUPPLIER_PAYMENT_MADE";
+      const paymentMethodId = usesPaymentMethod ? String(payload.paymentMethodId || "") : null;
+      if (usesPaymentMethod && !paymentMethodId) {
+        throw new AccountingEventValidationError(
+          event.eventType === "SUPPLIER_PAYMENT_MADE"
+            ? "Quitação de fornecedor sem meio de pagamento cadastrado. Registre a quitação selecionando um meio ativo e depois processe o novo evento."
+            : "Recebimento sem meio de pagamento identificado; revise o evento antes de contabilizar."
+        );
+      }
       const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, paymentMethodId, active: true } });
-      if (activeMappings.length === 0) throw new Error("Não há mapeamento ativo para este tipo de evento.");
-      if (activeMappings.length !== 1) throw new Error("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
+      if (activeMappings.length === 0) throw new AccountingEventValidationError("Não há mapeamento ativo para este tipo de evento.");
+      if (activeMappings.length !== 1) throw new AccountingEventValidationError("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
       const mapping = activeMappings[0];
       const accounts = await tx.chartOfAccount.findMany({ where: { id: { in: [mapping.debitAccountId, mapping.creditAccountId] }, active: true }, select: { id: true, code: true, name: true } });
-      if (accounts.length !== 2) throw new Error("As contas do mapeamento precisam estar ativas.");
+      if (accounts.length !== 2) throw new AccountingEventValidationError("As contas do mapeamento precisam estar ativas.");
       if (event.eventType === "PAYMENT_RECEIVED" && /cart[aã]o/i.test(String(payload.paymentMethodName || ""))) {
         const debit = accounts.find((account) => account.id === mapping.debitAccountId);
         const credit = accounts.find((account) => account.id === mapping.creditAccountId);
         if (debit?.code !== "1.1.03" || credit?.code !== "1.2") {
-          throw new Error("Para recebimento por cartão, configure débito em 1.1.03 — Valores a receber de cartões e crédito em 1.2 — Contas a receber de clientes. A taxa será reconhecida somente na liquidação da operadora.");
+          throw new AccountingEventValidationError("Para recebimento por cartão, configure débito em 1.1.03 — Valores a receber de cartões e crédito em 1.2 — Contas a receber de clientes. A taxa será reconhecida somente na liquidação da operadora.");
         }
       }
       const existingByKey = await tx.accountingEntry.findUnique({ where: { originKey: event.idempotencyKey } });
@@ -87,7 +96,7 @@ export async function POST(request: Request) {
         // Never relink an event to an entry that has already been reversed.
         // Reprocessing must not silently report a reversed entry as a valid accounting result.
         if (existingByKey.status === "ESTORNADO" || existingByKey.reversedAt) {
-          throw new Error("Este evento possui um lançamento original já estornado. Não é seguro reprocessá-lo automaticamente; revise o histórico e gere um novo evento de origem após corrigir a operação.");
+          throw new AccountingEventValidationError("Este evento possui um lançamento original já estornado. Não é seguro reprocessá-lo automaticamente; revise o histórico e gere um novo evento de origem após corrigir a operação.");
         }
         await tx.accountingEvent.update({ where: { id: event.id }, data: { status: "PROCESSADO", processedAt: new Date(), entryId: existingByKey.id, errorMessage: null } });
         return { alreadyProcessed: true, entry: existingByKey };
@@ -112,6 +121,9 @@ export async function POST(request: Request) {
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
+    if (error instanceof AccountingEventValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
     return apiError(error, "Não foi possível processar o evento contábil.");
   }
 }
