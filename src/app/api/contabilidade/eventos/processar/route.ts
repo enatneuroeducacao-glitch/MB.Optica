@@ -78,7 +78,22 @@ export async function POST(request: Request) {
         // O evento reconhece o recebivel bruto da operadora. A taxa so deve ser contabilizada na liquidacao efetiva da operadora.
       }
       const period = await tx.accountingPeriod.findFirst({ where: { status: "ABERTO", startDate: { lte: sourceDate }, endDate: { gte: sourceDate } } });
-      if (!period) throw new AccountingEventValidationError("Não existe período contábil aberto para a data do evento.");
+      if (!period) {
+        const existingPeriod = await tx.accountingPeriod.findFirst({
+          where: { startDate: { lte: sourceDate }, endDate: { gte: sourceDate } },
+          orderBy: { createdAt: "desc" },
+        });
+        const dateLabel = sourceDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        const monthLabel = sourceDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
+        if (existingPeriod) {
+          throw new AccountingEventValidationError(
+            "O período contábil de " + monthLabel + " existe, mas está " + existingPeriod.status + ". Reabra-o formalmente na aba Períodos contábeis ou faça o ajuste no período correto antes de processar. Data do evento: " + dateLabel + "."
+          );
+        }
+        throw new AccountingEventValidationError(
+          "Não existe período contábil cadastrado para " + monthLabel + ". Acesse Contabilidade > Períodos contábeis e crie/abra o período correspondente antes de processar. Data do evento: " + dateLabel + "."
+        );
+      }
       const usesPaymentMethod = event.eventType === "PAYMENT_RECEIVED" || event.eventType === "SUPPLIER_PAYMENT_MADE";
       const paymentMethodId = usesPaymentMethod ? String(payload.paymentMethodId || "") : null;
       if (usesPaymentMethod && !paymentMethodId) {
