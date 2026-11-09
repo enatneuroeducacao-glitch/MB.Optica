@@ -37,7 +37,7 @@ export async function PATCH(req:Request){
     const rawDate=changingDate?String(b.dueDate||"").trim():"";
     if(changingDate&&!/^\d{4}-\d{2}-\d{2}$/.test(rawDate))throw new Error("Informe uma data de entrega válida.");
     const nextDate=changingDate?new Date(`${rawDate}T12:00:00.000Z`):undefined;
-    if(changingDate&&(!nextDate||Number.isNaN(nextDate.getTime())))throw new Error("Data de entrega inválida.");
+    if(changingDate&&(!nextDate||Number.isNaN(nextDate.getTime())||nextDate.toISOString().slice(0,10)!==rawDate))throw new Error("Data de entrega inválida.");
     const updated=await db.$transaction(async tx=>{
       const row=await tx.frameAdaptationOrder.update({where:{id},data:changingDate?{dueDate:nextDate}:{
         status,
