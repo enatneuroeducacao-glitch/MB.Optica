@@ -35,7 +35,7 @@ export async function PATCH(req:Request){
     const current=await db.frameAdaptationOrder.findUnique({where:{id}});
     if(!current) return NextResponse.json({error:"Ordem de montagem não encontrada."},{status:404});
     const rawDate=changingDate?String(b.dueDate||"").trim():"";
-    if(changingDate&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(rawDate))throw new Error("Informe uma data de entrega válida.");
+    if(changingDate&&!/^\d{4}-\d{2}-\d{2}$/.test(rawDate))throw new Error("Informe uma data de entrega válida.");
     const nextDate=changingDate?new Date(`${rawDate}T12:00:00.000Z`):undefined;
     if(changingDate&&(!nextDate||Number.isNaN(nextDate.getTime())))throw new Error("Data de entrega inválida.");
     const updated=await db.$transaction(async tx=>{
