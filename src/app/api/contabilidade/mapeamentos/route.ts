@@ -95,6 +95,19 @@ export async function POST(request: Request) {
           creditCode: "1.2",
           description: "SUGESTÃO — recebimento por " + method.name + ": débito em " + debitCode + " e crédito em 1.2 — Contas a receber de clientes. Revisar antes de ativar.",
         });
+
+        // Na quitação de fornecedor, baixa-se a obrigação (2.1) e credita-se
+        // a conta de caixa/banco efetivamente utilizada.
+        // Cartões exigem conta de passivo própria e não recebem sugestão automática.
+        if (debitCode === "1.1.01" || debitCode === "1.1.02") {
+          suggestions.push({
+            eventType: "SUPPLIER_PAYMENT_MADE",
+            paymentMethodId: method.id,
+            debitCode: "2.1",
+            creditCode: debitCode,
+            description: "SUGESTÃO — quitação de fornecedor por " + method.name + ": débito em 2.1 — Fornecedores a pagar e crédito em " + debitCode + ". Revisar antes de ativar.",
+          });
+        }
       }
 
       const created: any[] = [];
