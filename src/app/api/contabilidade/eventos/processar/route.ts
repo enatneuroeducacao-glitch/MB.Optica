@@ -61,6 +61,27 @@ export async function POST(request: Request) {
           };
         }
       }
+      // Recover original settlement details for legacy supplier events.
+      if (event.eventType === "SUPPLIER_PAYMENT_MADE") {
+        const settlementId = String(payload.settlementId || event.sourceId || "");
+        const sourceSettlement = settlementId
+          ? await tx.accountSettlement.findUnique({ where: { id: settlementId }, include: { paymentMethod: true } })
+          : null;
+        const legacyMethodName = String(payload.paymentMethodName || payload.paymentMethod || payload.method || sourceSettlement?.method || "").trim();
+        const methodRecord = sourceSettlement?.paymentMethod?.active
+          ? sourceSettlement.paymentMethod
+          : legacyMethodName
+            ? await tx.paymentMethod.findFirst({ where: { name: { equals: legacyMethodName, mode: "insensitive" }, active: true } })
+            : null;
+        payload = {
+          ...payload,
+          amount: sourceSettlement ? Number(sourceSettlement.amount) : payload.amount,
+          entryDate: sourceSettlement ? sourceSettlement.paidAt.toISOString() : payload.entryDate,
+          paymentMethodId: payload.paymentMethodId || methodRecord?.id || null,
+          paymentMethodName: payload.paymentMethodName || methodRecord?.name || legacyMethodName || null,
+          paymentMethod: payload.paymentMethod || methodRecord?.name || legacyMethodName || null,
+        };
+      }
       const amount = money(Number(payload.amount));
       const sourceDate = new Date(String(payload.entryDate || event.createdAt.toISOString()));
       if (!Number.isFinite(amount) || amount <= 0 || Number.isNaN(sourceDate.getTime())) throw new AccountingEventValidationError("Evento sem valor positivo ou data válida.");
