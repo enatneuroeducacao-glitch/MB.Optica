@@ -43,8 +43,15 @@ export default function Atendimento(){
  const advance=async(o:Order)=>{const n=next[o.status];if(!n)return;setMsg("");try{const r=await fetch("/api/orders/"+o.id+"/status",{method:"PATCH",headers:{"Content-Type":"application/json"},credentials:"same-origin",cache:"no-store",body:JSON.stringify({status:n,message:"Atualização pelo fluxo óptico"})});const d=await r.json().catch(()=>null);if(!r.ok){setMsg(d?.detail||d?.error||"Erro ao atualizar o status do pedido.");await load();return}setMsg("Pedido #"+o.number+" → "+labels[n]);await load()}catch(error){console.error("[atendimento] advance failed",error);setMsg("Não foi possível avançar o pedido. Verifique a conexão.");await load()}};
  const printManualOS=async(quantity:number)=>{
   if(!Number.isInteger(quantity)||quantity<1||quantity>100){alert("Informe uma quantidade entre 1 e 100 O.S.");return}
-  const win=window.open("","_blank","width=950,height=1100");
-  if(!win){alert("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");return}
+  // Usa um iframe de impressão na própria página para não depender de pop-ups.
+  const printFrame=document.createElement("iframe");
+  printFrame.setAttribute("aria-hidden","true");
+  printFrame.title="Impressão de ordens de serviço";
+  Object.assign(printFrame.style,{position:"fixed",left:"-10000px",top:"0",width:"210mm",height:"297mm",border:"0",opacity:"0",pointerEvents:"none"});
+  document.body.appendChild(printFrame);
+  const printDocument=printFrame.contentDocument;
+  const printWindow=printFrame.contentWindow;
+  if(!printDocument||!printWindow){printFrame.remove();alert("Não foi possível preparar a impressão neste navegador.");return}
   try{
     const response=await fetch("/api/service-orders/next-number",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quantity})});
     const data=await response.json();
@@ -67,7 +74,8 @@ export default function Atendimento(){
     <div class="stub"><div class="stub-title">CANHOTO DO CLIENTE — MB ÓPTICA</div><div class="stub-grid"><div class="stub-field"><b>Cliente:</b></div><div class="stub-field"><b>O.S. Nº:</b> ${osNumber}</div><div class="stub-field"><b>Data:</b></div><div class="stub-field"><b>Previsão de entrega:</b></div><div class="stub-field"><b>Telefone:</b></div><div class="stub-field"><b>Valor:</b></div><div class="stub-field" style="grid-column:1/-1"><b>Observação:</b></div></div><div style="margin-top:8px;font-size:8px">Apresente este canhoto para retirada do serviço. Guarde-o até a entrega.</div></div>
     </section>`;
     }).join("");
-    win.document.write(`<!doctype html><html><head><title>O.S. Manuais — MB Óptica</title><style>
+    printDocument.open();
+    printDocument.write(`<!doctype html><html><head><title>O.S. Manuais — MB Óptica</title><style>
     @page{size:A4 portrait;margin:0}
     *{box-sizing:border-box;print-color-adjust:exact;-webkit-print-color-adjust:exact}
     html,body{margin:0!important;padding:0!important;width:210mm!important;min-width:210mm!important;font-family:Arial,sans-serif;color:#111;font-size:9pt}
@@ -84,9 +92,13 @@ export default function Atendimento(){
     .stub{border:1px solid #777;padding:5px;break-inside:avoid;page-break-inside:avoid}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.stub-field{min-height:19px;border-bottom:1px solid #777;padding:2px}.stub-title{text-align:center;font-weight:700;font-size:10px;margin-bottom:4px}
     @media screen{body{width:210mm;margin:12px auto!important}.sheet{outline:1px solid #ddd;margin:0 auto 12px!important}}
     @media print{html,body{width:210mm!important;margin:0!important;padding:0!important}.sheet{margin:0!important}.sheet+.sheet{break-before:page!important;page-break-before:always!important}}
-    </style></head><body>${pages}<script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
-    win.document.close();
-  }catch(error){win.close();alert(error instanceof Error?error.message:"Não foi possível gerar as O.S. manuais.")}
+    </style></head><body>${pages}</body></html>`);
+    printDocument.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.onafterprint=()=>printFrame.remove();
+    window.setTimeout(()=>{if(printFrame.isConnected)printFrame.remove()},120000);
+  }catch(error){printFrame.remove();alert(error instanceof Error?error.message:"Não foi possível gerar as O.S. manuais.")}
  }; const updateItem=(setter:any,items:any[],i:number,p:any)=>{const n=[...items];n[i]=p;setter(n)};
  const productField=(items:any,setter:any,i:number)=><label>Produto<input value={items[i].description} placeholder="Pesquisar código ou descrição..." onChange={e=>updateItem(setter,items,i,{...items[i],productId:"",description:e.target.value})}/>{items[i].description&&!items[i].productId&&matches(items[i].description).map(p=><button type="button" key={p.id} className="workflow-suggestion" onClick={()=>updateItem(setter,items,i,{...items[i],productId:p.id,description:p.description,unitPrice:String(p.salePrice)})}>{p.code} — {p.description} · {money(p.salePrice)}</button>)}</label>;
 
