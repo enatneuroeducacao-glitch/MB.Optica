@@ -111,14 +111,14 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
   GERENTE: [
     "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers", "/api/site",
-    "/api/orders", "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys",
+    "/api/orders", "/api/frame-adaptation-orders", "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
     "/api/quotes", "/api/relatorios", "/api/reports/monthly-target", "/api/gestao/indicadores", "/api/audit", "/api/users", "/api/settings",
     "/api/service-orders", "/api/migration", "/api/fiscal/configuracao", "/api/fiscal/certificado/verificar",
     "/api/fiscal/produtos/diagnostico", "/api/fiscal/produtos/lote", "/api/fiscal/validacao/venda", "/api/fiscal/homologacao",
   ],
   VENDEDOR: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/customers",
+    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/frame-adaptation-orders", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/orders",
     "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys", "/api/sales",
     "/api/quotes", "/api/reports/monthly-target", "/api/third-party-frames",
