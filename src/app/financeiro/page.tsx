@@ -12,7 +12,7 @@ const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",curre
 const date=(v:any)=>new Date(v).toLocaleDateString("pt-BR");
 const api=async(body:any)=>{const r=await fetch("/api/financeiro",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw new Error(d.detail||d.error||"Erro");return d};
 
-const payableCategories=["Água","Energia elétrica (Luz)","Aluguel","Internet","Telefone","Salários","Pró-labore","Fornecedores","Impostos","Contabilidade","Manutenção","Material de escritório","Marketing","Taxas bancárias","Outros"];
+const payableCategories=["Água","Energia elétrica (Luz)","Aluguel","Internet","Telefone","Salários","Pró-labore","Fornecedores","Serviços","Impostos","Contabilidade","Manutenção","Material de escritório","Marketing","Taxas bancárias","Outros"];
 const receivableCategories=["Venda de produtos","Serviço óptico","Recebimento de cliente","Outros"];
 
 export default function Financeiro(){
