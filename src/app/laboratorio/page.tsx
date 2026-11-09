@@ -75,7 +75,8 @@ function printFrameAdaptation(o:Order){
  <div class="sign"><div>Responsável MB Óptica — envio/conferência</div><div>Laboratório — recebimento</div></div><div class="footer">OS-MONTAGEM #${esc(o.number)} · Documento interno de controle · Emitido em ${esc(new Date().toLocaleString("pt-BR"))}</div><script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
  win.document.close();
 }
-\nexport default function Laboratorio(){
+
+export default function Laboratorio(){
  const [rows,setRows]=useState<Order[]>([]),[frameOrders,setFrameOrders]=useState<Order[]>([]),[msg,setMsg]=useState(""),
 [selected,setSelected]=useState<Order|null>(null),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODOS"),[check,setCheck]=useState<Record<string,boolean>>({}),[showWarrantyForm,setShowWarrantyForm]=useState(false),[warranty,setWarranty]=useState({reason:"",originalFiscalNumber:"",originalFiscalKey:"",notes:""});
  useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/laboratorio";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Laboratório":kind==="success"?"Laboratório — operação concluída":"Informação — Laboratório",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir laboratório em nova aba"):undefined,code:kind==="error"?"LABORAT_RIO_OPERATION":undefined}}));setMsg("");},[msg]);
