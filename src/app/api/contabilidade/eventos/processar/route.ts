@@ -33,6 +33,16 @@ export async function POST(request: Request) {
       let payload: Record<string, unknown> = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload) ? event.payload as Record<string, unknown> : {};
       // Eventos antigos de recebimento podem não conter metadados do meio de pagamento.
       // Recupera os dados do pagamento operacional de origem, sem inventar valores nem criar outro recebimento.
+      // Eventos antigos podem guardar o nome do meio de pagamento sem o ID.
+      // Recupera o cadastro ativo pelo nome para permitir o mapeamento correto.
+      if (event.eventType === "SUPPLIER_PAYMENT_MADE" && !payload.paymentMethodId && typeof payload.paymentMethod === "string" && payload.paymentMethod.trim()) {
+        const sourceMethod = await tx.paymentMethod.findFirst({
+          where: { name: { equals: payload.paymentMethod.trim(), mode: "insensitive" }, active: true },
+        });
+        if (sourceMethod) {
+          payload = { ...payload, paymentMethodId: sourceMethod.id, paymentMethodName: sourceMethod.name };
+        }
+      }
       if (event.eventType === "PAYMENT_RECEIVED" && (!payload.paymentMethodId || typeof payload.paymentMethodName !== "string" || typeof payload.isCash !== "boolean")) {
         const sourcePayment = await tx.payment.findUnique({
           where: { id: event.sourceId },
