@@ -67,11 +67,9 @@ export default function Atendimento(){
       <div class="eye"><h3>OD — OLHO DIREITO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
       <div class="eye"><h3>OE — OLHO ESQUERDO</h3><table><tr><th>ESF</th><th>CIL</th><th>AX</th><th>ADD</th><th>PRISMA</th><th>BASE</th><th>DNP</th><th>ALTURA</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></table></div>
     </div><div class="grid" style="margin-top:7px"><div class="field"><b>DP Total:</b></div><div class="field"><b>Profissional:</b></div><div class="field"><b>Validade:</b></div></div></div>
-    <div class="box"><div class="head">Produtos / Montagem</div><div class="line">Armação / referência: </div><div class="line">Lente / material: </div><div class="line">Tratamentos: </div><div class="line">Montagem / observações: </div></div>
-    <div class="box"><div class="head">Observações</div><div class="line"></div><div class="line"></div><div class="line"></div></div>
+    <div class="box products"><div class="head">Produtos / Montagem</div><div class="line">Armação / referência: </div><div class="line">Lente / material: </div><div class="line">Tratamentos: </div><div class="line">Montagem / observações: </div></div>
+    <div class="box observations"><div class="head">Observações</div><div class="line"></div><div class="line"></div><div class="line"></div></div>
     <div class="sign"><div>Responsável / vendedor</div><div>Cliente</div></div>
-    <div class="cut">✂ ——————————————————— DESTACAR E ENTREGAR AO CLIENTE ———————————————————</div>
-    <div class="stub"><div class="stub-title">CANHOTO DO CLIENTE — MB ÓPTICA</div><div class="stub-grid"><div class="stub-field"><b>Cliente:</b></div><div class="stub-field"><b>O.S. Nº:</b> ${osNumber}</div><div class="stub-field"><b>Data:</b></div><div class="stub-field"><b>Previsão de entrega:</b></div><div class="stub-field"><b>Telefone:</b></div><div class="stub-field"><b>Valor:</b></div><div class="stub-field" style="grid-column:1/-1"><b>Observação:</b></div></div><div style="margin-top:8px;font-size:8px">Apresente este canhoto para retirada do serviço. Guarde-o até a entrega.</div></div>
     </section>`;
     }).join("");
     printDocument.open();
@@ -80,16 +78,15 @@ export default function Atendimento(){
     *{box-sizing:border-box;print-color-adjust:exact;-webkit-print-color-adjust:exact}
     html,body{margin:0!important;padding:0!important;width:210mm!important;min-width:210mm!important;font-family:Arial,sans-serif;color:#111;font-size:9pt}
     body{display:block!important}
-    .sheet{display:block!important;position:relative;width:210mm!important;height:297mm!important;min-height:297mm!important;max-height:297mm!important;padding:8mm!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    .sheet{display:flex!important;flex-direction:column!important;position:relative;width:210mm!important;height:297mm!important;min-height:297mm!important;max-height:297mm!important;padding:12mm!important;margin:0!important;overflow:hidden!important;box-sizing:border-box!important;gap:8px!important;break-inside:avoid!important;page-break-inside:avoid!important}
     .sheet+.sheet{break-before:page!important;page-break-before:always!important}
-    .top{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:5px;margin-bottom:6px}.brand{font-size:18px;font-weight:700}.title{font-size:13px;font-weight:700}
-    .box{border:1px solid #777;padding:5px;margin-bottom:5px;break-inside:avoid;page-break-inside:avoid}.head{font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
-    .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.field{border-bottom:1px solid #777;min-height:20px;padding:2px}.wide{grid-column:1/-1}
-    .rx{display:grid;grid-template-columns:1fr 1fr;gap:5px}.eye{border:1px solid #777;padding:5px}.eye h3{text-align:center;margin:0 0 4px;font-size:10px}
-    table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #999;text-align:center}th{font-size:7px;padding:4px 2px;height:19px}td{height:27px;padding:5px 2px;font-size:9px}.line{height:19px;border-bottom:1px solid #777}
-    .sign{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:13px}.sign div{border-top:1px solid #555;text-align:center;padding-top:3px}
-    .cut{border-top:2px dashed #777;margin:8px 0 6px;padding-top:4px;text-align:center;font-size:7px;color:#555}
-    .stub{border:1px solid #777;padding:5px;break-inside:avoid;page-break-inside:avoid}.stub-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:5px}.stub-field{min-height:19px;border-bottom:1px solid #777;padding:2px}.stub-title{text-align:center;font-weight:700;font-size:10px;margin-bottom:4px}
+    .top{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:2px;min-height:22mm}.brand{font-size:23px;font-weight:700}.title{font-size:16px;font-weight:700;line-height:1.5}
+    .box{border:1px solid #777;padding:10px;margin:0;break-inside:avoid;page-break-inside:avoid}.head{font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:8px}
+    .grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:9px}.field{border-bottom:1px solid #777;min-height:30px;padding:5px;font-size:10px}.wide{grid-column:1/-1}
+    .rx{display:grid;grid-template-columns:1fr 1fr;gap:8px}.eye{border:1px solid #777;padding:9px}.eye h3{text-align:center;margin:0 0 8px;font-size:12px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #999;text-align:center}th{font-size:8px;padding:7px 3px;height:25px}td{height:38px;padding:7px 3px;font-size:10px}.line{height:34px;border-bottom:1px solid #777}
+    .sign{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:auto;padding-top:24px;padding-bottom:6px}.sign div{border-top:1px solid #555;text-align:center;padding-top:7px;min-height:20mm;font-size:10px}
+    .box.products,.box.observations{flex:1;min-height:35mm}.box.products .line{height:42px}.box.observations .line{height:38px}
     @media screen{body{width:210mm;margin:12px auto!important}.sheet{outline:1px solid #ddd;margin:0 auto 12px!important}}
     @media print{html,body{width:210mm!important;margin:0!important;padding:0!important}.sheet{margin:0!important}.sheet+.sheet{break-before:page!important;page-break-before:always!important}}
     </style></head><body>${pages}</body></html>`);
