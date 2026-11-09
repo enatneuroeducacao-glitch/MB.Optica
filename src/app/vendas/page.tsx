@@ -14,6 +14,74 @@ type Sale=any;
 type SaleItemForm={id:string;productId:string;description:string;quantity:string;unitPrice:string;unitCost:string};
 
 const money=(v:any)=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+function printFrameAdaptationSale(sale:any){
+ const o=sale?.frameAdaptationOrder;
+ if(!o){alert("Esta venda não possui uma ordem de montagem vinculada.");return}
+ const esc=(v:any)=>String(v??"—").replace(/[&<>"]/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[x]!));
+ const receipt=o.prescriptionStatus==="COM_RECEITA"?"Receita apresentada":o.prescriptionStatus==="DADOS_CLIENTE"?"Dados informados pelo cliente":"Sem receita apresentada";
+ const source=o.lensSource==="LOJA"?"Lentes fornecidas pela loja":"Lentes pertencentes ao cliente";
+ const service=o.serviceType==="MONTAGEM"?"Somente montagem":o.serviceType==="ADAPTACAO"?"Adaptação/transferência das lentes":"Montagem e adaptação das lentes";
+ const frame=document.createElement("iframe");
+ frame.title="Impressão da ordem de montagem";
+ Object.assign(frame.style,{position:"fixed",left:"-10000px",top:"0",width:"210mm",height:"297mm",border:"0"});
+ document.body.appendChild(frame);
+ const w=frame.contentWindow,doc=frame.contentDocument;
+ if(!w||!doc){frame.remove();alert("Não foi possível preparar a impressão.");return}
+ doc.open();
+ doc.write(`<!doctype html><html><head><title>OS-MONTAGEM-${esc(o.number)}_VENDA-${esc(sale.number)}</title><style>
+ @page{size:A4 portrait;margin:12mm}*{box-sizing:border-box;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ html,body{margin:0;padding:0;font-family:Arial,sans-serif;color:#111;font-size:10pt}
+ .top{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:8px;margin-bottom:12px}
+ .brand{font-size:22px;font-weight:bold}.subtitle{font-size:9px;color:#555;margin-top:3px}
+ .numbers{text-align:right;font-weight:bold;font-size:15px}.numbers small{display:block;font-size:11px;margin-top:5px}
+ .section{border:1px solid #777;padding:10px;margin:9px 0;break-inside:avoid}.section h2{font-size:10px;text-transform:uppercase;margin:0 0 8px}
+ .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}.field{border-bottom:1px solid #bbb;padding:5px;min-height:28px}.wide{grid-column:1/-1}
+ .label{font-size:8px;color:#555;text-transform:uppercase;font-weight:bold}.value{margin-top:4px;white-space:pre-wrap;min-height:14px}
+ .notice{font-size:9px;margin-top:7px}.sign{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:25px}.sign div{border-top:1px solid #222;text-align:center;padding-top:6px;font-size:9px}
+ .footer{text-align:center;font-size:8px;margin-top:12px}
+ </style></head><body>
+ <div class="top"><div><div class="brand">MB ÓPTICA</div><div class="subtitle">Gestão inteligente · Ordem de serviço para montagem e adaptação</div></div><div class="numbers">OS-MONTAGEM Nº ${esc(o.number)}<small>VENDA Nº ${esc(sale.number)}</small></div></div>
+ <div class="section"><h2>Identificação e controle interno</h2><div class="grid">
+ <div class="field"><div class="label">Cliente</div><div class="value">${esc(sale.customer?.name)}</div></div>
+ <div class="field"><div class="label">CPF/CNPJ</div><div class="value">${esc(sale.customer?.cpfCnpj)}</div></div>
+ <div class="field"><div class="label">Telefone</div><div class="value">${esc(sale.customer?.phone)}</div></div>
+ <div class="field"><div class="label">Data da venda / emissão</div><div class="value">${esc(new Date(sale.createdAt).toLocaleString("pt-BR"))}</div></div>
+ <div class="field"><div class="label">Laboratório de destino</div><div class="value">${esc(o.laboratory)}</div></div>
+ <div class="field"><div class="label">Vendedor responsável</div><div class="value">${esc(sale.seller?.name)}</div></div>
+ </div></div>
+ <div class="section"><h2>Armações</h2><div class="grid">
+ <div class="field"><div class="label">Armação anterior do cliente</div><div class="value">${esc(o.oldFrameDescription||"Não informada")}</div></div>
+ <div class="field"><div class="label">Armação nova vendida</div><div class="value">${esc(o.newFrameDescription)}</div></div>
+ </div></div>
+ <div class="section"><h2>Lentes e serviço solicitado</h2><div class="grid">
+ <div class="field"><div class="label">Origem das lentes</div><div class="value">${esc(source)}</div></div>
+ <div class="field"><div class="label">Receita</div><div class="value">${esc(receipt)}</div></div>
+ <div class="field"><div class="label">Tipo de lente</div><div class="value">${esc(o.lensType)}</div></div>
+ <div class="field"><div class="label">Grau / dados informados</div><div class="value">${esc(o.lensDegreeInfo)}</div></div>
+ <div class="field wide"><div class="label">Serviço solicitado</div><div class="value">${esc(service)}</div></div>
+ </div><div class="notice">A receita é opcional nesta modalidade. Informações ausentes não devem ser presumidas.</div></div>
+ <div class="section"><h2>Condição do produto e observações</h2><div class="grid">
+ <div class="field"><div class="label">Condição registrada</div><div class="value">${esc(o.frameCondition||"Não avaliada")}</div></div>
+ <div class="field"><div class="label">Riscos e danos preexistentes</div><div class="value">${esc(o.preexistingDamage)}</div></div>
+ <div class="field wide"><div class="label">Observações técnicas</div><div class="value">${esc(o.inspectionNotes)}</div></div>
+ <div class="field wide"><div class="label">Referências/fotos</div><div class="value">${esc(o.photoReferences)}</div></div>
+ </div></div>
+ <div class="section"><h2>Controle de movimentação</h2><div class="grid">
+ <div class="field"><div class="label">Data/hora do envio</div><div class="value">${esc(o.sentAt?new Date(o.sentAt).toLocaleString("pt-BR"):"A preencher")}</div></div>
+ <div class="field"><div class="label">Data/hora do recebimento</div><div class="value">${esc(o.receivedAt?new Date(o.receivedAt).toLocaleString("pt-BR"):"A preencher")}</div></div>
+ <div class="field"><div class="label">Cliente ciente da condição</div><div class="value">${o.customerAcknowledged?"Sim":"Não registrado"}</div></div>
+ <div class="field"><div class="label">Status</div><div class="value">${esc(String(o.status||"").replaceAll("_"," "))}</div></div>
+ </div></div>
+ <div class="sign"><div>MB Óptica — responsável pelo envio/conferência</div><div>Laboratório — recebimento</div></div>
+ <div class="footer">Controle interno: VENDA Nº ${esc(sale.number)} · OS-MONTAGEM Nº ${esc(o.number)} · Documento emitido em ${esc(new Date().toLocaleString("pt-BR"))}</div>
+ </body></html>`);
+ doc.close();
+ w.onafterprint=()=>frame.remove();
+ w.focus();
+ w.print();
+ window.setTimeout(()=>{if(frame.isConnected)frame.remove()},120000);
+}
+
 const dt=(v:any)=>v?new Date(v).toLocaleString("pt-BR"):"—";
 const crc16=(value:string)=>{let crc=0xffff;for(let i=0;i<value.length;i++){crc^=value.charCodeAt(i)<<8;for(let b=0;b<8;b++)crc=(crc&0x8000)?((crc<<1)^0x1021)&0xffff:(crc<<1)&0xffff}return crc.toString(16).toUpperCase().padStart(4,"0")};
 const tlv=(id:string,value:string)=>id+String(value.length).padStart(2,"0")+value;
@@ -346,7 +414,7 @@ const refreshed=await fetch("/api/sales",{cache:"no-store"});const refreshedSale
    {filtered.map(s=>{const paid=Number(s.payments?.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+Number(p.amount),0)||0);const status=s.canceled?"CANCELADA":paid>=Number(s.total)?"PAGA":paid?"PARCIAL":"ABERTA";return <div className="row sales-row" key={s.id} onClick={()=>setSelected(s)}><strong>#{s.number}</strong><span>{s.customer?.name||"—"}</span><span>{s.items?.length||0}</span><span>{money(s.total)}</span><span>{money(paid)}</span><span className={"sales-status "+status.toLowerCase()}>{status}</span></div>})}
    {!filtered.length&&<div style={{padding:24,textAlign:"center",color:"var(--muted)"}}>Nenhuma venda encontrada.</div>}</div></div>
 
-  {selected&&<div className="panel sales-detail"><div className="panel-heading"><div><span className="eyebrow">VENDA #{selected.number}</span><h2>{selected.customer?.name||"Venda"}</h2><p>{dt(selected.createdAt)} · {selected.saleType==="PEDIDO_OPTICO"?"Pedido óptico":selected.saleType==="ENCOMENDA"?"Encomenda":selected.saleType==="SERVICO"?"Serviço":selected.saleType==="PRODUTOS"?"Produtos":"Balcão"} · Vendedor: {selected.seller?.name||"—"}</p></div><div className="sales-actions">{!selected.canceled&&<button className="secondary" onClick={()=>startEdit(selected)}>✏️ Editar venda</button>}<button className="secondary" onClick={()=>setPaying(selected)}>Receber pagamento</button><button className="secondary" onClick={()=>printSale("CUPOM")}>🖨 Cupom não fiscal</button><button className="secondary" onClick={()=>printSale("RECIBO")}>🖨 Recibo</button><button className="secondary" onClick={()=>printSale("CARNE")}>🖨 Carnê</button><button className="secondary" onClick={()=>printSale("PROMISSORIA")}>🖨 Promissória</button><button className="secondary" onClick={()=>printSale("NF_PREPARO")}>🧾 Preparar NF</button>{selected.fiscalDocument&&<button className="secondary" onClick={()=>printSale("FISCAL")}>🖨 NF autorizada</button>}<button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div></div>
+  {selected&&<div className="panel sales-detail"><div className="panel-heading"><div><span className="eyebrow">VENDA #{selected.number}</span><h2>{selected.customer?.name||"Venda"}</h2><p>{dt(selected.createdAt)} · {selected.saleType==="PEDIDO_OPTICO"?"Pedido óptico":selected.saleType==="ENCOMENDA"?"Encomenda":selected.saleType==="SERVICO"?"Serviço":selected.saleType==="PRODUTOS"?"Produtos":"Balcão"} · Vendedor: {selected.seller?.name||"—"}</p></div><div className="sales-actions">{!selected.canceled&&<button className="secondary" onClick={()=>startEdit(selected)}>✏️ Editar venda</button>}<button className="secondary" onClick={()=>setPaying(selected)}>Receber pagamento</button><button className="secondary" onClick={()=>printSale("CUPOM")}>🖨 Cupom não fiscal</button>{selected.frameAdaptationOrder&&<button className="secondary" onClick={()=>printFrameAdaptationSale(selected)}>🖨 Imprimir O.S. montagem · Venda #{selected.number}</button>}<button className="secondary" onClick={()=>printSale("RECIBO")}>🖨 Recibo</button><button className="secondary" onClick={()=>printSale("CARNE")}>🖨 Carnê</button><button className="secondary" onClick={()=>printSale("PROMISSORIA")}>🖨 Promissória</button><button className="secondary" onClick={()=>printSale("NF_PREPARO")}>🧾 Preparar NF</button>{selected.fiscalDocument&&<button className="secondary" onClick={()=>printSale("FISCAL")}>🖨 NF autorizada</button>}<button className="secondary" onClick={()=>setSelected(null)}>Fechar</button></div></div>
    <div className="sales-detail-grid"><div><h3>Itens</h3>{(selected.items||[]).map((i:any)=><div className="sales-line" key={i.id}><span>{i.description} × {Number(i.quantity)}</span><b>{money(i.total)}</b></div>)}</div><div><h3>Resumo</h3><div className="sales-line"><span>Subtotal</span><b>{money(selected.subtotal)}</b></div><div className="sales-line"><span>Desconto</span><b>- {money(selected.discount)}</b></div><div className="sales-line"><span>Acréscimo</span><b>+ {money(selected.surcharge)}</b></div><div className="sales-line total"><span>Total</span><b>{money(selected.total)}</b></div></div></div>
    <div className="sales-payment-history"><h3>Pagamentos</h3>{(selected.payments||[]).map((p:any)=><div className="sales-line" key={p.id}><span>{p.method?.name||"—"}{p.cardMachine?.name?" · "+p.cardMachine.name:""}{p.cardInstallments?" · "+p.cardInstallments+"x":""}{p.cardFeeRate!==null&&p.cardFeeRate!==undefined?" · taxa "+Number(p.cardFeeRate)+"%":""} · {dt(p.paidAt)}{p.reference?" · "+p.reference:""}</span><b>{money(p.amount)}</b></div>)}{!selected.payments?.length&&<span style={{color:"var(--muted)"}}>Nenhum pagamento registrado.</span>}</div>
   </div>}
