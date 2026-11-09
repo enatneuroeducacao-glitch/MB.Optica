@@ -369,12 +369,19 @@ export async function POST(req:Request){
           return {settlement,account:updated,payment,movement};
         }
 
+        const methodName=String(b.method||"").trim();
+        const method=b.methodId
+          ? await tx.paymentMethod.findUnique({where:{id:String(b.methodId)}})
+          : methodName
+            ? await tx.paymentMethod.findFirst({where:{active:true,name:{equals:methodName,mode:"insensitive"}}})
+            : null;
+        if(!method||!method.active) throw new Error("Selecione uma forma de pagamento cadastrada e ativa para quitar a conta.");
         const settlement=await tx.accountSettlement.create({
-          data:{accountId,amount,method:b.method||undefined,methodId:b.methodId||undefined,cardMachineId:isCard?cardMachineId:undefined,cardInstallments:isCard?cardInstallments:undefined,cardFeeRate:isCard?cardFeeRate:undefined,cardFeeAmount:isCard?cardFeeAmount:undefined,cardNetAmount:isCard?cardNetAmount:undefined,reference:b.reference||undefined,notes:b.notes||undefined}
+          data:{accountId,amount,method:method.name,methodId:method.id,cardMachineId:isCard?cardMachineId:undefined,cardInstallments:isCard?cardInstallments:undefined,cardFeeRate:isCard?cardFeeRate:undefined,cardFeeAmount:isCard?cardFeeAmount:undefined,cardNetAmount:isCard?cardNetAmount:undefined,reference:b.reference||undefined,notes:b.notes||undefined}
         });
         const paidAmount=Number(account.paidAmount)+amount;
         const updated=await tx.account.update({where:{id:accountId},data:{paidAmount,status:paidAmount+0.001>=Number(account.amount)?"PAGO":"PARCIAL"}});
-        if(account.type==="PAGAR") await tx.accountingEvent.create({data:{eventType:"SUPPLIER_PAYMENT_MADE",sourceType:"SUPPLIER",sourceId:settlement.id,idempotencyKey:"SUPPLIER_PAYMENT_SETTLEMENT:"+settlement.id,payload:{amount,entryDate:new Date().toISOString(),description:"Pagamento: "+account.description,accountId:account.id,settlementId:settlement.id,classification:account.classification||"OUTRA_OBRIGACAO",method:String(b.method||""),cardFeeAmount:cardFeeAmount||0,cardNetAmount:cardNetAmount??amount}}});
+        if(account.type==="PAGAR") await tx.accountingEvent.create({data:{eventType:"SUPPLIER_PAYMENT_MADE",sourceType:"AccountSettlement",sourceId:settlement.id,idempotencyKey:"SUPPLIER_PAYMENT_SETTLEMENT:"+settlement.id,payload:{amount,entryDate:settlement.paidAt.toISOString(),description:"Pagamento: "+account.description,accountId:account.id,settlementId:settlement.id,supplierId:account.supplierId,classification:account.classification||"OUTRA_OBRIGACAO",paymentMethod:method.name,paymentMethodName:method.name,paymentMethodId:method.id,method:method.name,cardFeeAmount:cardFeeAmount||0,cardNetAmount:cardNetAmount??amount}}});
         return {settlement,account:updated};
       });
       return NextResponse.json(result);
