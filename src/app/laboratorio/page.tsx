@@ -77,12 +77,14 @@ function printFrameAdaptation(o:Order){
 }
 
 export default function Laboratorio(){
- const [rows,setRows]=useState<Order[]>([]),[frameOrders,setFrameOrders]=useState<Order[]>([]),[msg,setMsg]=useState(""),
+ const [rows,setRows]=useState<Order[]>([]),[frameOrders,setFrameOrders]=useState<Order[]>([]),[msg,setMsg]=useState(""),[frameDueDates,setFrameDueDates]=useState<Record<string,string>>({}),[orderDueDate,setOrderDueDate]=useState(""),
 [selected,setSelected]=useState<Order|null>(null),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODOS"),[check,setCheck]=useState<Record<string,boolean>>({}),[showWarrantyForm,setShowWarrantyForm]=useState(false),[warranty,setWarranty]=useState({reason:"",originalFiscalNumber:"",originalFiscalKey:"",notes:""});
  useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/laboratorio";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Laboratório":kind==="success"?"Laboratório — operação concluída":"Informação — Laboratório",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir laboratório em nova aba"):undefined,code:kind==="error"?"LABORAT_RIO_OPERATION":undefined}}));setMsg("");},[msg]);
 
  const load=async()=>{const [r,fr]=await Promise.all([fetch("/api/orders"),fetch("/api/frame-adaptation-orders")]);const [d,fd]=await Promise.all([r.json(),fr.json()]);if(r.ok)setRows(d.filter((o:any)=>["PEDIDO",...stages,"ENTREGUE"].includes(o.status)));else setMsg(d.error||"Erro ao carregar pedidos.");if(fr.ok&&Array.isArray(fd))setFrameOrders(fd);};
  useEffect(()=>{load()},[]);
+ const saveFrameDueDate=async(o:Order)=>{const dueDate=frameDueDates[o.id]??(o.dueDate?String(o.dueDate).slice(0,10):"");if(!dueDate){setMsg("Informe a nova data prevista de entrega.");return}const r=await fetch("/api/frame-adaptation-orders",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:o.id,dueDate})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível alterar a data.");return}setMsg("Data prevista da OS #"+o.number+" atualizada.");await load();};
+ const saveOrderDueDate=async()=>{if(!selected||!orderDueDate){setMsg("Informe a nova data prevista de entrega.");return}const r=await fetch("/api/orders/"+selected.id+"/status",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({dueDate:orderDueDate})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível alterar a data.");return}setMsg("Data prevista do pedido #"+selected.number+" atualizada.");await load();const fresh=await fetch("/api/orders").then(x=>x.json());setSelected(fresh.find((x:Order)=>x.id===selected.id)||null);};
  const updateFrameOrder=async(o:Order,status:string)=>{const r=await fetch("/api/frame-adaptation-orders",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:o.id,status})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível atualizar a OS.");return}setMsg("Ordem de montagem #"+o.number+" atualizada.");await load();};
  const filtered=useMemo(()=>rows.filter(o=>{const q=(o.customer?.name+" "+o.number+" "+(o.laboratory||"")).toLowerCase();return (!search||q.includes(search.toLowerCase()))&&(filter==="TODOS"||o.status===filter)}),[rows,search,filter]);
  const counts=Object.fromEntries(stages.map(s=>[s,rows.filter(o=>o.status===s).length]));
@@ -97,7 +99,7 @@ export default function Laboratorio(){
   if(n==="ENTREGUE"&&!window.confirm("Confirma a entrega deste pedido ao cliente?"))return;
   await update(o,n,n==="AGUARDANDO_LABORATORIO"?"Pedido enviado ao laboratório":"Atualização pelo laboratório");
 };
- const openDetail=(o:Order)=>{setSelected(o);setCheck({})};
+ const openDetail=(o:Order)=>{setSelected(o);setOrderDueDate(o.dueDate?new Date(o.dueDate).toISOString().slice(0,10):"");setCheck({})};
  const checklist=[["cliente","Cliente correto"],["receita","Receita conferida"],["od","OD conferido"],["oe","OE conferido"],["dnp","DNP conferida"],["produto","Lente/produto correto"],["tratamento","Tratamento correto"],["montagem","Montagem sem danos e ajuste"]];
 
  return (
@@ -116,9 +118,10 @@ export default function Laboratorio(){
     <div className="panel" style={{padding:16,marginBottom:14}}>
       <div className="panel-heading" style={{padding:0,marginBottom:10}}><div><span className="eyebrow">DOCUMENTOS INTERNOS</span><h2>Ordens de montagem e adaptação</h2><p>Controle independente das vendas e dos pedidos ópticos. Receita não é obrigatória.</p></div><button className="secondary" onClick={load}>Atualizar OS</button></div>
       <div className="table">
-       <div className="row header"><span>OS</span><span>Cliente</span><span>Armação nova</span><span>Receita</span><span>Status</span><span>Ações</span></div>
+       <div className="row header"><span>OS</span><span>Cliente</span><span>Armação nova</span><span>Receita</span><span>Status</span><span>Entrega prevista</span><span>Ações</span></div>
        {frameOrders.map(o=><div className="row" key={o.id}>
         <strong>#{o.number}</strong><span>{o.customer?.name}</span><span>{o.newFrameDescription}</span><span>{o.prescriptionStatus==="COM_RECEITA"?"Com receita":o.prescriptionStatus==="DADOS_CLIENTE"?"Dados do cliente":"Sem receita"}</span><span>{o.status?.replaceAll("_"," ")}</span>
+        <span style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}><input aria-label={"Data prevista da OS #"+o.number} type="date" value={frameDueDates[o.id]??(o.dueDate?String(o.dueDate).slice(0,10):"")} onChange={e=>setFrameDueDates({...frameDueDates,[o.id]:e.target.value})} style={{maxWidth:145}}/><button className="link-button" onClick={()=>saveFrameDueDate(o)}>Salvar data</button></span>
         <span style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="link-button" onClick={()=>printFrameAdaptation(o)}>Imprimir OS</button>{o.status==="AGUARDANDO_ENVIO"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"ENVIADA_AO_LABORATORIO")}>Enviar</button>}{o.status==="ENVIADA_AO_LABORATORIO"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"RECEBIDA_DA_LOJA")}>Recebida</button>}{o.status==="RECEBIDA_DA_LOJA"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"CONFERIDA")}>Conferida</button>}</span>
        </div>)}
        {!frameOrders.length&&<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhuma ordem de montagem registrada.</div>}
@@ -185,6 +188,11 @@ export default function Laboratorio(){
           <div className="panel" style={{padding:10}}><small>Envio</small><div>{dateTimeBR(selected.laboratorySentAt)}</div></div>
           <div className="panel" style={{padding:10}}><small>Recebimento</small><div>{dateTimeBR(selected.receivedAt)}</div></div>
           <div className="panel" style={{padding:10}}><small>Valor</small><div style={{fontWeight:700}}>{money(selected.total)}</div></div>
+        </div>
+
+        <div className="panel" style={{padding:12,marginBottom:12}}>
+          <b>Previsão de entrega</b>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:8}}><input aria-label="Data prevista de entrega" type="date" value={orderDueDate} onChange={e=>setOrderDueDate(e.target.value)} style={{maxWidth:190}}/><button className="secondary" onClick={saveOrderDueDate}>Salvar nova data</button><small style={{color:"var(--muted)"}}>A data pode ser alterada em qualquer etapa do pedido.</small></div>
         </div>
 
         <div className="panel" style={{padding:12,marginBottom:12}}>
