@@ -961,6 +961,7 @@ model FrameAdaptationOrder {
   photoReferences String?
   customerAcknowledged Boolean @default(false)
   status String @default("AGUARDANDO_ENVIO")
+  dueDate DateTime?
   sentAt DateTime?
   receivedAt DateTime?
   createdByUserId String?
