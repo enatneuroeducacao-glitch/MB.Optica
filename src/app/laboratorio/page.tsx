@@ -57,13 +57,32 @@ function printLaboratory(o:Order){
  win.document.close();
 }
 
-export default function Laboratorio(){
- const [rows,setRows]=useState<Order[]>([]),[msg,setMsg]=useState(""),
+
+function printFrameAdaptation(o:Order){
+ const esc=(v:any)=>String(v??"—").replace(/[&<>"]/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[x]!));
+ const win=window.open("","_blank","width=950,height=1100");
+ if(!win){alert("Permita pop-ups para imprimir a ordem de serviço.");return;}
+ const status=o.prescriptionStatus==="COM_RECEITA"?"Receita disponível/anexada":o.prescriptionStatus==="DADOS_CLIENTE"?"Dados informados pelo cliente":"Sem receita apresentada";
+ const source=o.lensSource==="LOJA"?"Lentes fornecidas pela loja":"Lentes pertencentes ao cliente";
+ const service=o.serviceType==="MONTAGEM"?"Somente montagem":o.serviceType==="ADAPTACAO"?"Adaptação/transferência das lentes":"Montagem e adaptação";
+ win.document.write(`<!doctype html><html><head><title>OS Montagem #${esc(o.number)}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;font-size:11px}.top{display:flex;justify-content:space-between;border-bottom:2px solid #222;padding-bottom:10px;margin-bottom:12px}.brand{font-size:21px;font-weight:bold}.number{text-align:right;font-size:18px;font-weight:bold}.section{border:1px solid #777;padding:9px;margin:9px 0}.section h2{font-size:11px;text-transform:uppercase;margin:0 0 8px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.field{padding:5px;border-bottom:1px solid #ddd;min-height:32px}.wide{grid-column:1/-1}.label{font-size:9px;color:#555;text-transform:uppercase;font-weight:bold}.value{margin-top:4px;white-space:pre-wrap}.sign{display:grid;grid-template-columns:1fr 1fr;gap:45px;margin-top:42px}.sign div{border-top:1px solid #222;text-align:center;padding-top:6px}.footer{text-align:center;font-size:8px;margin-top:14px}</style></head><body>
+ <div class="top"><div><div class="brand">MB ÓPTICA</div><div>Gestão inteligente · Documento interno para acompanhamento de produtos</div></div><div class="number">OS-MONTAGEM #${esc(o.number)}<div style="font-size:10px;font-weight:normal">Venda #${esc(o.sale?.number)} · ${esc(new Date(o.createdAt).toLocaleDateString("pt-BR"))}</div></div></div>
+ <div class="section"><h2>Identificação</h2><div class="grid"><div class="field"><div class="label">Cliente</div><div class="value">${esc(o.customer?.name)}</div></div><div class="field"><div class="label">CPF/CNPJ</div><div class="value">${esc(o.customer?.cpfCnpj)}</div></div><div class="field"><div class="label">Telefone</div><div class="value">${esc(o.customer?.phone)}</div></div><div class="field"><div class="label">Laboratório de destino</div><div class="value">${esc(o.laboratory)}</div></div></div></div>
+ <div class="section"><h2>Armações</h2><div class="grid"><div class="field"><div class="label">Armação anterior do cliente</div><div class="value">${esc(o.oldFrameDescription||"Não informada")}</div></div><div class="field"><div class="label">Armação nova</div><div class="value">${esc(o.newFrameDescription)}</div></div></div></div>
+ <div class="section"><h2>Lentes e serviço solicitado</h2><div class="grid"><div class="field"><div class="label">Origem das lentes</div><div class="value">${esc(source)}</div></div><div class="field"><div class="label">Receita</div><div class="value">${esc(status)}</div></div><div class="field"><div class="label">Tipo de lente</div><div class="value">${esc(o.lensType)}</div></div><div class="field"><div class="label">Grau / dados informados</div><div class="value">${esc(o.lensDegreeInfo)}</div></div><div class="field wide"><div class="label">Serviço solicitado</div><div class="value">${esc(service)}</div></div></div><p style="font-size:9px">A receita é opcional nesta modalidade. Informações ausentes não devem ser presumidas nem preenchidas pelo laboratório.</p></div>
+ <div class="section"><h2>Condição do produto e observações</h2><div class="grid"><div class="field"><div class="label">Condição registrada</div><div class="value">${esc(o.frameCondition||"Não avaliada")}</div></div><div class="field"><div class="label">Riscos e danos preexistentes</div><div class="value">${esc(o.preexistingDamage)}</div></div><div class="field wide"><div class="label">Observações técnicas</div><div class="value">${esc(o.inspectionNotes)}</div></div><div class="field wide"><div class="label">Referências/fotos</div><div class="value">${esc(o.photoReferences)}</div></div></div></div>
+ <div class="section"><h2>Controle de movimentação</h2><div class="grid"><div class="field"><div class="label">Data/hora do envio</div><div class="value">${esc(dateTimeBR(o.sentAt))}</div></div><div class="field"><div class="label">Data/hora do recebimento</div><div class="value">${esc(dateTimeBR(o.receivedAt))}</div></div><div class="field"><div class="label">Responsável pelo envio</div><div class="value">${esc(o.sale?.seller?.name)}</div></div><div class="field"><div class="label">Cliente ciente da condição registrada</div><div class="value">${o.customerAcknowledged?"Sim":"Não registrado"}</div></div></div></div>
+ <div class="sign"><div>Responsável MB Óptica — envio/conferência</div><div>Laboratório — recebimento</div></div><div class="footer">OS-MONTAGEM #${esc(o.number)} · Documento interno de controle · Emitido em ${esc(new Date().toLocaleString("pt-BR"))}</div><script>window.onload=()=>{window.focus();window.print()}</script></body></html>`);
+ win.document.close();
+}
+\nexport default function Laboratorio(){
+ const [rows,setRows]=useState<Order[]>([]),[frameOrders,setFrameOrders]=useState<Order[]>([]),[msg,setMsg]=useState(""),
 [selected,setSelected]=useState<Order|null>(null),[search,setSearch]=useState(""),[filter,setFilter]=useState("TODOS"),[check,setCheck]=useState<Record<string,boolean>>({}),[showWarrantyForm,setShowWarrantyForm]=useState(false),[warranty,setWarranty]=useState({reason:"",originalFiscalNumber:"",originalFiscalKey:"",notes:""});
  useEffect(()=>{if(!msg)return;const text=msg.trim();const lower=text.toLocaleLowerCase("pt-BR");const kind=/(não foi possível|falha|erro|inválid|obrigatório|selecione|informe|não encontrado|bloqueou|não confirmou|não foi registrado)/i.test(text)?"error":/(sucesso|atualizad|criad|registrad|concluíd|confirmad|salvo|arquivado|excluído|aberto|fechado)/i.test(text)?"success":"info";const href=/sessão|acesso|permissão/i.test(lower)?"/configuracoes":"/laboratorio";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Não foi possível concluir a operação — Laboratório":kind==="success"?"Laboratório — operação concluída":"Informação — Laboratório",detail:text,kind,actionHref:kind==="error"?href:undefined,actionLabel:kind==="error"?(href==="/configuracoes"?"Verificar acesso e permissões":"Abrir laboratório em nova aba"):undefined,code:kind==="error"?"LABORAT_RIO_OPERATION":undefined}}));setMsg("");},[msg]);
 
- const load=async()=>{const r=await fetch("/api/orders");const d=await r.json();if(r.ok)setRows(d.filter((o:any)=>["PEDIDO",...stages,"ENTREGUE"].includes(o.status)));else setMsg(d.error||"Erro ao carregar pedidos.")};
+ const load=async()=>{const [r,fr]=await Promise.all([fetch("/api/orders"),fetch("/api/frame-adaptation-orders")]);const [d,fd]=await Promise.all([r.json(),fr.json()]);if(r.ok)setRows(d.filter((o:any)=>["PEDIDO",...stages,"ENTREGUE"].includes(o.status)));else setMsg(d.error||"Erro ao carregar pedidos.");if(fr.ok&&Array.isArray(fd))setFrameOrders(fd);};
  useEffect(()=>{load()},[]);
+ const updateFrameOrder=async(o:Order,status:string)=>{const r=await fetch("/api/frame-adaptation-orders",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:o.id,status})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível atualizar a OS.");return}setMsg("Ordem de montagem #"+o.number+" atualizada.");await load();};
  const filtered=useMemo(()=>rows.filter(o=>{const q=(o.customer?.name+" "+o.number+" "+(o.laboratory||"")).toLowerCase();return (!search||q.includes(search.toLowerCase()))&&(filter==="TODOS"||o.status===filter)}),[rows,search,filter]);
  const counts=Object.fromEntries(stages.map(s=>[s,rows.filter(o=>o.status===s).length]));
  const late=rows.filter(o=>!["ENTREGUE"].includes(o.status)&&overdue(o.dueDate)).length;
@@ -93,6 +112,17 @@ export default function Laboratorio(){
 
     {msg && <div className="panel" style={{padding:12,marginBottom:12}}>{msg}</div>}
 
+    <div className="panel" style={{padding:16,marginBottom:14}}>
+      <div className="panel-heading" style={{padding:0,marginBottom:10}}><div><span className="eyebrow">DOCUMENTOS INTERNOS</span><h2>Ordens de montagem e adaptação</h2><p>Controle independente das vendas e dos pedidos ópticos. Receita não é obrigatória.</p></div><button className="secondary" onClick={load}>Atualizar OS</button></div>
+      <div className="table">
+       <div className="row header"><span>OS</span><span>Cliente</span><span>Armação nova</span><span>Receita</span><span>Status</span><span>Ações</span></div>
+       {frameOrders.map(o=><div className="row" key={o.id}>
+        <strong>#{o.number}</strong><span>{o.customer?.name}</span><span>{o.newFrameDescription}</span><span>{o.prescriptionStatus==="COM_RECEITA"?"Com receita":o.prescriptionStatus==="DADOS_CLIENTE"?"Dados do cliente":"Sem receita"}</span><span>{o.status?.replaceAll("_"," ")}</span>
+        <span style={{display:"flex",gap:6,flexWrap:"wrap"}}><button className="link-button" onClick={()=>printFrameAdaptation(o)}>Imprimir OS</button>{o.status==="AGUARDANDO_ENVIO"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"ENVIADA_AO_LABORATORIO")}>Enviar</button>}{o.status==="ENVIADA_AO_LABORATORIO"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"RECEBIDA_DA_LOJA")}>Recebida</button>}{o.status==="RECEBIDA_DA_LOJA"&&<button className="link-button" onClick={()=>updateFrameOrder(o,"CONFERIDA")}>Conferida</button>}</span>
+       </div>)}
+       {!frameOrders.length&&<div style={{padding:18,textAlign:"center",color:"var(--muted)"}}>Nenhuma ordem de montagem registrada.</div>}
+      </div>
+    </div>
     <div className="stats">
       {stages.map(s => (
         <button key={s} className="stat-card" onClick={() => setFilter(s)} style={{textAlign:"left",border:"1px solid var(--line)"}}>
