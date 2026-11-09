@@ -14,10 +14,10 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
       const raw=String(b.dueDate||"").trim();
       if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) throw new Error("Informe uma data de entrega válida.");
       const nextDate=new Date(`${raw}T12:00:00.000Z`);
-      if(Number.isNaN(nextDate.getTime())) throw new Error("Data de entrega inválida.");
+      if(Number.isNaN(nextDate.getTime())||nextDate.toISOString().slice(0,10)!==raw) throw new Error("Data de entrega inválida.");
       const previous=current.dueDate?current.dueDate.toISOString().slice(0,10):null;
       const updated=await db.$transaction(async tx=>{
-        const row=await tx.opticalOrder.update({where:{id},data:{dueDate:nextDate},include:{customer:true,prescription:true,items:true,events:{orderBy:{createdAt:"asc"}}}});
+        await tx.opticalOrder.update({where:{id},data:{dueDate:nextDate}});
         await tx.orderEvent.create({data:{orderId:id,status:current.status,message:`Previsão de entrega alterada de ${previous||"não definida"} para ${raw}.`}});
         const withEvents=await tx.opticalOrder.findUnique({where:{id},include:{customer:true,prescription:true,items:true,events:{orderBy:{createdAt:"asc"}}}});
         await writeAudit(tx,{action:"UPDATE_DELIVERY_DATE",entity:"OpticalOrder",entityId:id,metadata:{previousDueDate:previous,newDueDate:raw,status:current.status}});
