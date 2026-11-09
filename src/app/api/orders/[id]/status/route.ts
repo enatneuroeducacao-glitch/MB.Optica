@@ -8,6 +8,23 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
     const {id}=await params;
     const b=await req.json();
 
+    if(Object.prototype.hasOwnProperty.call(b,"dueDate")){
+      const current=await db.opticalOrder.findUnique({where:{id}});
+      if(!current) return NextResponse.json({error:"Pedido não encontrado"},{status:404});
+      const raw=String(b.dueDate||"").trim();
+      if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) throw new Error("Informe uma data de entrega válida.");
+      const nextDate=new Date(`${raw}T12:00:00.000Z`);
+      if(Number.isNaN(nextDate.getTime())) throw new Error("Data de entrega inválida.");
+      const previous=current.dueDate?current.dueDate.toISOString().slice(0,10):null;
+      const updated=await db.$transaction(async tx=>{
+        const row=await tx.opticalOrder.update({where:{id},data:{dueDate:nextDate},include:{customer:true,prescription:true,items:true,events:{orderBy:{createdAt:"asc"}}}});
+        await tx.orderEvent.create({data:{orderId:id,status:current.status,message:`Previsão de entrega alterada de ${previous||"não definida"} para ${raw}.`}});
+        await writeAudit(tx,{action:"UPDATE_DELIVERY_DATE",entity:"OpticalOrder",entityId:id,metadata:{previousDueDate:previous,newDueDate:raw,status:current.status}});
+        return row;
+      });
+      return NextResponse.json(updated);
+    }
+
     if(!Object.values(OrderStatus).includes(b.status)){
       throw new Error("Status inválido");
     }
