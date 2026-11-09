@@ -47,7 +47,7 @@ export default function Atendimento(){
   const printFrame=document.createElement("iframe");
   printFrame.setAttribute("aria-hidden","true");
   printFrame.title="Impressão de ordens de serviço";
-  Object.assign(printFrame.style,{position:"fixed",right:"0",bottom:"0",width:"1px",height:"1px",border:"0",opacity:"0",pointerEvents:"none"});
+  Object.assign(printFrame.style,{position:"fixed",left:"-10000px",top:"0",width:"210mm",height:"297mm",border:"0",opacity:"0",pointerEvents:"none"});
   document.body.appendChild(printFrame);
   const printDocument=printFrame.contentDocument;
   const printWindow=printFrame.contentWindow;
