@@ -314,7 +314,8 @@ export async function GET(){
         items:{include:{product:{select:{id:true,code:true,description:true}}}},
         payments:{include:{method:{select:{id:true,name:true,isCash:true}},cardMachine:{select:{id:true,name:true}}},orderBy:{paidAt:"asc"}},
         accounts:{orderBy:{dueDate:"asc"}},
-        fiscalDocument:true
+        fiscalDocument:true,
+        frameAdaptationOrder:true
       }
     });
     return NextResponse.json(rows);
