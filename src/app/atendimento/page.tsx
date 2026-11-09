@@ -69,7 +69,20 @@ export default function Atendimento(){
     </div><div class="grid" style="margin-top:7px"><div class="field"><b>DP Total:</b></div><div class="field"><b>Profissional:</b></div><div class="field"><b>Validade:</b></div></div></div>
     <div class="box products"><div class="head">Produtos / Montagem</div><div class="line">Armação / referência: </div><div class="line">Lente / material: </div><div class="line">Tratamentos: </div><div class="line">Montagem / observações: </div></div>
     <div class="box observations"><div class="head">Observações</div><div class="line"></div><div class="line"></div><div class="line"></div></div>
-    <div class="sign"><div>Responsável / vendedor</div><div>Cliente</div></div>
+    <div class="sign"><div>Responsável / vendedor</div><div>Cliente — ciência e autorização</div></div>
+    <div class="customer-copy">
+      <div class="copy-cut">✂ ———————————————————————— VIA DO CLIENTE ————————————————————————</div>
+      <div class="copy-heading"><strong>MB ÓPTICA</strong><strong>COMPROVANTE DE SERVIÇO · O.S. Nº ${osNumber}</strong></div>
+      <div class="copy-grid">
+        <div><b>Cliente:</b> ______________________________________________</div>
+        <div><b>Data:</b> ____/____/________</div>
+        <div><b>Telefone:</b> ______________________________</div>
+        <div><b>Previsão de entrega:</b> ____/____/________</div>
+        <div class="copy-wide"><b>Serviço / produto:</b> _________________________________________________________________</div>
+        <div class="copy-wide"><b>Observações:</b> _______________________________________________________________________</div>
+      </div>
+      <div class="copy-footer">Apresente esta via para retirada do serviço. Guarde-a até a conclusão do atendimento.</div>
+    </div>
     </section>`;
     }).join("");
     printDocument.open();
@@ -86,7 +99,16 @@ export default function Atendimento(){
     .rx{display:grid;grid-template-columns:1fr 1fr;gap:8px}.eye{border:1px solid #777;padding:9px}.eye h3{text-align:center;margin:0 0 8px;font-size:12px}
     table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{border:1px solid #999;text-align:center}th{font-size:8px;padding:7px 3px;height:25px}td{height:38px;padding:7px 3px;font-size:10px}.line{height:34px;border-bottom:1px solid #777}
     .sign{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin-top:auto;padding-top:24px;padding-bottom:6px}.sign div{border-top:1px solid #555;text-align:center;padding-top:7px;min-height:20mm;font-size:10px}
-    .box.products,.box.observations{flex:1;min-height:35mm}.box.products .line{height:42px}.box.observations .line{height:38px}
+    .box.products,.box.observations{flex:1;min-height:25mm}.box.products .line{height:30px}.box.observations .line{height:27px}
+    .sign{margin-top:6px;padding-top:12px;padding-bottom:0;min-height:15mm}.sign div{min-height:13mm}
+    .customer-copy{margin-top:auto;min-height:39mm;border-top:1px dashed #333;padding-top:3mm;display:flex;flex-direction:column;gap:5px;break-inside:avoid;page-break-inside:avoid}
+    .copy-cut{text-align:center;font-size:8px;letter-spacing:.3px;color:#333}
+    .copy-heading{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #555;padding-bottom:4px;font-size:10px}
+    .copy-heading strong:first-child{font-size:14px}
+    .copy-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;font-size:9px}
+    .copy-grid>div{min-height:17px;border-bottom:1px solid #999;padding:2px 0}
+    .copy-wide{grid-column:1/-1}
+    .copy-footer{font-size:8px;text-align:center;margin-top:auto}
     @media screen{body{width:210mm;margin:12px auto!important}.sheet{outline:1px solid #ddd;margin:0 auto 12px!important}}
     @media print{html,body{width:210mm!important;margin:0!important;padding:0!important}.sheet{margin:0!important}.sheet+.sheet{break-before:page!important;page-break-before:always!important}}
     </style></head><body>${pages}</body></html>`);
