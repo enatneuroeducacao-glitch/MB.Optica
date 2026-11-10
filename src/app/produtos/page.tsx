@@ -106,7 +106,7 @@ function parseFiscalCsv(text:string){
  return rows.slice(1).filter(r=>r.some(v=>v.trim()!=="")).map((r,i)=>{
   const o:Record<string,string>={};
   headers.forEach((h,j)=>o[h]=(r[j]??"").trim());
-  if(!o.id)throw new Error(\`Linha \${i+2}: identificador do produto vazio. Preserve a coluna id do modelo exportado pelo MB Gestão.\`);
+  if(!o.id)throw new Error(`Linha ${i+2}: identificador do produto vazio. Preserve a coluna id do modelo exportado pelo MB Gestão.`);
   return {id:o.id,ncm:o.ncm,cest:o.cest,cfop:o.cfop,origin:o.origin,taxCode:o.taxCode};
  });
 }
