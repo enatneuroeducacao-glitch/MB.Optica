@@ -47,6 +47,7 @@ export default function ContabilidadePage() {
   const [eventPage, setEventPage] = useState(1);
   const [eventPageSize, setEventPageSize] = useState(20);
   const [eventToProcess, setEventToProcess] = useState<any>(null);
+  const [eventDetails, setEventDetails] = useState<any>(null);
   const [confirmation, setConfirmation] = useState<null | "prepare-structure" | "safe-mappings">(null);
   const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos"|"relatorios"|"mapeamentos"|"eventos">("resumo");
   const [mappingData, setMappingData] = useState<any>({mappings:[],events:[],accounts:[],supportedEventTypes:[],integrationDiagnostics:null});
@@ -354,16 +355,7 @@ export default function ContabilidadePage() {
               </label>
             </div>
             {filteredEvents.length===0 ? <p style={{fontSize:13,color:"var(--muted)"}}>Nenhum evento corresponde aos filtros informados.</p> : <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Evento","Origem","Estado","Erro / detalhe","Ação"].map(v=><th key={v} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--line)"}}>{v}</th>)}</tr></thead><tbody>{pageEvents.map((ev:any)=><tr key={ev.id}><td style={{padding:9,borderBottom:"1px solid var(--line)"}}><strong>{eventLabels[ev.eventType]||ev.eventType}</strong><div style={{fontSize:11,color:"var(--muted)",wordBreak:"break-word"}}>Chave de prevenção de duplicidade: {ev.idempotencyKey}</div>
-                      <details style={{marginTop:8,fontSize:12}}>
-                        <summary style={{cursor:"pointer",fontWeight:700}}>Consultar detalhes (somente leitura)</summary>
-                        <div style={{marginTop:8,padding:10,border:"1px solid var(--line)",borderRadius:8,background:"var(--surface)"}}>
-                          {ev.payload && typeof ev.payload === "object" && Object.keys(ev.payload).length > 0 ? Object.entries(ev.payload as Record<string, unknown>).map(([key,value]) => {
-                            const labels: Record<string,string> = {amount:"Valor (R$)",entryDate:"Data da operação",description:"Descrição",paymentMethodId:"Identificador do meio de pagamento",paymentMethodName:"Meio de pagamento",paymentMethod:"Meio de pagamento (origem)",isCash:"É dinheiro?",cardMachineId:"Identificador da máquina de cartão",cardFeeAmount:"Taxa do cartão (R$)",cardNetAmount:"Valor líquido do cartão (R$)",reference:"Referência"};
-                            const displayValue = key === "amount" || key === "cardFeeAmount" || key === "cardNetAmount" ? (typeof value === "number" ? value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : value == null ? "Não informado" : String(value)) : key === "entryDate" && typeof value === "string" ? new Date(value).toLocaleString("pt-BR") : key === "isCash" ? (value === true ? "Sim" : value === false ? "Não" : "Não informado") : value == null || value === "" ? "Não informado" : typeof value === "object" ? JSON.stringify(value) : String(value);
-                            return <div key={key} style={{display:"grid",gridTemplateColumns:"minmax(140px,220px) minmax(0,1fr)",gap:8,padding:"4px 0",borderBottom:"1px solid var(--line)",overflowWrap:"anywhere"}}><strong>{labels[key] || key}</strong><span>{displayValue}</span></div>;
-                          }) : <p style={{margin:0,color:"var(--muted)"}}>Este evento não possui detalhes adicionais registrados.</p>}
-                        </div>
-                      </details>
+                      <button type="button" style={{...secondary,marginTop:8,fontSize:12}} onClick={()=>setEventDetails(ev)}>Consultar detalhes (somente leitura)</button>
                       <div style={{marginTop:8,padding:9,borderRadius:8,border:"1px solid var(--line)",background:"var(--surface)",fontSize:12}}>
                         <strong>Diagnóstico do mapeamento: </strong>
                         <span style={{color:ev.mappingResolution?.status==="ATIVO"?"#287443":ev.mappingResolution?.status==="INATIVO_UNICO"?"#9a641e":"var(--danger)"}}>
@@ -381,6 +373,34 @@ export default function ContabilidadePage() {
             </div>
           </>;
         })()}
+      </div>
+    </div>}
+    {eventDetails && <div role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget)setEventDetails(null);}} style={{position:"fixed",inset:0,zIndex:1001,background:"rgba(15,23,42,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div role="dialog" aria-modal="true" aria-labelledby="event-details-title" style={{width:"min(100%,780px)",maxHeight:"88vh",overflowY:"auto",background:"var(--surface)",color:"var(--text)",border:"1px solid var(--line)",borderRadius:16,boxShadow:"0 24px 80px rgba(0,0,0,.28)",padding:24}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12,marginBottom:16}}>
+          <div><h2 id="event-details-title" style={{fontSize:20,margin:"0 0 5px"}}>Detalhes do evento contábil</h2><p style={{margin:0,fontSize:13,color:"var(--muted)"}}>Consulta somente leitura. Nenhum dado será alterado.</p></div>
+          <button type="button" aria-label="Fechar detalhes" onClick={()=>setEventDetails(null)} style={secondary}>Fechar</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:16}}>
+          <div style={{border:"1px solid var(--line)",borderRadius:8,padding:10}}><div style={{fontSize:11,color:"var(--muted)"}}>Evento</div><strong>{eventLabels[eventDetails.eventType]||eventDetails.eventType}</strong></div>
+          <div style={{border:"1px solid var(--line)",borderRadius:8,padding:10}}><div style={{fontSize:11,color:"var(--muted)"}}>Origem</div><strong>{eventDetails.sourceDisplay||((sourceLabels[eventDetails.sourceType]||eventDetails.sourceType)+" · "+eventDetails.sourceId)}</strong></div>
+          <div style={{border:"1px solid var(--line)",borderRadius:8,padding:10}}><div style={{fontSize:11,color:"var(--muted)"}}>Estado</div><strong>{eventStatusLabels[eventDetails.status]||eventDetails.status}</strong></div>
+          <div style={{border:"1px solid var(--line)",borderRadius:8,padding:10}}><div style={{fontSize:11,color:"var(--muted)"}}>Data do registro</div><strong>{new Date(eventDetails.createdAt).toLocaleString("pt-BR")}</strong></div>
+        </div>
+        <div style={{border:"1px solid var(--line)",borderRadius:10,overflow:"hidden",marginBottom:14}}>
+          <div style={{padding:12,borderBottom:"1px solid var(--line)",background:"var(--surface)"}}><strong style={{fontSize:13}}>Dados registrados na origem</strong></div>
+          {eventDetails.payload && typeof eventDetails.payload==="object" && Object.keys(eventDetails.payload).length>0 ? Object.entries(eventDetails.payload as Record<string,unknown>).map(([key,value])=>{
+            const labels:Record<string,string>={amount:"Valor (R$)",entryDate:"Data da operação",description:"Descrição",paymentMethodId:"Identificador do meio de pagamento",paymentMethodName:"Meio de pagamento",paymentMethod:"Meio de pagamento (origem)",isCash:"É dinheiro?",cardMachineId:"Identificador da máquina de cartão",cardFeeAmount:"Taxa do cartão (R$)",cardNetAmount:"Valor líquido do cartão (R$)",reference:"Referência",accountId:"Identificador da conta",supplierId:"Identificador do fornecedor",classification:"Classificação"};
+            const displayValue=key==="amount"||key==="cardFeeAmount"||key==="cardNetAmount"?(typeof value==="number"?value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):value==null?"Não informado":String(value)):key==="entryDate"&&typeof value==="string"?new Date(value).toLocaleString("pt-BR"):key==="isCash"?(value===true?"Sim":value===false?"Não":"Não informado"):value==null||value===""?"Não informado":typeof value==="object"?JSON.stringify(value):String(value);
+            return <div key={key} style={{display:"grid",gridTemplateColumns:"minmax(150px,220px) minmax(0,1fr)",gap:12,padding:"9px 12px",borderBottom:"1px solid var(--line)",fontSize:13,alignItems:"start"}}>
+              <strong style={{overflowWrap:"anywhere"}}>{labels[key]||key}</strong><span style={{minWidth:0,overflowWrap:"anywhere",wordBreak:"break-word"}}>{displayValue}</span>
+            </div>;
+          }):<p style={{padding:12,margin:0,color:"var(--muted)"}}>Este evento não possui detalhes adicionais registrados.</p>}
+        </div>
+        <div style={{border:"1px solid var(--line)",borderRadius:10,padding:12,marginBottom:12}}>
+          <div style={{fontSize:11,color:"var(--muted)",marginBottom:5}}>Chave de prevenção de duplicidade</div><code style={{display:"block",fontSize:12,whiteSpace:"normal",overflowWrap:"anywhere"}}>{eventDetails.idempotencyKey}</code>
+        </div>
+        {eventDetails.errorMessage&&<div role="alert" style={{border:"1px solid var(--danger)",borderRadius:10,padding:12,color:"var(--danger)",fontSize:13}}><strong>Erro registrado</strong><div style={{marginTop:4,overflowWrap:"anywhere"}}>{eventDetails.errorMessage}</div></div>}
       </div>
     </div>}
     {eventToProcess && <div role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setEventToProcess(null);}} style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,23,42,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
