@@ -65,3 +65,27 @@ Esta especificação registra a decisão e orienta a implementação. Ainda não
 - Ainda não foi executada validação Prisma/CI nem aplicada migration em produção.
 
 **Bloqueio para o próximo passo:** confirmar qual projeto Neon contém o banco de produção do MB Gestão/MB Óptica. A busca disponível encontrou um projeto chamado `universidade-mb-admin`, que não é suficiente para presumir que seja o banco correto. Não será consultado nem alterado um banco ambíguo.
+
+## Atualização operacional — 10/11/2026
+
+### Banco efetivamente usado pelo serviço publicado
+
+A inspeção do serviço Render `mb-optica-gestao` (serviço `srv-davmcg60tbcc73ehhn6g`) mostrou que o deploy ativo de `main`, concluído em 10/11/2026 às 18:28 UTC, iniciou o Prisma apontando para o PostgreSQL Render `mb_optica_db_contingencia`, recurso `dpg-db9p7flg1s2s739hstn0-a`. Portanto, não é seguro presumir que o projeto Neon consultado anteriormente seja o banco que atende a aplicação publicada.
+
+O PostgreSQL Render encontrado está no plano Free, com expiração informada para 16/11/2026. Sua allowlist de rede está vazia e o conector de consulta recebeu bloqueio de conexão externa. Não foi possível ler tabelas, conferir o usuário administrador, confirmar os dados do e-mail testado ou executar contagens de validação.
+
+A listagem atual dos projetos Neon não apresentou um projeto identificado como banco do MB Óptica/MB Gestão. O projeto `universidade-mb-admin` não será tratado como banco do MB Gestão sem confirmação.
+
+### Bloqueios de produção que precisam ser resolvidos antes do backfill
+
+1. Confirmar e estabilizar o banco de dados que o serviço Render deve utilizar. O PostgreSQL de contingência tem expiração próxima; não alterar DATABASE_URL nem migrar dados sem backup e comparação de contagens.
+2. Disponibilizar uma conexão administrativa segura ao banco Render atual (por exemplo, executar o conector Render localmente com acesso de rede apropriado ou fornecer um backup/exportação verificada). Não abrir a allowlist para `0.0.0.0/0`.
+3. Inventariar o estado real do banco: migrations aplicadas, tabelas, contagens, usuário administrador e dados da tentativa de cadastro.
+4. Executar backup restaurável e teste de restauração antes de qualquer migração.
+5. Aplicar a migration multi-tenant aditiva somente após validar que o schema de produção corresponde ao commit base esperado.
+6. Executar backfill transacional para a primeira organização e validar contagens/relacionamentos antes de habilitar qualquer nova empresa.
+
+### Regra de liberação
+
+O deploy atual de `main` continua sendo a instalação legada de uma única ótica. A branch desta fundação não está publicada no Render e não deve ser mesclada nem implantada como se já oferecesse isolamento. Não habilitar cadastro público, degustação autoatendida ou novas organizações até que todos os modelos operacionais, as 106 rotas, tarefas em background, consultas agregadas e relações entre registros estejam tenant-scoped e cobertos por testes negativos de acesso cruzado.
+
