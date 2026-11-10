@@ -20,7 +20,7 @@ const EVENT_TYPES = new Set([
 export async function GET() {
   try {
     await requireRole(["ADMIN"]);
-    const [mappings, events, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
+    const [mappings, rawEvents, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
       db.accountingMapping.findMany({
         orderBy: [{ eventType: "asc" }, { createdAt: "desc" }],
         include: {
