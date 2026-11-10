@@ -55,3 +55,13 @@ A identificação do usuário administrador atual como proprietário central ser
 ## Estado desta entrega
 
 Esta especificação registra a decisão e orienta a implementação. Ainda não altera o schema nem os dados de produção. A ativação de tenancy antes da cobertura integral das rotas seria insegura, especialmente porque o projeto possui mais de 90 endpoints e modelos operacionais interligados.
+## Progresso da implementação — 10/11/2026
+
+- Criada a branch `feature/multi-tenant-foundation`; a branch `main` permanece intacta.
+- Adicionados ao Prisma os modelos `Organization`, `OrganizationMembership` e `PlatformAccess`, além do vínculo opcional entre `Subscription` e `Organization`.
+- Criada migration SQL aditiva `20261110120000_multi_tenant_core`; ela cria as estruturas e constraints, mas não cria tenants nem altera registros existentes.
+- Criado `MULTI_TENANT_INVENTORY.md` com inventário de 106 rotas API, 49 modelos e domínios sensíveis.
+- Ainda não foi atribuído `PlatformAccess` ao usuário administrador atual, pois é necessário identificar inequivocamente a conta no banco correto.
+- Ainda não foi executada validação Prisma/CI nem aplicada migration em produção.
+
+**Bloqueio para o próximo passo:** confirmar qual projeto Neon contém o banco de produção do MB Gestão/MB Óptica. A busca disponível encontrou um projeto chamado `universidade-mb-admin`, que não é suficiente para presumir que seja o banco correto. Não será consultado nem alterado um banco ambíguo.
