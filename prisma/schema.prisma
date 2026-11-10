@@ -116,6 +116,17 @@ id String @id @default(cuid())
   @@index([status])
   @@index([accessKey])
 }
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PlatformRole {
+  OWNER
+  SUPER_ADMIN
+  SUPPORT
+}
+
 enum SubscriptionPlan {
   BASICO
   PROFISSIONAL
@@ -138,8 +149,50 @@ enum BillingCycle {
   ANUAL
 }
 
+model Organization {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  status OrganizationStatus @default(ACTIVE)
+  timezone String @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships OrganizationMembership[]
+  subscription Subscription?
+  @@index([status, createdAt])
+}
+
+model OrganizationMembership {
+  id String @id @default(cuid())
+  organizationId String
+  userId String
+  role UserRole @default(VENDEDOR)
+  active Boolean @default(true)
+  permissions Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+  @@index([userId, active])
+  @@index([organizationId, role, active])
+}
+
+model PlatformAccess {
+  id String @id @default(cuid())
+  userId String @unique
+  role PlatformRole @default(OWNER)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([role, active])
+}
+
 model Subscription {
   id String @id @default(cuid())
+  organizationId String? @unique
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   plan SubscriptionPlan @default(PROFISSIONAL)
   status SubscriptionStatus @default(AVALIACAO)
   billingCycle BillingCycle @default(MENSAL)
@@ -186,6 +239,8 @@ sales Sale[]
 orders OpticalOrder[]
 quotes Quote[]
 auditLogs AuditLog[]
+  memberships OrganizationMembership[]
+  platformAccess PlatformAccess?
   mailStates MailMessageState[]
   mailContactPreferences MailContactPreference[]
 }
