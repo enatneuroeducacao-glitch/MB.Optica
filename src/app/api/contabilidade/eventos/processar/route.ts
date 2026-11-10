@@ -9,10 +9,12 @@ class AccountingEventValidationError extends Error {}
 const money = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
 export async function POST(request: Request) {
+  let requestedEventId = "";
   try {
     const user = await requireRole(["ADMIN"]);
     const body = await request.json();
     const eventId = String(body?.eventId || "");
+    requestedEventId = eventId;
     if (!eventId) return NextResponse.json({ error: "Informe o evento contábil." }, { status: 400 });
 
     const result = await db.$transaction(async (tx) => {
@@ -124,8 +126,32 @@ export async function POST(request: Request) {
             : "Recebimento sem meio de pagamento identificado; revise o evento antes de contabilizar."
         );
       }
-      const activeMappings = await tx.accountingMapping.findMany({ where: { eventType: event.eventType, paymentMethodId, active: true } });
-      if (activeMappings.length === 0) throw new AccountingEventValidationError("Não há mapeamento ativo para este tipo de evento.");
+      const matchingMappings = await tx.accountingMapping.findMany({
+        where: { eventType: event.eventType, paymentMethodId },
+        include: {
+          debitAccount: { select: { id: true, code: true, name: true, active: true } },
+          creditAccount: { select: { id: true, code: true, name: true, active: true } },
+        },
+      });
+      const activeMappings = matchingMappings.filter((item) => item.active);
+      if (activeMappings.length === 0) {
+        if (matchingMappings.length === 1) {
+          const candidate = matchingMappings[0];
+          throw new AccountingEventValidationError(
+            "Existe um mapeamento cadastrado, mas inativo para este evento (ID: " + candidate.id + "). Confira débito " +
+            candidate.debitAccount.code + " — " + candidate.debitAccount.name + " e crédito " +
+            candidate.creditAccount.code + " — " + candidate.creditAccount.name + "; depois ative-o em Integração contábil."
+          );
+        }
+        if (matchingMappings.length > 1) {
+          throw new AccountingEventValidationError("Existem " + matchingMappings.length + " mapeamentos cadastrados para este evento e meio de pagamento, mas nenhum está ativo. Revise as contas e mantenha apenas a regra correta ativa.");
+        }
+        throw new AccountingEventValidationError(
+          "Não existe mapeamento cadastrado para o evento " + event.eventType +
+          (usesPaymentMethod ? " e o meio de pagamento identificado (" + String(payload.paymentMethodName || payload.paymentMethod || paymentMethodId) + ")" : "") +
+          ". Cadastre a regra correspondente em Contabilidade > Integração contábil."
+        );
+      }
       if (activeMappings.length !== 1) throw new AccountingEventValidationError("Há mais de um mapeamento ativo para este evento. Deixe apenas um ativo antes de processar.");
       const mapping = activeMappings[0];
       const accounts = await tx.chartOfAccount.findMany({ where: { id: { in: [mapping.debitAccountId, mapping.creditAccountId] }, active: true }, select: { id: true, code: true, name: true } });
@@ -168,6 +194,16 @@ export async function POST(request: Request) {
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     if (error instanceof AccountingEventValidationError) {
+      if (requestedEventId) {
+        try {
+          await db.accountingEvent.update({
+            where: { id: requestedEventId },
+            data: { status: "ERRO", errorMessage: error.message },
+          });
+        } catch {
+          // Preserve the original validation response if recording the diagnostic fails.
+        }
+      }
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
     return apiError(error, "Não foi possível processar o evento contábil.");

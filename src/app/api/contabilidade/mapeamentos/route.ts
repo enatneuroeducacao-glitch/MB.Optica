@@ -55,19 +55,65 @@ export async function GET() {
       : [];
     const supplierAccountById = new Map(supplierAccounts.map((account) => [account.id, account]));
     const events = rawEvents.map((event) => {
-      if (event.sourceType !== "SUPPLIER" && !event.eventType.startsWith("SUPPLIER_")) return event;
       const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
         ? event.payload as Record<string, unknown>
         : {};
+      const isSupplierEvent = event.sourceType === "SUPPLIER" || event.eventType.startsWith("SUPPLIER_");
       const accountId = String(payload.accountId || (event.sourceType === "SUPPLIER" ? event.sourceId : ""));
       const account = supplierAccountById.get(accountId);
       const supplier = account?.supplier;
       const supplierLabel = supplier
         ? supplier.name + (supplier.document ? " · CPF/CNPJ " + supplier.document : "")
         : null;
+
+      // Resolve legacy events that stored the payment method name but not its database ID.
+      let paymentMethodId = typeof payload.paymentMethodId === "string" ? payload.paymentMethodId : null;
+      if (!paymentMethodId && ["PAYMENT_RECEIVED", "SUPPLIER_PAYMENT_MADE"].includes(event.eventType)) {
+        const methodName = String(payload.paymentMethodName || payload.paymentMethod || payload.method || "").trim();
+        if (methodName) {
+          paymentMethodId = paymentMethods.find((method) => method.name.toLocaleLowerCase("pt-BR") === methodName.toLocaleLowerCase("pt-BR"))?.id || null;
+        }
+      }
+      const matchingMappings = mappings.filter((item) =>
+        item.eventType === event.eventType && (item.paymentMethodId || null) === (paymentMethodId || null)
+      );
+      const activeMappings = matchingMappings.filter((item) => item.active);
+      const uniqueCandidate = matchingMappings.length === 1 ? matchingMappings[0] : null;
+      const selectedMapping = activeMappings.length === 1 ? activeMappings[0] : uniqueCandidate;
+      const accountsActive = !!selectedMapping?.debitAccount?.active && !!selectedMapping?.creditAccount?.active;
+      let mappingStatus = "AUSENTE";
+      if (activeMappings.length > 1) mappingStatus = "MULTIPLOS_ATIVOS";
+      else if (activeMappings.length === 1 && !accountsActive) mappingStatus = "CONTAS_INATIVAS";
+      else if (activeMappings.length === 1) mappingStatus = "ATIVO";
+      else if (matchingMappings.length > 1) mappingStatus = "AMBIGUO";
+      else if (uniqueCandidate) mappingStatus = "INATIVO_UNICO";
+
       return {
         ...event,
-        sourceDisplay: supplierLabel || (account?.description ? String(account.description) : String(payload.description || "Fornecedor não identificado")),
+        ...(isSupplierEvent ? {
+          sourceDisplay: supplierLabel || (account?.description ? String(account.description) : String(payload.description || "Fornecedor não identificado")),
+        } : {}),
+        mappingResolution: {
+          status: mappingStatus,
+          paymentMethodId,
+          matchingCount: matchingMappings.length,
+          activeCount: activeMappings.length,
+          mapping: selectedMapping ? {
+            id: selectedMapping.id,
+            active: selectedMapping.active,
+            debitAccount: selectedMapping.debitAccount,
+            creditAccount: selectedMapping.creditAccount,
+          } : null,
+          explanation: mappingStatus === "AUSENTE"
+            ? (["PAYMENT_RECEIVED", "SUPPLIER_PAYMENT_MADE"].includes(event.eventType) && !paymentMethodId
+              ? "O evento não contém um meio de pagamento identificável; revise a quitação na origem."
+              : "Não existe mapeamento cadastrado para este tipo de evento e meio de pagamento.")
+            : mappingStatus === "INATIVO_UNICO" ? "Existe um único mapeamento correspondente, mas ele está inativo."
+            : mappingStatus === "AMBIGUO" ? "Existem vários mapeamentos correspondentes; revise as regras para evitar escolha incorreta."
+            : mappingStatus === "MULTIPLOS_ATIVOS" ? "Há mais de um mapeamento ativo para a mesma combinação."
+            : mappingStatus === "CONTAS_INATIVAS" ? "O mapeamento está ativo, mas uma ou ambas as contas estão inativas."
+            : "Mapeamento ativo e contas habilitadas.",
+        },
       };
     });
     return NextResponse.json({
