@@ -20,7 +20,7 @@ const EVENT_TYPES = new Set([
 export async function GET() {
   try {
     await requireRole(["ADMIN"]);
-    const [mappings, events, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
+    const [mappings, rawEvents, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
       db.accountingMapping.findMany({
         orderBy: [{ eventType: "asc" }, { createdAt: "desc" }],
         include: {
@@ -38,6 +38,38 @@ export async function GET() {
       db.accountingEvent.count({ where: { eventType: "PAYMENT_RECEIVED" } }),
       db.accountingEvent.count({ where: { status: { in: ["PENDENTE", "ERRO"] } } }),
     ]);
+    const supplierAccountIds = Array.from(new Set(rawEvents
+      .filter((event) => event.sourceType === "SUPPLIER" || event.eventType.startsWith("SUPPLIER_"))
+      .map((event) => {
+        const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+          ? event.payload as Record<string, unknown>
+          : {};
+        return String(payload.accountId || (event.sourceType === "SUPPLIER" ? event.sourceId : ""));
+      })
+      .filter(Boolean)));
+    const supplierAccounts = supplierAccountIds.length
+      ? await db.account.findMany({
+          where: { id: { in: supplierAccountIds } },
+          select: { id: true, description: true, supplier: { select: { name: true, document: true } } },
+        })
+      : [];
+    const supplierAccountById = new Map(supplierAccounts.map((account) => [account.id, account]));
+    const events = rawEvents.map((event) => {
+      if (event.sourceType !== "SUPPLIER" && !event.eventType.startsWith("SUPPLIER_")) return event;
+      const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+        ? event.payload as Record<string, unknown>
+        : {};
+      const accountId = String(payload.accountId || (event.sourceType === "SUPPLIER" ? event.sourceId : ""));
+      const account = supplierAccountById.get(accountId);
+      const supplier = account?.supplier;
+      const supplierLabel = supplier
+        ? supplier.name + (supplier.document ? " · CPF/CNPJ " + supplier.document : "")
+        : null;
+      return {
+        ...event,
+        sourceDisplay: supplierLabel || (account?.description ? String(account.description) : String(payload.description || "Fornecedor não identificado")),
+      };
+    });
     return NextResponse.json({
       mappings, events, accounts, paymentMethods, supportedEventTypes: [...EVENT_TYPES],
       integrationDiagnostics: {
@@ -57,7 +89,7 @@ export async function POST(request: Request) {
     const action = String(body?.action || "");
 
     if (action === "CREATE_SAFE_BASE_MAPPINGS") {
-      const requiredCodes = ["1.1.01", "1.1.02", "1.1.03", "1.2", "4.1", "2.1", "6.1"];
+      const requiredCodes = ["1.1.01", "1.1.02", "1.1.03", "1.2", "1.3", "4.1", "2.1", "6.1"];
       const accounts = await db.chartOfAccount.findMany({ where: { code: { in: requiredCodes }, active: true } });
       const byCode = new Map(accounts.map((account) => [account.code, account]));
       const missing = requiredCodes.filter((code) => !byCode.has(code));
@@ -68,6 +100,7 @@ export async function POST(request: Request) {
       const suggestions: { eventType: string; paymentMethodId?: string; debitCode: string; creditCode: string; description: string }[] = [
         { eventType: "SALE_RECOGNIZED", debitCode: "1.2", creditCode: "4.1", description: "SUGESTÃO — venda a prazo/crediário: débito em clientes a receber e crédito em receita de vendas. A receita é reconhecida uma única vez pelo valor total da venda." },
         { eventType: "SUPPLIER_EXPENSE_RECOGNIZED", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa de fornecedor reconhecida (legado): débito em despesas operacionais e crédito em fornecedores a pagar. Classificação depende da natureza da compra." },
+        { eventType: "SUPPLIER_EXPENSE_RECOGNIZED_MERCADORIA_REVENDA", debitCode: "1.3", creditCode: "2.1", description: "SUGESTÃO — compra de mercadorias para revenda: débito em estoques (1.3) e crédito em fornecedores a pagar (2.1). Não representa quitação; a baixa do banco/caixa ocorre no evento de pagamento. Revisar antes de ativar." },
         { eventType: "SUPPLIER_EXPENSE_RECOGNIZED_DESPESA_OPERACIONAL", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa operacional de fornecedor: débito em despesas operacionais (6.1) e crédito em fornecedores a pagar (2.1). Não representa quitação; a baixa do banco/caixa ocorre no evento de pagamento. Revisar antes de ativar." },
       ];
 
