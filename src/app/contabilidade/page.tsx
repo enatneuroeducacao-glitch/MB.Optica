@@ -82,6 +82,13 @@ export default function ContabilidadePage() {
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
 
+  useEffect(() => {
+    if (tab !== "eventos") return;
+    refreshAccountingEvents();
+    // A mudança de competência recarrega somente a consulta da fila.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventCompetence, tab]);
+
   async function refreshAccountingEvents() {
     setRefreshingEvents(true);
     setMessage("");
