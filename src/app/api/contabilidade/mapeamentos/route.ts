@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const competencia = searchParams.get("competencia");
     let eventDateFilter: { gte: Date; lt: Date } | undefined;
     if (competencia) {
-      if (!/^\\d{4}-(0[1-9]|1[0-2])$/.test(competencia)) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(competencia)) {
         return NextResponse.json({ error: "Competência inválida. Use o formato AAAA-MM." }, { status: 400 });
       }
       const [year, month] = competencia.split("-").map(Number);
