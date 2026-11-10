@@ -38,6 +38,14 @@ export default function ContabilidadePage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [refreshingEvents, setRefreshingEvents] = useState(false);
+  const [eventCompetence, setEventCompetence] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [eventStatusFilter, setEventStatusFilter] = useState("TODOS");
+  const [eventSearch, setEventSearch] = useState("");
+  const [eventPage, setEventPage] = useState(1);
+  const [eventPageSize, setEventPageSize] = useState(20);
   const [eventToProcess, setEventToProcess] = useState<any>(null);
   const [confirmation, setConfirmation] = useState<null | "prepare-structure" | "safe-mappings">(null);
   const [tab, setTab] = useState<"resumo"|"contas"|"periodos"|"lancamentos"|"relatorios"|"mapeamentos"|"eventos">("resumo");
@@ -64,7 +72,9 @@ export default function ContabilidadePage() {
     const journalData = await journalResponse.json();
     if (!journalResponse.ok) throw new Error(journalData.error || "Não foi possível carregar o diário.");
     setEntries(journalData.entries || []);
-    const mappingResponse = await fetch("/api/contabilidade/mapeamentos", { cache: "no-store" });
+    const now = new Date();
+    const defaultCompetence = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const mappingResponse = await fetch(`/api/contabilidade/mapeamentos?competencia=${defaultCompetence}`, { cache: "no-store" });
     const mappingJson = await mappingResponse.json();
     if (!mappingResponse.ok) throw new Error(mappingJson.error || "Não foi possível carregar os mapeamentos.");
     setMappingData(mappingJson);
@@ -72,11 +82,18 @@ export default function ContabilidadePage() {
 
   useEffect(() => { load().catch((e) => setMessage(e.message)); }, [load]);
 
+  useEffect(() => {
+    if (tab !== "eventos") return;
+    refreshAccountingEvents();
+    // A mudança de competência recarrega somente a consulta da fila.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventCompetence, tab]);
+
   async function refreshAccountingEvents() {
     setRefreshingEvents(true);
     setMessage("");
     try {
-      const response = await fetch("/api/contabilidade/mapeamentos", { cache: "no-store" });
+      const response = await fetch(`/api/contabilidade/mapeamentos?competencia=${eventCompetence}`, { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Não foi possível atualizar a fila de eventos.");
       setMappingData(data);
@@ -291,35 +308,79 @@ export default function ContabilidadePage() {
     {tab==="eventos" && <div style={{display:"grid",gap:18}}>
       <div style={card}>
         <h2 style={{fontSize:18,marginTop:0}}>Fila de eventos contábeis</h2>
-        <p style={{fontSize:13,color:"var(--muted)"}}>Confira o estado e os erros dos eventos. O processamento é manual e gera um lançamento contábil definitivo; revise antes o mapeamento e as contas.</p>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
+        <p style={{fontSize:13,color:"var(--muted)"}}>Por padrão, são exibidos os eventos da competência atual. Consulte os meses anteriores pela pesquisa. A fila é somente de consulta; o processamento continua manual e definitivo.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12,marginBottom:14}}>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--muted)"}}>Competência
+            <input type="month" value={eventCompetence} onChange={e=>{setEventCompetence(e.target.value);setEventPage(1);}} style={field}/>
+          </label>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--muted)"}}>Situação
+            <select value={eventStatusFilter} onChange={e=>{setEventStatusFilter(e.target.value);setEventPage(1);}} style={field}>
+              <option value="TODOS">Todas as situações</option>
+              <option value="PENDENTE">Pendentes</option>
+              <option value="PROCESSANDO">Em processamento</option>
+              <option value="ERRO">Com erro</option>
+              <option value="PROCESSADO">Processados</option>
+            </select>
+          </label>
+          <label style={{fontSize:12,fontWeight:700,color:"var(--muted)"}}>Pesquisar evento
+            <input value={eventSearch} onChange={e=>{setEventSearch(e.target.value);setEventPage(1);}} placeholder="Evento, origem, ID ou descrição..." style={field}/>
+          </label>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center",marginBottom:14}}>
           <span style={{...secondary,cursor:"default"}}>Total: {mappingData.events.length}</span>
           <span style={{...secondary,cursor:"default"}}>Pendentes: {mappingData.events.filter((ev:any)=>ev.status==="PENDENTE").length}</span>
           <span style={{...secondary,cursor:"default"}}>Com erro: {mappingData.events.filter((ev:any)=>ev.status==="ERRO").length}</span>
           <span style={{...secondary,cursor:"default"}}>Processados: {mappingData.events.filter((ev:any)=>ev.status==="PROCESSADO").length}</span>
           <button type="button" disabled={busy||refreshingEvents} style={{...secondary,opacity:busy||refreshingEvents?0.65:1}} onClick={refreshAccountingEvents}>{refreshingEvents?"Atualizando…":"Atualizar fila"}</button>
         </div>
-        {mappingData.events.length===0 ? <p style={{fontSize:13,color:"var(--muted)"}}>Nenhum evento contábil encontrado.</p> : <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Evento","Origem","Estado","Erro / detalhe","Ação"].map(v=><th key={v} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--line)"}}>{v}</th>)}</tr></thead><tbody>{mappingData.events.map((ev:any)=><tr key={ev.id}><td style={{padding:9,borderBottom:"1px solid var(--line)"}}><strong>{eventLabels[ev.eventType]||ev.eventType}</strong><div style={{fontSize:11,color:"var(--muted)",wordBreak:"break-word"}}>Chave de prevenção de duplicidade: {ev.idempotencyKey}</div>
-                    <details style={{marginTop:8,fontSize:12}}>
-                      <summary style={{cursor:"pointer",fontWeight:700}}>Consultar detalhes (somente leitura)</summary>
-                      <div style={{marginTop:8,padding:10,border:"1px solid var(--line)",borderRadius:8,background:"var(--surface)"}}>
-                        {ev.payload && typeof ev.payload === "object" && Object.keys(ev.payload).length > 0 ? Object.entries(ev.payload as Record<string, unknown>).map(([key,value]) => {
-                          const labels: Record<string,string> = {amount:"Valor (R$)",entryDate:"Data da operação",description:"Descrição",paymentMethodId:"Identificador do meio de pagamento",paymentMethodName:"Meio de pagamento",paymentMethod:"Meio de pagamento (origem)",isCash:"É dinheiro?",cardMachineId:"Identificador da máquina de cartão",cardFeeAmount:"Taxa do cartão (R$)",cardNetAmount:"Valor líquido do cartão (R$)",reference:"Referência"};
-                          const displayValue = key === "amount" || key === "cardFeeAmount" || key === "cardNetAmount" ? (typeof value === "number" ? value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : value == null ? "Não informado" : String(value)) : key === "entryDate" && typeof value === "string" ? new Date(value).toLocaleString("pt-BR") : key === "isCash" ? (value === true ? "Sim" : value === false ? "Não" : "Não informado") : value == null || value === "" ? "Não informado" : typeof value === "object" ? JSON.stringify(value) : String(value);
-                          return <div key={key} style={{display:"grid",gridTemplateColumns:"minmax(140px,220px) minmax(0,1fr)",gap:8,padding:"4px 0",borderBottom:"1px solid var(--line)",overflowWrap:"anywhere"}}><strong>{labels[key] || key}</strong><span>{displayValue}</span></div>;
-                        }) : <p style={{margin:0,color:"var(--muted)"}}>Este evento não possui detalhes adicionais registrados.</p>}
+        {mappingData.events.length===0 ? <p style={{fontSize:13,color:"var(--muted)"}}>Nenhum evento encontrado nesta competência.</p> : (() => {
+          const normalize = (value: unknown) => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          const filteredEvents = mappingData.events.filter((ev:any) => {
+            if (eventStatusFilter !== "TODOS" && ev.status !== eventStatusFilter) return false;
+            const payload = ev.payload && typeof ev.payload === "object" ? ev.payload : {};
+            const searchable = [eventLabels[ev.eventType] || ev.eventType, ev.sourceDisplay, sourceLabels[ev.sourceType], ev.sourceId, ev.id, ev.idempotencyKey, ev.errorMessage, payload.description, payload.reference, payload.paymentMethodName, payload.paymentMethod].join(" ");
+            return normalize(searchable).includes(normalize(eventSearch));
+          });
+          const totalPages = Math.max(1, Math.ceil(filteredEvents.length / eventPageSize));
+          const currentPage = Math.min(eventPage, totalPages);
+          const pageEvents = filteredEvents.slice((currentPage - 1) * eventPageSize, currentPage * eventPageSize);
+          return <>
+            <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:10,fontSize:12,color:"var(--muted)"}}>
+              <span>Exibindo {filteredEvents.length ? (currentPage - 1) * eventPageSize + 1 : 0}–{Math.min(currentPage * eventPageSize, filteredEvents.length)} de {filteredEvents.length} eventos</span>
+              <label style={{display:"flex",alignItems:"center",gap:8}}>Registros por página
+                <select value={eventPageSize} onChange={e=>{setEventPageSize(Number(e.target.value));setEventPage(1);}} style={{...field,width:88,marginTop:0,padding:8}}>
+                  <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option>
+                </select>
+              </label>
+            </div>
+            {filteredEvents.length===0 ? <p style={{fontSize:13,color:"var(--muted)"}}>Nenhum evento corresponde aos filtros informados.</p> : <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Evento","Origem","Estado","Erro / detalhe","Ação"].map(v=><th key={v} style={{textAlign:"left",padding:9,borderBottom:"1px solid var(--line)"}}>{v}</th>)}</tr></thead><tbody>{pageEvents.map((ev:any)=><tr key={ev.id}><td style={{padding:9,borderBottom:"1px solid var(--line)"}}><strong>{eventLabels[ev.eventType]||ev.eventType}</strong><div style={{fontSize:11,color:"var(--muted)",wordBreak:"break-word"}}>Chave de prevenção de duplicidade: {ev.idempotencyKey}</div>
+                      <details style={{marginTop:8,fontSize:12}}>
+                        <summary style={{cursor:"pointer",fontWeight:700}}>Consultar detalhes (somente leitura)</summary>
+                        <div style={{marginTop:8,padding:10,border:"1px solid var(--line)",borderRadius:8,background:"var(--surface)"}}>
+                          {ev.payload && typeof ev.payload === "object" && Object.keys(ev.payload).length > 0 ? Object.entries(ev.payload as Record<string, unknown>).map(([key,value]) => {
+                            const labels: Record<string,string> = {amount:"Valor (R$)",entryDate:"Data da operação",description:"Descrição",paymentMethodId:"Identificador do meio de pagamento",paymentMethodName:"Meio de pagamento",paymentMethod:"Meio de pagamento (origem)",isCash:"É dinheiro?",cardMachineId:"Identificador da máquina de cartão",cardFeeAmount:"Taxa do cartão (R$)",cardNetAmount:"Valor líquido do cartão (R$)",reference:"Referência"};
+                            const displayValue = key === "amount" || key === "cardFeeAmount" || key === "cardNetAmount" ? (typeof value === "number" ? value.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : value == null ? "Não informado" : String(value)) : key === "entryDate" && typeof value === "string" ? new Date(value).toLocaleString("pt-BR") : key === "isCash" ? (value === true ? "Sim" : value === false ? "Não" : "Não informado") : value == null || value === "" ? "Não informado" : typeof value === "object" ? JSON.stringify(value) : String(value);
+                            return <div key={key} style={{display:"grid",gridTemplateColumns:"minmax(140px,220px) minmax(0,1fr)",gap:8,padding:"4px 0",borderBottom:"1px solid var(--line)",overflowWrap:"anywhere"}}><strong>{labels[key] || key}</strong><span>{displayValue}</span></div>;
+                          }) : <p style={{margin:0,color:"var(--muted)"}}>Este evento não possui detalhes adicionais registrados.</p>}
+                        </div>
+                      </details>
+                      <div style={{marginTop:8,padding:9,borderRadius:8,border:"1px solid var(--line)",background:"var(--surface)",fontSize:12}}>
+                        <strong>Diagnóstico do mapeamento: </strong>
+                        <span style={{color:ev.mappingResolution?.status==="ATIVO"?"#287443":ev.mappingResolution?.status==="INATIVO_UNICO"?"#9a641e":"var(--danger)"}}>
+                          {({ATIVO:"Ativo e compatível",INATIVO_UNICO:"Cadastrado, mas inativo",AUSENTE:"Não cadastrado",AMBIGUO:"Mais de uma regra correspondente",MULTIPLOS_ATIVOS:"Mais de uma regra ativa",CONTAS_INATIVAS:"Conta(s) inativa(s)"} as Record<string,string>)[ev.mappingResolution?.status]||"Não diagnosticado"}
+                        </span>
+                        <div style={{marginTop:4,color:"var(--muted)"}}>{ev.mappingResolution?.explanation||"Atualize a fila para consultar o diagnóstico."}</div>
+                        {ev.mappingResolution?.mapping && <div style={{marginTop:5}}>Débito: {ev.mappingResolution.mapping.debitAccount.code} — {ev.mappingResolution.mapping.debitAccount.name}<br/>Crédito: {ev.mappingResolution.mapping.creditAccount.code} — {ev.mappingResolution.mapping.creditAccount.name}</div>}
+                        {ev.mappingResolution?.status==="INATIVO_UNICO" && <button type="button" disabled={busy} style={{...secondary,marginTop:8}} onClick={()=>activateEventMapping(ev)}>Ativar mapeamento correspondente</button>}
                       </div>
-                    </details>
-                     <div style={{marginTop:8,padding:9,borderRadius:8,border:"1px solid var(--line)",background:"var(--surface)",fontSize:12}}>
-                       <strong>Diagnóstico do mapeamento: </strong>
-                       <span style={{color:ev.mappingResolution?.status==="ATIVO"?"#287443":ev.mappingResolution?.status==="INATIVO_UNICO"?"#9a641e":"var(--danger)"}}>
-                         {({ATIVO:"Ativo e compatível",INATIVO_UNICO:"Cadastrado, mas inativo",AUSENTE:"Não cadastrado",AMBIGUO:"Mais de uma regra correspondente",MULTIPLOS_ATIVOS:"Mais de uma regra ativa",CONTAS_INATIVAS:"Conta(s) inativa(s)"} as Record<string,string>)[ev.mappingResolution?.status]||"Não diagnosticado"}
-                       </span>
-                       <div style={{marginTop:4,color:"var(--muted)"}}>{ev.mappingResolution?.explanation||"Atualize a fila para consultar o diagnóstico."}</div>
-                       {ev.mappingResolution?.mapping && <div style={{marginTop:5}}>Débito: {ev.mappingResolution.mapping.debitAccount.code} — {ev.mappingResolution.mapping.debitAccount.name}<br/>Crédito: {ev.mappingResolution.mapping.creditAccount.code} — {ev.mappingResolution.mapping.creditAccount.name}</div>}
-                       {ev.mappingResolution?.status==="INATIVO_UNICO" && <button type="button" disabled={busy} style={{...secondary,marginTop:8}} onClick={()=>activateEventMapping(ev)}>Ativar mapeamento correspondente</button>}
-                     </div>
-                     </td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.sourceDisplay||((sourceLabels[ev.sourceType]||ev.sourceType)+" · "+ev.sourceId)}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{eventStatusLabels[ev.status]||ev.status}</td><td style={{padding:9,borderBottom:"1px solid var(--line)",color:ev.errorMessage?"var(--danger)":"var(--muted)"}}>{ev.errorMessage||"Nenhum erro registrado"}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.status!=="PROCESSADO" ? <button disabled={busy} style={secondary} onClick={()=>setEventToProcess(ev)}>Processar evento</button> : "Concluído"}</td></tr>)}</tbody></table></div>}
+                      </td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.sourceDisplay||((sourceLabels[ev.sourceType]||ev.sourceType)+" · "+ev.sourceId)}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{eventStatusLabels[ev.status]||ev.status}</td><td style={{padding:9,borderBottom:"1px solid var(--line)",color:ev.errorMessage?"var(--danger)":"var(--muted)"}}>{ev.errorMessage||"Nenhum erro registrado"}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.status!=="PROCESSADO" ? <button disabled={busy} style={secondary} onClick={()=>setEventToProcess(ev)}>Processar evento</button> : "Concluído"}</td></tr>)}</tbody></table></div>}
+            <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginTop:14}}>
+              <button type="button" disabled={currentPage<=1} style={{...secondary,opacity:currentPage<=1?0.5:1}} onClick={()=>setEventPage(p=>Math.max(1,p-1))}>Anterior</button>
+              <span style={{fontSize:12,color:"var(--muted)"}}>Página {currentPage} de {totalPages}</span>
+              <button type="button" disabled={currentPage>=totalPages} style={{...secondary,opacity:currentPage>=totalPages?0.5:1}} onClick={()=>setEventPage(p=>Math.min(totalPages,p+1))}>Próxima</button>
+            </div>
+          </>;
+        })()}
       </div>
     </div>}
     {eventToProcess && <div role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setEventToProcess(null);}} style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,23,42,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
