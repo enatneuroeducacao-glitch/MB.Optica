@@ -162,8 +162,9 @@ export async function POST(request: Request) {
       const creditAccountId = String(body.creditAccountId || "");
       const description = String(body.description || "").trim() || null;
       if (!EVENT_TYPES.has(eventType)) return NextResponse.json({ error: "Tipo de evento contábil não permitido." }, { status: 400 });
-      if (eventType === "PAYMENT_RECEIVED" && !paymentMethodId) return NextResponse.json({ error: "Selecione o meio de pagamento para este mapeamento." }, { status: 400 });
-      if (eventType !== "PAYMENT_RECEIVED" && paymentMethodId) return NextResponse.json({ error: "O meio de pagamento só pode ser definido para recebimentos de venda." }, { status: 400 });
+      const eventsRequiringPaymentMethod = new Set(["PAYMENT_RECEIVED", "SUPPLIER_PAYMENT_MADE"]);
+      if (eventsRequiringPaymentMethod.has(eventType) && !paymentMethodId) return NextResponse.json({ error: "Selecione o meio de pagamento para este mapeamento." }, { status: 400 });
+      if (!eventsRequiringPaymentMethod.has(eventType) && paymentMethodId) return NextResponse.json({ error: "O meio de pagamento só pode ser definido para recebimentos de venda ou pagamentos a fornecedores." }, { status: 400 });
       if (!debitAccountId || !creditAccountId || debitAccountId === creditAccountId) return NextResponse.json({ error: "Selecione contas diferentes para débito e crédito." }, { status: 400 });
       const existingMapping = await db.accountingMapping.findFirst({ where: { eventType, paymentMethodId, debitAccountId, creditAccountId } });
       if (existingMapping) {
