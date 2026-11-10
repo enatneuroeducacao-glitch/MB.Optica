@@ -88,6 +88,37 @@ export default function ContabilidadePage() {
     }
   }
 
+  async function activateEventMapping(ev: any) {
+    const resolution = ev.mappingResolution;
+    const mappingId = resolution?.status === "INATIVO_UNICO" ? resolution.mapping?.id : null;
+    if (!mappingId) return;
+    const mapping = resolution.mapping;
+    const confirmed = window.confirm(
+      "Ativar o único mapeamento correspondente a este evento?\n\nDébito: " +
+      mapping.debitAccount.code + " — " + mapping.debitAccount.name +
+      "\nCrédito: " + mapping.creditAccount.code + " — " + mapping.creditAccount.name +
+      "\n\nA ativação não cria lançamento. O processamento continuará manual."
+    );
+    if (!confirmed) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/contabilidade/mapeamentos", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "SET_MAPPING_ACTIVE", id: mappingId, active: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Não foi possível ativar o mapeamento.");
+      setMessage("Mapeamento ativado. Nenhum lançamento foi criado; atualize a fila e processe o evento após conferir as contas.");
+      await load();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Falha ao ativar o mapeamento.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function send(payload: Record<string, unknown>) {
     setBusy(true); setMessage("");
     try {
@@ -278,7 +309,17 @@ export default function ContabilidadePage() {
                           return <div key={key} style={{display:"grid",gridTemplateColumns:"minmax(140px,220px) minmax(0,1fr)",gap:8,padding:"4px 0",borderBottom:"1px solid var(--line)",overflowWrap:"anywhere"}}><strong>{labels[key] || key}</strong><span>{displayValue}</span></div>;
                         }) : <p style={{margin:0,color:"var(--muted)"}}>Este evento não possui detalhes adicionais registrados.</p>}
                       </div>
-                    </details></td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.sourceDisplay||((sourceLabels[ev.sourceType]||ev.sourceType)+" · "+ev.sourceId)}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{eventStatusLabels[ev.status]||ev.status}</td><td style={{padding:9,borderBottom:"1px solid var(--line)",color:ev.errorMessage?"var(--danger)":"var(--muted)"}}>{ev.errorMessage||"Nenhum erro registrado"}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.status!=="PROCESSADO" ? <button disabled={busy} style={secondary} onClick={()=>setEventToProcess(ev)}>Processar evento</button> : "Concluído"}</td></tr>)}</tbody></table></div>}
+                    </details>
+                     <div style={{marginTop:8,padding:9,borderRadius:8,border:"1px solid var(--line)",background:"var(--surface)",fontSize:12}}>
+                       <strong>Diagnóstico do mapeamento: </strong>
+                       <span style={{color:ev.mappingResolution?.status==="ATIVO"?"#287443":ev.mappingResolution?.status==="INATIVO_UNICO"?"#9a641e":"var(--danger)"}}>
+                         {({ATIVO:"Ativo e compatível",INATIVO_UNICO:"Cadastrado, mas inativo",AUSENTE:"Não cadastrado",AMBIGUO:"Mais de uma regra correspondente",MULTIPLOS_ATIVOS:"Mais de uma regra ativa",CONTAS_INATIVAS:"Conta(s) inativa(s)"} as Record<string,string>)[ev.mappingResolution?.status]||"Não diagnosticado"}
+                       </span>
+                       <div style={{marginTop:4,color:"var(--muted)"}}>{ev.mappingResolution?.explanation||"Atualize a fila para consultar o diagnóstico."}</div>
+                       {ev.mappingResolution?.mapping && <div style={{marginTop:5}}>Débito: {ev.mappingResolution.mapping.debitAccount.code} — {ev.mappingResolution.mapping.debitAccount.name}<br/>Crédito: {ev.mappingResolution.mapping.creditAccount.code} — {ev.mappingResolution.mapping.creditAccount.name}</div>}
+                       {ev.mappingResolution?.status==="INATIVO_UNICO" && <button type="button" disabled={busy} style={{...secondary,marginTop:8}} onClick={()=>activateEventMapping(ev)}>Ativar mapeamento correspondente</button>}
+                     </div>
+                     </td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.sourceDisplay||((sourceLabels[ev.sourceType]||ev.sourceType)+" · "+ev.sourceId)}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{eventStatusLabels[ev.status]||ev.status}</td><td style={{padding:9,borderBottom:"1px solid var(--line)",color:ev.errorMessage?"var(--danger)":"var(--muted)"}}>{ev.errorMessage||"Nenhum erro registrado"}</td><td style={{padding:9,borderBottom:"1px solid var(--line)"}}>{ev.status!=="PROCESSADO" ? <button disabled={busy} style={secondary} onClick={()=>setEventToProcess(ev)}>Processar evento</button> : "Concluído"}</td></tr>)}</tbody></table></div>}
       </div>
     </div>}
     {eventToProcess && <div role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget&&!busy)setEventToProcess(null);}} style={{position:"fixed",inset:0,zIndex:1000,background:"rgba(15,23,42,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
@@ -289,7 +330,7 @@ export default function ContabilidadePage() {
           <button type="button" aria-label="Fechar" disabled={busy} onClick={()=>setEventToProcess(null)} style={{...secondary,padding:"4px 10px"}}>✕</button>
         </div>
         <div style={{border:"1px solid var(--line)",borderRadius:10,overflow:"hidden",marginBottom:14}}>
-          {[["Evento",eventLabels[eventToProcess.eventType]||eventToProcess.eventType],["Origem",eventToProcess.sourceDisplay||((sourceLabels[eventToProcess.sourceType]||eventToProcess.sourceType)+" · "+eventToProcess.sourceId)],["Valor",eventToProcess.payload?.amount!=null?Number(eventToProcess.payload.amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"Não informado"],["Data do evento",eventToProcess.payload?.entryDate||eventToProcess.createdAt?new Date(eventToProcess.payload?.entryDate||eventToProcess.createdAt).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}):"Não informada"],["Meio de pagamento",["PAYMENT_RECEIVED","SUPPLIER_PAYMENT_MADE"].includes(eventToProcess.eventType)?(eventToProcess.payload?.paymentMethodName||eventToProcess.payload?.paymentMethod||"Não informado"):"Não se aplica — reconhecimento da despesa"],["Estado",eventStatusLabels[eventToProcess.status]||eventToProcess.status],["Chave de prevenção de duplicidade",eventToProcess.idempotencyKey||"Não informada"]].map(([label,value])=><div key={label} style={{display:"grid",gridTemplateColumns:"minmax(130px, .8fr) minmax(0,1.2fr)",gap:12,padding:"10px 12px",borderBottom:"1px solid var(--line)",fontSize:13,overflowWrap:"anywhere"}}><strong>{label}</strong><span>{value}</span></div>)}
+          {[["Evento",eventLabels[eventToProcess.eventType]||eventToProcess.eventType],["Origem",eventToProcess.sourceDisplay||((sourceLabels[eventToProcess.sourceType]||eventToProcess.sourceType)+" · "+eventToProcess.sourceId)],["Valor",eventToProcess.payload?.amount!=null?Number(eventToProcess.payload.amount).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"Não informado"],["Data do evento",eventToProcess.payload?.entryDate||eventToProcess.createdAt?new Date(eventToProcess.payload?.entryDate||eventToProcess.createdAt).toLocaleDateString("pt-BR",{timeZone:"America/Sao_Paulo"}):"Não informada"],["Meio de pagamento",["PAYMENT_RECEIVED","SUPPLIER_PAYMENT_MADE"].includes(eventToProcess.eventType)?(eventToProcess.payload?.paymentMethodName||eventToProcess.payload?.paymentMethod||"Não informado"):"Não se aplica — reconhecimento da despesa"],["Situação do mapeamento",({ATIVO:"Ativo e compatível",INATIVO_UNICO:"Cadastrado, mas inativo",AUSENTE:"Não cadastrado",AMBIGUO:"Mais de uma regra correspondente",MULTIPLOS_ATIVOS:"Mais de uma regra ativa",CONTAS_INATIVAS:"Conta(s) inativa(s)"} as Record<string,string>)[eventToProcess.mappingResolution?.status]||"Não diagnosticado"],["Detalhe do mapeamento",eventToProcess.mappingResolution?.explanation||"Atualize a fila para consultar."],["Estado",eventStatusLabels[eventToProcess.status]||eventToProcess.status],["Chave de prevenção de duplicidade",eventToProcess.idempotencyKey||"Não informada"]].map(([label,value])=><div key={label} style={{display:"grid",gridTemplateColumns:"minmax(130px, .8fr) minmax(0,1.2fr)",gap:12,padding:"10px 12px",borderBottom:"1px solid var(--line)",fontSize:13,overflowWrap:"anywhere"}}><strong>{label}</strong><span>{value}</span></div>)}
         </div>
         <div style={{background:"rgba(217,119,6,.09)",border:"1px solid rgba(217,119,6,.28)",borderRadius:10,padding:12,marginBottom:18,fontSize:13,lineHeight:1.5}}>
           <strong style={{display:"block",marginBottom:4}}>Atenção: ação definitiva</strong>
