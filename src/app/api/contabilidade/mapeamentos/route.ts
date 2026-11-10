@@ -17,9 +17,22 @@ const EVENT_TYPES = new Set([
   "SUPPLIER_PAYMENT_MADE",
 ]);
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requireRole(["ADMIN"]);
+    const { searchParams } = new URL(request.url);
+    const competencia = searchParams.get("competencia");
+    let eventDateFilter: { gte: Date; lt: Date } | undefined;
+    if (competencia) {
+      if (!/^\\d{4}-(0[1-9]|1[0-2])$/.test(competencia)) {
+        return NextResponse.json({ error: "Competência inválida. Use o formato AAAA-MM." }, { status: 400 });
+      }
+      const [year, month] = competencia.split("-").map(Number);
+      eventDateFilter = {
+        gte: new Date(Date.UTC(year, month - 1, 1)),
+        lt: new Date(Date.UTC(year, month, 1)),
+      };
+    }
     const [mappings, rawEvents, accounts, paymentMethods, salesCount, paymentsCount, saleEventsCount, paymentEventsCount, pendingEventsCount] = await Promise.all([
       db.accountingMapping.findMany({
         orderBy: [{ eventType: "asc" }, { createdAt: "desc" }],
@@ -29,7 +42,9 @@ export async function GET() {
           paymentMethod: { select: { id: true, name: true, isCash: true } },
         },
       }),
-      db.accountingEvent.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
+      db.accountingEvent.findMany({
+        orderBy: { createdAt: "desc" },
+      }),
       db.chartOfAccount.findMany({ where: { active: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true, active: true } }),
       db.paymentMethod.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true, isCash: true } }),
       db.sale.count(),
@@ -38,7 +53,16 @@ export async function GET() {
       db.accountingEvent.count({ where: { eventType: "PAYMENT_RECEIVED" } }),
       db.accountingEvent.count({ where: { status: { in: ["PENDENTE", "ERRO"] } } }),
     ]);
-    const supplierAccountIds = Array.from(new Set(rawEvents
+    const periodEvents = eventDateFilter
+      ? rawEvents.filter((event) => {
+          const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+            ? event.payload as Record<string, unknown> : {};
+          const rawDate = typeof payload.entryDate === "string" ? payload.entryDate : event.createdAt.toISOString();
+          const eventDate = new Date(rawDate);
+          return !Number.isNaN(eventDate.getTime()) && eventDate >= eventDateFilter!.gte && eventDate < eventDateFilter!.lt;
+        })
+      : rawEvents;
+    const supplierAccountIds = Array.from(new Set(periodEvents
       .filter((event) => event.sourceType === "SUPPLIER" || event.eventType.startsWith("SUPPLIER_"))
       .map((event) => {
         const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
@@ -54,7 +78,7 @@ export async function GET() {
         })
       : [];
     const supplierAccountById = new Map(supplierAccounts.map((account) => [account.id, account]));
-    const events = rawEvents.map((event) => {
+    const events = periodEvents.map((event) => {
       const payload = event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
         ? event.payload as Record<string, unknown>
         : {};
