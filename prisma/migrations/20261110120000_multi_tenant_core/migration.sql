@@ -43,6 +43,8 @@ CREATE INDEX "OrganizationMembership_userId_active_idx" ON "OrganizationMembersh
 CREATE INDEX "OrganizationMembership_organizationId_role_active_idx" ON "OrganizationMembership"("organizationId", "role", "active");
 CREATE UNIQUE INDEX "PlatformAccess_userId_key" ON "PlatformAccess"("userId");
 CREATE INDEX "PlatformAccess_role_active_idx" ON "PlatformAccess"("role", "active");
+-- The platform has exactly one OWNER; additional SUPER_ADMIN and SUPPORT entries are allowed.
+CREATE UNIQUE INDEX "PlatformAccess_single_owner_key" ON "PlatformAccess"("role") WHERE "role" = 'OWNER';
 CREATE UNIQUE INDEX "Subscription_organizationId_key" ON "Subscription"("organizationId");
 
 ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
