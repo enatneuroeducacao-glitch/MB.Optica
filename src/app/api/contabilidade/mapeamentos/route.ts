@@ -149,8 +149,16 @@ export async function POST(request: Request) {
       for (const suggestion of suggestions) {
         const debit = byCode.get(suggestion.debitCode)!;
         const credit = byCode.get(suggestion.creditCode)!;
+        // Só considerar duplicada a sugestão quando evento, meio e contas forem idênticos.
+        // Um mapeamento antigo/inativo com contas incorretas não pode bloquear a criação
+        // da sugestão contábil correta para o mesmo tipo de evento.
         const existing = await db.accountingMapping.findFirst({
-          where: { eventType: suggestion.eventType, paymentMethodId: suggestion.paymentMethodId ?? null },
+          where: {
+            eventType: suggestion.eventType,
+            paymentMethodId: suggestion.paymentMethodId ?? null,
+            debitAccountId: debit.id,
+            creditAccountId: credit.id,
+          },
         });
         if (existing) {
           skipped.push(suggestion.eventType + (suggestion.paymentMethodId ? ":" + suggestion.paymentMethodId : ""));
