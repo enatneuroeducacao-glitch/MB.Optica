@@ -47,6 +47,20 @@ FiscalConfig, FiscalDocument, Subscription, User, MailMessageState, MailContactP
 
 **Esta etapa não implementa isolamento de dados.** Os 49 modelos de negócio ainda não têm `organizationId`; as rotas ainda não filtram por organização; login e assinatura ainda são globais. A migration é apenas fundação aditiva e não deve ser tratada como pronta para abrir cadastro de novas óticas.
 
+## Implementação incremental — contexto de organização
+
+Foi adicionado `src/lib/tenant-context.ts` com `resolveTenantContext(userId, requestedOrganizationId?)`.
+
+Garantias implementadas pelo helper:
+- Consulta memberships ativos persistidos no banco e exige organização ativa.
+- Se receber um organizationId como seletor, valida que o usuário possui membership ativo; caso contrário retorna `TENANT_ACCESS_DENIED`.
+- Se o usuário possuir exatamente um membership, resolve automaticamente esse tenant.
+- Se possuir múltiplos memberships, exige seleção validada (`TENANT_SELECTION_REQUIRED`).
+- PlatformAccess é lido separadamente; não substitui membership operacional.
+- Usuários sem membership recebem `TENANT_MEMBERSHIP_REQUIRED`.
+
+**Importante:** o helper ainda não foi ligado aos guardas legados nem às rotas. Isso é intencional: conectar a autenticação antes do backfill bloquearia os usuários atuais, enquanto conectá-la sem escopar as consultas de dados criaria falsa sensação de isolamento. A integração deve ocorrer em uma entrega coordenada com o backfill e a cobertura das APIs.
+
 ## Próximos passos técnicos
 
 1. Implementar resolução de contexto de organização no servidor e sessão com membership validado.
