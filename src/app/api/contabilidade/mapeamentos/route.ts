@@ -67,7 +67,8 @@ export async function POST(request: Request) {
 
       const suggestions: { eventType: string; paymentMethodId?: string; debitCode: string; creditCode: string; description: string }[] = [
         { eventType: "SALE_RECOGNIZED", debitCode: "1.2", creditCode: "4.1", description: "SUGESTÃO — venda a prazo/crediário: débito em clientes a receber e crédito em receita de vendas. A receita é reconhecida uma única vez pelo valor total da venda." },
-        { eventType: "SUPPLIER_EXPENSE_RECOGNIZED", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa de fornecedor reconhecida: débito em despesas operacionais e crédito em fornecedores a pagar. Classificação depende da natureza da compra." },
+        { eventType: "SUPPLIER_EXPENSE_RECOGNIZED", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa de fornecedor reconhecida (legado): débito em despesas operacionais e crédito em fornecedores a pagar. Classificação depende da natureza da compra." },
+        { eventType: "SUPPLIER_EXPENSE_RECOGNIZED_DESPESA_OPERACIONAL", debitCode: "6.1", creditCode: "2.1", description: "SUGESTÃO — despesa operacional de fornecedor: débito em despesas operacionais (6.1) e crédito em fornecedores a pagar (2.1). Não representa quitação; a baixa do banco/caixa ocorre no evento de pagamento. Revisar antes de ativar." },
       ];
 
       // Sugere um mapeamento por meio REAL de recebimento. Crediário/carnê é condição de venda,
