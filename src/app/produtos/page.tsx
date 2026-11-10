@@ -63,12 +63,52 @@ function printLabels(p:any,quantity:number){
 }
 
 function parseFiscalCsv(text:string){
+ const source=text.replace(/^\uFEFF/,"");
+ const firstLine=source.split(/\r?\n/,1)[0]??"";
+ const counts:{[key:string]:number}={";":0,",":0,"\t":0};
+ let inQuotes=false;
+ for(let i=0;i<firstLine.length;i++){
+  const ch=firstLine[i];
+  if(ch==='"'&&firstLine[i+1]==='"'){i++;continue;}
+  if(ch==='"'){inQuotes=!inQuotes;continue;}
+  if(!inQuotes&&Object.prototype.hasOwnProperty.call(counts,ch))counts[ch]++;
+ }
+ const delimiter=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0]?.[1]
+  ?Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]
+  :";";
  const rows:string[][]=[];let row:string[]=[],cell="",quoted=false;
- for(let i=0;i<text.length;i++){const ch=text[i];if(quoted){if(ch==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}else if(ch==='"')quoted=true;else if(ch===","||ch===";"){row.push(cell.trim());cell="";}else if(ch==="\n"){row.push(cell.trim());rows.push(row);row=[];cell="";}else if(ch!=="\r")cell+=ch;}
+ for(let i=0;i<source.length;i++){
+  const ch=source[i];
+  if(quoted){
+   if(ch==='"'&&source[i+1]==='"'){cell+='"';i++;}
+   else if(ch==='"')quoted=false;
+   else cell+=ch;
+  }else if(ch==='"')quoted=true;
+  else if(ch===delimiter){row.push(cell.trim());cell="";}
+  else if(ch==="\n"){row.push(cell.trim());rows.push(row);row=[];cell="";}
+  else if(ch!=="\r")cell+=ch;
+ }
  if(cell.length||row.length){row.push(cell.trim());rows.push(row);}
  if(rows.length<2)throw new Error("A planilha está vazia ou sem linhas de produtos.");
- const headers=rows[0].map(x=>x.replace(/^\uFEFF/,"").trim());
- return rows.slice(1).filter(r=>r.some(v=>v.trim()!=="")).map((r,i)=>{const o:Record<string,string>={};headers.forEach((h,j)=>o[h]=(r[j]??"").trim());if(!o.id)throw new Error(`Linha ${i+2}: coluna id ausente. Use o modelo exportado pelo MB Gestão.`);return {id:o.id,ncm:o.ncm,cest:o.cest,cfop:o.cfop,origin:o.origin,taxCode:o.taxCode};});
+ const normalizeHeader=(value:string)=>{
+  const key=value.replace(/^\uFEFF/,"").trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[ _-]+/g,"");
+  if(["id","idproduto","identificador","productid"].includes(key))return "id";
+  if(["codigo","codigoproduto"].includes(key))return "code";
+  if(["descricao","descricaoproduto"].includes(key))return "description";
+  if(["codigotributario","cst","csosn"].includes(key))return "taxCode";
+  return key;
+ };
+ const headers=rows[0].map(normalizeHeader);
+ if(!headers.includes("id")){
+  const received=rows[0].map(x=>x.trim()).filter(Boolean).join(", ");
+  throw new Error("Cabeçalho incompatível: não encontrei a coluna id. Cabeçalhos identificados: "+(received||"(vazio)")+". Exporte novamente o CSV pelo botão Exportar planilha fiscal (CSV) do MB Gestão e não altere a primeira linha.");
+ }
+ return rows.slice(1).filter(r=>r.some(v=>v.trim()!=="")).map((r,i)=>{
+  const o:Record<string,string>={};
+  headers.forEach((h,j)=>o[h]=(r[j]??"").trim());
+  if(!o.id)throw new Error(\`Linha \${i+2}: identificador do produto vazio. Preserve a coluna id do modelo exportado pelo MB Gestão.\`);
+  return {id:o.id,ncm:o.ncm,cest:o.cest,cfop:o.cfop,origin:o.origin,taxCode:o.taxCode};
+ });
 }
 function csvCell(value:unknown){const s=String(value??"");return /[",;\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
 export default function Produtos(){
