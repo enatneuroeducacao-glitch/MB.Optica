@@ -65,3 +65,12 @@ FiscalConfig, FiscalDocument, Subscription, User, MailMessageState, MailContactP
 - Platform Owner tem ações globais auditadas e não depende de `UserRole.ADMIN`.
 - A MB Óptica mantém contagens e IDs históricos após o backfill.
 - Assinaturas, degustação de 60 dias, limites e suspensão são independentes por organização.
+
+## Descoberta de produção — 10/11/2026
+
+O serviço Render publicado `mb-optica-gestao` está executando o commit de `main` e seus logs de inicialização do Prisma identificam o banco Render `mb_optica_db_contingencia` (recurso `dpg-db9p7flg1s2s739hstn0-a`). O recurso está no plano Free e informa expiração em 16/11/2026. A consulta administrativa via conector foi bloqueada porque a allowlist de rede do banco está vazia. A aplicação está acessível publicamente, mas o banco não está acessível pelo conector.
+
+A lista de projetos Neon disponível não identificou um projeto chamado MB Óptica/MB Gestão. Logo, o Neon consultado anteriormente não pode ser assumido como origem dos dados de produção. Não alterar conexão, não migrar e não aplicar backfill sem acesso autenticado, backup restaurável e validação de contagens.
+
+**Bloqueio de segurança:** os novos modelos `Organization`, `OrganizationMembership` e `PlatformAccess` e a coluna opcional `Subscription.organizationId` são somente a fundação. Nenhum dos 49 modelos de operação possui escopo por empresa ainda; as rotas continuam globais. Não existe ainda cadastro público multi-ótica seguro. A branch não foi implantada no Render.
+
