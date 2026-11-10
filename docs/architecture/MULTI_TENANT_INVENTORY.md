@@ -1,6 +1,6 @@
 # Inventário técnico para multi-tenant
 
-Branch de trabalho: `feature/multi-tenant-foundation`
+Branch de trabalho atual: `feature/tenant-context-rollout` (a PR #151 da fundação inicial já foi integrada à main)
 
 ## Escopo encontrado
 
@@ -47,7 +47,7 @@ FiscalConfig, FiscalDocument, Subscription, User, MailMessageState, MailContactP
 
 **Esta etapa não implementa isolamento de dados.** Os 49 modelos de negócio ainda não têm `organizationId`; as rotas ainda não filtram por organização; login e assinatura ainda são globais. A migration é apenas fundação aditiva e não deve ser tratada como pronta para abrir cadastro de novas óticas.
 
-## Próximos passos técnicos
+## Implementação incremental — contexto de organização\n\nFoi adicionado nesta branch `src/lib/tenant-context.ts` com `resolveTenantContext(userId, requestedOrganizationId?)`. O helper consulta memberships ativos e organizações ACTIVE, valida qualquer organização solicitada contra o membership, resolve automaticamente quando há apenas um vínculo e exige seleção quando há vários. `PlatformAccess` é consultado separadamente e não substitui membership operacional. O helper ainda não foi conectado aos guardas nem às rotas: isso só deve ocorrer junto ao backfill e à cobertura das APIs, para não bloquear o administrador atual nem criar falsa segurança.\n\nA estratégia de classificação dos 49 modelos, relações, unicidades e sequência de migração está em `docs/architecture/MULTI_TENANT_MODEL_STRATEGY.md`.\n\n## Próximos passos técnicos
 
 1. Implementar resolução de contexto de organização no servidor e sessão com membership validado.
 2. Identificar o usuário administrador atual por consulta autenticada ao banco de produção; inserir um único registro `PlatformAccess` após confirmar o ID da conta.
