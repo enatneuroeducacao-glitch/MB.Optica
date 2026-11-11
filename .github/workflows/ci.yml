@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feature/tenant-scope-phase2-dependent-models"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
@@ -100,6 +100,13 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
           AUTH_SECRET: local-development-secret-change-me-32-characters
         run: npx tsx scripts/integration-financial-cycle.ts
+
+      - name: Two-tenant HTTP isolation test
+        env:
+          INTEGRATION_BASE_URL: http://127.0.0.1:3000
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
+          AUTH_SECRET: local-development-secret-change-me-32-characters
+        run: npm run test:tenant-isolation
 
       - name: Stop application
         if: always()
