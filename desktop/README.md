@@ -44,3 +44,26 @@ The current installer is a WebView client pinned to the MB Óptica production UR
 The approved target model is one application service, one PostgreSQL database, independent secrets/backups and one URL-specific installer profile per optical store. See [Independent optical deployments](../docs/architecture/INDEPENDENT_OPTICAL_DEPLOYMENTS.md).
 
 A customer-specific installer must be built only after its dedicated application URL exists and has passed the isolation and acceptance checks. Never embed database credentials, API secrets or bootstrap tokens in the installer.
+
+## Customer-specific installer build
+
+A customer-specific build requires all of the following non-secret environment variables:
+
+- `MB_GESTAO_TARGET_URL`: the exact HTTPS URL of that customer's dedicated application service.
+- `MB_GESTAO_PRODUCT_NAME`: the display name shown by Windows.
+- `MB_GESTAO_APP_IDENTIFIER`: a unique reverse-domain Tauri identifier for that installation.
+- `MB_GESTAO_INSTALLER_SLUG`: a unique lowercase installation slug.
+
+Validate the profile without compiling:
+
+```bash
+MB_GESTAO_TARGET_URL=https://pilot.example.com MB_GESTAO_PRODUCT_NAME="MB Gestão - Óptica Piloto" MB_GESTAO_APP_IDENTIFIER=br.com.mboptica.piloto MB_GESTAO_INSTALLER_SLUG=optica-piloto npm run tauri:validate:customer
+```
+
+Build the NSIS installer after the dedicated service has been provisioned and verified:
+
+```bash
+MB_GESTAO_TARGET_URL=https://pilot.example.com MB_GESTAO_PRODUCT_NAME="MB Gestão - Óptica Piloto" MB_GESTAO_APP_IDENTIFIER=br.com.mboptica.piloto MB_GESTAO_INSTALLER_SLUG=optica-piloto npm run tauri:build:customer
+```
+
+The customer build rejects the MB Óptica production host and requires a unique application identifier. It does not provision a server or database; those must exist independently before the installer is built. The variables above are configuration, not secrets.
