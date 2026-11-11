@@ -50,7 +50,10 @@ export async function POST(request: Request) {
           where: { id: event.sourceId },
           include: { method: true },
         });
-        if (sourcePayment) {
+        if (sourcePayment && !sourcePayment.method) {
+          throw new AccountingEventValidationError("Pagamento de origem sem meio de pagamento vinculado. Revise o cadastro antes de contabilizar.");
+        }
+        if (sourcePayment?.method) {
           payload = {
             ...payload,
             paymentMethodId: payload.paymentMethodId || sourcePayment.methodId,
@@ -138,9 +141,10 @@ export async function POST(request: Request) {
         if (matchingMappings.length === 1) {
           const candidate = matchingMappings[0];
           throw new AccountingEventValidationError(
-            "Existe um mapeamento cadastrado, mas inativo para este evento (ID: " + candidate.id + "). Confira débito " +
-            candidate.debitAccount.code + " — " + candidate.debitAccount.name + " e crédito " +
-            candidate.creditAccount.code + " — " + candidate.creditAccount.name + "; depois ative-o em Integração contábil."
+            "Existe um mapeamento cadastrado, mas inativo para este evento (ID: " + candidate.id + "). " +
+            (candidate.debitAccount && candidate.creditAccount
+              ? "Confira débito " + candidate.debitAccount.code + " — " + candidate.debitAccount.name + " e crédito " + candidate.creditAccount.code + " — " + candidate.creditAccount.name + "; depois ative-o em Integração contábil."
+              : "Uma ou ambas as contas vinculadas não existem mais. Corrija o mapeamento em Integração contábil.")
           );
         }
         if (matchingMappings.length > 1) {
