@@ -66,7 +66,7 @@ export async function GET(){
   try{
     const [accounts,sales,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales,legacyAggregates]=await Promise.all([
       db.account.findMany({orderBy:{dueDate:"asc"},take:200,include:{customer:{select:{id:true,name:true}},supplier:{select:{id:true,name:true}},sale:{select:{number:true}},settlements:{orderBy:{paidAt:"desc"},include:{paymentMethod:{select:{name:true}}}}}}),
-      db.sale.findMany({where:{canceled:false},orderBy:{createdAt:"desc"},take:100,include:{customer:{select:{name:true}},payments:{include:{method:{select:{name:true}}}}}}),
+      db.sale.findMany({where:{canceled:false},orderBy:{createdAt:"desc"},take:100,include:{customer:{select:{name:true}}}}),
       db.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"},include:{movements:{orderBy:{createdAt:"desc"},take:100}}}),
       db.paymentMethod.findMany({where:{active:true},orderBy:{name:"asc"}}),
       db.payrollSettings.findFirst({orderBy:{updatedAt:"desc"}}),
@@ -112,6 +112,16 @@ export async function GET(){
       const month=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
       if(!aggregateMonths.has(month))addSale(s.createdAt,money(s.total));
     });
+    // During the additive tenant rollout organizationId is nullable on legacy rows.
+    // Avoid Prisma nested relation joins on nullable composite tenant keys (NULL = NULL is not true).
+    const saleIds=sales.map((sale:any)=>sale.id);
+    const salePayments=saleIds.length?await db.payment.findMany({where:{saleId:{in:saleIds}},orderBy:{paidAt:"asc"}}):[];
+    const methodIds=[...new Set(salePayments.map((payment:any)=>payment.methodId).filter(Boolean))];
+    const paymentMethods=methodIds.length?await db.paymentMethod.findMany({where:{id:{in:methodIds}},select:{id:true,name:true}}):[];
+    const methodNames=new Map(paymentMethods.map((method:any)=>[method.id,method.name]));
+    const paymentsBySale=new Map<string,any[]>();
+    for(const payment of salePayments){const list=paymentsBySale.get(payment.saleId)||[];list.push({...payment,method:{name:methodNames.get(payment.methodId)||""}});paymentsBySale.set(payment.saleId,list);}
+    const salesWithPayments=sales.map((sale:any)=>({...sale,payments:paymentsBySale.get(sale.id)||[]}));
     const now=new Date();
     const closedMonths:number[]=[];
     for(let i=1;i<=6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");closedMonths.push(monthlyMap.get(key)?.revenue||0)}
@@ -131,12 +141,13 @@ export async function GET(){
       regime:fiscalConfig?.taxRegime||"SIMEI"
     };
     const today=new Date(); today.setHours(0,0,0,0);
-    const received=sales.flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
+    const received=salePayments.filter((p:any)=>!p.reversedAt).reduce((a:number,p:any)=>a+money(p.amount),0);
     const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const payable=accounts.filter(a=>a.type==="PAGAR"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const writtenOff=accounts.filter(a=>a.type==="RECEBER"&&a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt);
-    const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
+    const todaySaleIds=new Set(sales.filter((s:any)=>s.createdAt>=today).map((s:any)=>s.id));
+    const todayReceived=salePayments.filter((p:any)=>todaySaleIds.has(p.saleId)&&!p.reversedAt).reduce((a:number,p:any)=>a+money(p.amount),0);
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
     const cashOut=cashMovements.filter(m=>["SAIDA","SANGRIA"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
@@ -145,7 +156,7 @@ export async function GET(){
       return {month:String(p.month||r.legacyId||""),total:Math.round(Number(p.total||0)*100)/100};
     }).filter((r:any)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(r.month)).sort((a:any,b:any)=>a.month.localeCompare(b.month));
     const historicalBilling={months:historicalBillingRows,total:Math.round(historicalBillingRows.reduce((sum:number,r:any)=>sum+r.total,0)*100)/100,source:"BEEPSTART_AGREGADO"};
-    return NextResponse.json({accounts,sales,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
+    return NextResponse.json({accounts,sales:salesWithPayments,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
   }catch(error){return NextResponse.json({error:"Não foi possível carregar o centro financeiro",detail:String(error)},{status:500})}
 }
 
