@@ -52,8 +52,14 @@ jobs:
           MB_GESTAO_INSTALLER_SLUG: optica-piloto
         run: npm run tauri:validate:customer
 
-      - name: Build Windows NSIS installer
-        run: npm run tauri:build
+      - name: Build Windows NSIS installer for isolated local pilot
+        env:
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
+          MB_GESTAO_PRODUCT_NAME: MB Gestão - Óptica Piloto
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
+          MB_GESTAO_INSTALLER_SLUG: optica-piloto
+        run: npm run tauri:build:customer
 
       - name: Upload homologation installer (not a public release)
         uses: actions/upload-artifact@v4
