@@ -111,8 +111,8 @@ id String @id @default(cuid())
   notes String?
   configId String?
   saleId String? @unique
-  config FiscalConfig? @relation(fields:[configId],references:[id])
-  sale Sale? @relation(fields:[saleId],references:[id])
+  config FiscalConfig? @relation(fields: [configId, organizationId],references: [id, organizationId])
+  sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([status])
@@ -323,7 +323,7 @@ district String?
 city String?
 state String?
 postalCode String?
-customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+customer Customer @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
 }
 model Prescription {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -351,7 +351,7 @@ oeHeight Decimal? @db.Decimal(6,2)
 pdTotal Decimal? @db.Decimal(6,2)
 notes String?
 originalText String?
-customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+customer Customer @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
 orders OpticalOrder[]
 quotes Quote[]
   frameAdaptationOrders FrameAdaptationOrder[]
@@ -414,8 +414,8 @@ stockControlled Boolean @default(true)
 active Boolean @default(true)
 categoryId String?
 supplierId String?
-category Category? @relation(fields:[categoryId],references:[id])
-supplier Supplier? @relation(fields:[supplierId],references:[id])
+category Category? @relation(fields: [categoryId, organizationId],references: [id, organizationId])
+supplier Supplier? @relation(fields: [supplierId, organizationId],references: [id, organizationId])
 lots StockLot[]
 movements StockMovement[]
 orderItems OpticalOrderItem[]
@@ -433,7 +433,7 @@ quantity Decimal @db.Decimal(12,3)
 cost Decimal? @db.Decimal(12,2)
 expiresAt DateTime?
 archived Boolean @default(false)
-product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+product Product @relation(fields: [productId, organizationId],references: [id, organizationId],onDelete:Cascade)
 movementLots StockMovementLot[]
 }
 model StockMovement {
@@ -447,7 +447,7 @@ reference String?
 referenceId String?
 notes String?
 createdAt DateTime @default(now())
-product Product @relation(fields:[productId],references:[id])
+product Product @relation(fields: [productId, organizationId],references: [id, organizationId])
 lotLinks StockMovementLot[]
 }
 model StockMovementLot {
@@ -456,8 +456,8 @@ id String @id @default(cuid())
 movementId String
 lotId String
 quantity Decimal @db.Decimal(12,3)
-movement StockMovement @relation(fields:[movementId],references:[id],onDelete:Cascade)
-lot StockLot @relation(fields:[lotId],references:[id])
+movement StockMovement @relation(fields: [movementId, organizationId],references: [id, organizationId],onDelete:Cascade)
+lot StockLot @relation(fields: [lotId, organizationId],references: [id, organizationId])
 @@unique([movementId,lotId])
 @@index([lotId])
 }
@@ -480,8 +480,8 @@ installments Int?
 notes String?
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
-customer Customer @relation(fields:[customerId],references:[id])
-prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+customer Customer @relation(fields: [customerId, organizationId],references: [id, organizationId])
+prescription Prescription? @relation(fields: [prescriptionId, organizationId],references: [id, organizationId])
 seller User? @relation(fields:[sellerId],references:[id])
 items QuoteItem[]
 order OpticalOrder?
@@ -498,8 +498,8 @@ kind String?
 eye String?
 quantity Decimal @db.Decimal(12,3)
 unitPrice Decimal @db.Decimal(12,2)
-quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+quote Quote @relation(fields: [quoteId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
 }
 model OpticalOrder {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -519,13 +519,13 @@ total Decimal @default(0) @db.Decimal(12,2)
 discount Decimal @default(0) @db.Decimal(12,2)
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
-customer Customer @relation(fields:[customerId],references:[id])
-prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+customer Customer @relation(fields: [customerId, organizationId],references: [id, organizationId])
+prescription Prescription? @relation(fields: [prescriptionId, organizationId],references: [id, organizationId])
 seller User? @relation(fields:[sellerId],references:[id])
 items OpticalOrderItem[]
 events OrderEvent[]
 quoteId String? @unique
-quote Quote? @relation(fields:[quoteId],references:[id])
+quote Quote? @relation(fields: [quoteId, organizationId],references: [id, organizationId])
 sale Sale?
 }
 model OpticalOrderItem {
@@ -538,8 +538,8 @@ kind String
 eye String?
 quantity Decimal @default(1) @db.Decimal(12,3)
 unitPrice Decimal @default(0) @db.Decimal(12,2)
-order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+order OpticalOrder @relation(fields: [orderId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
 }
 model OrderEvent {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -548,7 +548,7 @@ orderId String
 status OrderStatus
 message String
 createdAt DateTime @default(now())
-order OpticalOrder @relation(fields:[orderId],references:[id])
+order OpticalOrder @relation(fields: [orderId, organizationId],references: [id, organizationId])
 }
 model Sale {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -570,9 +570,9 @@ canceled Boolean @default(false)
 canceledAt DateTime?
 cancelReason String?
 createdAt DateTime @default(now())
-customer Customer? @relation(fields:[customerId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
 seller User @relation(fields:[sellerId],references:[id])
-order OpticalOrder? @relation(fields:[orderId],references:[id])
+order OpticalOrder? @relation(fields: [orderId, organizationId],references: [id, organizationId])
 items SaleItem[]
 payments Payment[]
 accounts Account[]
@@ -590,8 +590,8 @@ unitPrice Decimal @db.Decimal(12,2)
 unitCost Decimal @default(0) @db.Decimal(12,2)
 discount Decimal @default(0) @db.Decimal(12,2)
 total Decimal @default(0) @db.Decimal(12,2)
-sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+sale Sale @relation(fields: [saleId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
 }
 model PaymentMethod {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -643,10 +643,10 @@ reversedAt DateTime?
 reversalReference String?
 paidAt DateTime @default(now())
 accountSettlementId String? @unique
-sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
-method PaymentMethod @relation(fields:[methodId],references:[id])
-cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
-accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
+sale Sale @relation(fields: [saleId, organizationId],references: [id, organizationId],onDelete:Cascade)
+method PaymentMethod @relation(fields: [methodId, organizationId],references: [id, organizationId])
+cardMachine CardMachine? @relation(fields: [cardMachineId, organizationId],references: [id, organizationId])
+accountSettlement AccountSettlement? @relation(fields: [accountSettlementId, organizationId],references: [id, organizationId])
 }
 model Account {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -664,9 +664,9 @@ status PaymentStatus @default(PENDENTE)
 notes String?
   writtenOffAt DateTime?
   writtenOffReason String?
-customer Customer? @relation(fields:[customerId],references:[id])
-supplier Supplier? @relation(fields:[supplierId],references:[id])
-sale Sale? @relation(fields:[saleId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+supplier Supplier? @relation(fields: [supplierId, organizationId],references: [id, organizationId])
+sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId])
 settlements AccountSettlement[]
 }
 model AccountSettlement {
@@ -685,9 +685,9 @@ cardNetAmount Decimal? @db.Decimal(12,2)
 reference String?
 notes String?
 reversedAt DateTime?
-account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
-paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id])
-cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
+account Account @relation(fields: [accountId, organizationId],references: [id, organizationId],onDelete:Cascade)
+paymentMethod PaymentMethod? @relation(fields: [methodId, organizationId],references: [id, organizationId])
+cardMachine CardMachine? @relation(fields: [cardMachineId, organizationId],references: [id, organizationId])
 payment Payment?
 @@index([accountId,paidAt])
 }
@@ -710,7 +710,7 @@ amount Decimal @db.Decimal(12,2)
 description String
 referenceId String?
 createdAt DateTime @default(now())
-session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+session CashSession @relation(fields: [sessionId, organizationId],references: [id, organizationId],onDelete:Cascade)
 }
 model AuditLog {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -754,8 +754,8 @@ model LegacyRecord {
   status String @default("PRESERVED")
   errorMessage String?
   importedAt DateTime @default(now())
-  customer Customer? @relation(fields:[customerId],references:[id])
-  migrationRun MigrationRun? @relation(fields:[migrationRunId],references:[id])
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+  migrationRun MigrationRun? @relation(fields: [migrationRunId, organizationId],references: [id, organizationId])
   @@index([collectionKey])
   @@index([legacyId])
   @@index([migrationRunId])
@@ -851,7 +851,7 @@ model Appointment {
   notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+  customer Customer @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
   @@index([scheduledAt])
   @@index([customerId,scheduledAt])
 }
@@ -864,7 +864,7 @@ model BirthdayReminder {
   notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields:[customerId],references:[id],onDelete:SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:SetNull)
   @@index([birthDate])
   @@index([customerId])
 }
@@ -899,7 +899,7 @@ model ChartOfAccount {
   parentId String?
   active Boolean @default(true)
   system Boolean @default(false)
-  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId, organizationId], references: [id, organizationId], onDelete: SetNull)
   children ChartOfAccount[] @relation("AccountingAccountTree")
   lines AccountingEntryLine[]
   debitMappings AccountingMapping[] @relation("AccountingMappingDebit")
@@ -941,7 +941,7 @@ model AccountingEntry {
   totalDebit Decimal @default(0) @db.Decimal(14,2)
   totalCredit Decimal @default(0) @db.Decimal(14,2)
   periodId String
-  period AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  period AccountingPeriod @relation(fields: [periodId, organizationId], references: [id, organizationId], onDelete: Restrict)
   lines AccountingEntryLine[]
   sourceEvent AccountingEvent?
   createdByUserId String?
@@ -968,8 +968,8 @@ model AccountingEntryLine {
   credit Decimal @default(0) @db.Decimal(14,2)
   referenceType String?
   referenceId String?
-  entry AccountingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  entry AccountingEntry @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  account ChartOfAccount @relation(fields: [accountId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   @@unique([entryId, lineNumber])
   @@index([accountId, createdAt])
@@ -985,9 +985,9 @@ model AccountingMapping {
   creditAccountId String
   active Boolean @default(true)
   description String?
-  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
-  debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId], references: [id], onDelete: Restrict)
-  creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId], references: [id], onDelete: Restrict)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([eventType, paymentMethodId, debitAccountId, creditAccountId])
@@ -1006,7 +1006,7 @@ model AccountingEvent {
   processedAt DateTime?
   errorMessage String?
   entryId String? @unique
-  entry AccountingEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  entry AccountingEntry? @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([eventType, status])
@@ -1033,7 +1033,7 @@ model ThirdPartyFrameIntake {
   createdByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
   @@index([status, createdAt])
   @@index([customerId])
 }
@@ -1066,9 +1066,9 @@ model FrameAdaptationOrder {
   createdByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  sale Sale @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  prescription Prescription? @relation(fields: [prescriptionId, organizationId], references: [id, organizationId], onDelete: SetNull)
   @@index([status, createdAt])
   @@index([customerId])
 }
