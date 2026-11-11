@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
       include: { lines: { include: { account: { select: { id: true, code: true, name: true, nature: true, accountType: true } } } } },
     });
-    const rows = entries.flatMap(entry => entry.lines.map(line => ({
+    const rows = entries.flatMap(entry => entry.lines.filter(line => line.account !== null).map(line => ({
       entryId: entry.id, entryDate: entry.entryDate, competenceDate: entry.competenceDate,
       description: entry.description, entryStatus: entry.status, lineNumber: line.lineNumber,
       accountId: line.accountId, accountCode: line.account.code, accountName: line.account.name,
