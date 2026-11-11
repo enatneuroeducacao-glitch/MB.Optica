@@ -39,7 +39,7 @@ O script:
 5. espera o endpoint de saúde ficar disponível;
 6. imprime o endereço local e o token de bootstrap uma única vez.
 
-Guarde o token de bootstrap em local seguro. Ele é necessário para criar o primeiro administrador em `/setup`. Depois de inicializar o administrador, remova BOOTSTRAP_TOKEN do arquivo de ambiente e recrie apenas o contêiner da aplicação. O endpoint de bootstrap também recusa inicialização quando já existe usuário.
+Guarde o token de bootstrap em local seguro. Ele é necessário para criar o primeiro administrador em `/setup`. Depois de inicializar o administrador, execute `node deploy/local-optical/finalize-bootstrap.mjs optica-piloto`. O script substitui o token por um valor inválido e recria somente o contêiner da aplicação. O endpoint de bootstrap também recusa inicialização quando já existe usuário.
 
 Não copie o diretório de instância de uma óptica para outra: isso duplicaria credenciais e dados. Para outra loja, gere outro slug e outro provisionamento.
 
