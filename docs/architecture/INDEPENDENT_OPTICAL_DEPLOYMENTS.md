@@ -2,7 +2,7 @@
 
 ## Decision
 
-The distribution model for MB Gestão is **one independent application deployment and one independent PostgreSQL database per optical store**.
+The distribution model for MB Gestão is **one independent local application server and one independent PostgreSQL database per optical store**, hosted on that store's own server computer. Each store may allow access from its private LAN after firewall configuration.
 
 This is not a shared-database multi-tenant SaaS rollout. Each customer receives an isolated deployment, its own database, its own credentials/secrets, its own backups and its own desktop installer profile.
 
@@ -103,3 +103,4 @@ Application code may be released from a common source repository, but deployment
 - Do not reuse `MB_OPTICA_OWNER_INSTANCE=true` as a customer licensing mechanism. It is a global owner-instance bypass and is not a per-customer isolation boundary.
 - Do not advertise the existing Tauri installer as a standalone/local system: it is currently only a WebView client for the online service.
 - Do not claim a customer installation is isolated until its application service, database, credentials, backups and installer URL have all been verified independently.
+\n\n## Local-server pilot implementation status\n\nThe branch `feature/independent-optical-deployments` now includes a Docker Compose local stack, a first-run Node provisioner that generates per-installation secrets, a minimal database readiness endpoint, an explicit one-time bootstrap finalizer, and a Tauri profile targeting loopback. The current desktop installer still does not install Docker Desktop or automatically manage the local server lifecycle. Those remain release blockers.\n
