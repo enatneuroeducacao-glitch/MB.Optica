@@ -78,7 +78,9 @@ async function main() {
   }
 
   let finance = await api("/api/financeiro", { headers });
-  assert(Math.abs(money(finance.body.summary.received) - 100) < .01, "recebimento total antes do cancelamento");
+  const paymentAudit = await db.payment.findMany({ where: { saleId: sale.body.id }, include: { method: { select: { name: true } } } });
+  console.log("FINANCIAL_CYCLE_RECEIPT_DIAGNOSTIC", JSON.stringify({ expected: 100, summaryReceived: money(finance.body.summary.received), saleId: sale.body.id, saleTotal: money(sale.body.total), payments: paymentAudit.map(p => ({ amount: money(p.amount), method: p.method?.name, reversedAt: p.reversedAt })), accounts: await db.account.findMany({ where: { saleId: sale.body.id }, select: { amount: true, paidAmount: true, status: true } }) }));
+  assert(Math.abs(money(finance.body.summary.received) - 100) < .01, "recebimento total antes do cancelamento (esperado 100; recebido " + money(finance.body.summary.received) + ")");
 
   await api("/api/sales/" + sale.body.id + "/cancel", {
     method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de devolução financeira" })
