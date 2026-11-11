@@ -20,6 +20,8 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         }
       });
       if(!payment) throw new Error("Pagamento não encontrado");
+      if(!payment.sale) throw new Error("Pagamento sem venda vinculada; estorno bloqueado para evitar inconsistência.");
+      if(!payment.method) throw new Error("Pagamento sem meio de pagamento vinculado; revise o cadastro antes do estorno.");
       if(payment.reversedAt) throw new Error("Pagamento já estornado");
       if(payment.sale.canceled) throw new Error("Venda cancelada");
 
@@ -55,6 +57,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       let updatedAccount=null;
       if(payment.accountSettlement){
         const settlement=payment.accountSettlement;
+        if(!settlement.account) throw new Error("Liquidação sem conta vinculada; estorno bloqueado para preservar o financeiro.");
         if(settlement.reversedAt) throw new Error("Liquidação da conta já foi estornada");
 
         reversedSettlement=await tx.accountSettlement.update({
