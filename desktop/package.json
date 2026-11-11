@@ -9,7 +9,7 @@
     "tauri:build": "npm run build:web && npm run tauri:icon && tauri build",
     "tauri:build:customer": "node scripts/build-customer-installer.mjs",
     "tauri:validate:customer": "node scripts/build-customer-installer.mjs --validate-only",
-    "tauri:build:local": "MB_GESTAO_DEPLOYMENT_MODE=local MB_GESTAO_TARGET_URL=http://127.0.0.1:3000/ npm run tauri:build:customer"
+    "tauri:build:local": "node scripts/build-local-installer.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.8.4"
