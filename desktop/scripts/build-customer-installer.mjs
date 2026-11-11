@@ -35,8 +35,8 @@ const config = {
     shortDescription: `${productName} — instalação independente`,
     longDescription: `${productName}. Servidor e banco locais independentes; requer Docker Desktop.`,
     ...(mode === "local" ? { resources: {
-      "resources/mb-optica-image.tar": "mb-optica-image.tar",
-      "resources/compose.yaml": "compose.yaml"
+      "../resources/mb-optica-image.tar": "mb-optica-image.tar",
+      "../resources/compose.yaml": "compose.yaml"
     } } : {})
   }
 };
