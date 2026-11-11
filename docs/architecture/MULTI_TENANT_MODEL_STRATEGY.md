@@ -87,3 +87,11 @@ Não remover constraints globais antes de medir duplicidades existentes e prepar
 ## Limites desta entrega
 
 Este documento e `tenant-context.ts` não implementam isolamento por si sós. Nenhum modelo operacional recebeu `organizationId`, nenhum backfill foi executado, nenhuma rota foi alterada e nenhum cadastro público foi ativado. Não executar migration em produção nem publicar esta branch antes de backup restaurável, inventário de APIs e testes de isolamento.
+
+## Fase aditiva 2 — modelos dependentes (11/11/2026)
+
+A branch `feature/tenant-scope-phase2-dependent-models` adiciona `organizationId String?` e índices simples para os 16 modelos dependentes: `Address`, `Prescription`, `StockLot`, `StockMovement`, `StockMovementLot`, `QuoteItem`, `OpticalOrderItem`, `OrderEvent`, `SaleItem`, `Payment`, `AccountSettlement`, `CashMovement`, `PayrollRecord`, `FiscalDocument`, `AccountingEntryLine` e `AccountingEvent`.
+
+Esta fase é estritamente aditiva: colunas nullable, sem backfill, sem NOT NULL, sem alteração de constraints globais e sem mudança de APIs, autenticação ou consultas. `MailMessageState` e `MailContactPreference` permanecem vinculados à identidade do usuário, conforme a estratégia de escopo por usuário.
+
+**Limite de segurança:** a presença da coluna não aplica isolamento. Nenhum tenant adicional pode ser ativado até backfill auditado, validação de relações intra-organização, escopo de todas as rotas/jobs/relatórios e testes negativos entre duas organizações.
