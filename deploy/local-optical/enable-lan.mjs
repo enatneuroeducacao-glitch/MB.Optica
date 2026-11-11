@@ -18,7 +18,7 @@ if (!slug || !/^[a-z][a-z0-9-]{2,39}$/.test(slug) || !lanHost || (!ipv4 && !host
 const envPath = resolve(root, "deploy/local-optical/instances", slug, ".env");
 let env = await readFile(envPath, "utf8");
 function setEnv(key, value) {
-  const line = new RegExp(\`^\${key}=.*$\`, "m");
+  const line = new RegExp("^" + key + "=.*$", "m");
   if (line.test(env)) env = env.replace(line, \`\${key}=\${value}\`);
   else env += \`\n\${key}=\${value}\n\`;
 }
