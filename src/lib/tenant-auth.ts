@@ -3,6 +3,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { resolveTenantContext, type TenantContext } from "@/lib/tenant-context";
+import { enforceTenantSubscriptionAccess } from "@/lib/subscription";
 import type { PlatformRole } from "@prisma/client";
 
 /**
@@ -19,7 +20,9 @@ export async function requireTenantContext(
 ): Promise<TenantContext> {
   const user = await getCurrentUser();
   if (!user) throw new Error("UNAUTHORIZED");
-  return resolveTenantContext(user.id, requestedOrganizationId);
+  const context = await resolveTenantContext(user.id, requestedOrganizationId);
+  await enforceTenantSubscriptionAccess(context.organizationId);
+  return context;
 }
 
 /**
