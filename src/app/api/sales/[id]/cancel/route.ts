@@ -31,6 +31,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       let cashRefunds=0;
 
       for(const payment of activePayments){
+        if(!payment.method) throw new Error("Pagamento sem meio de pagamento vinculado; corrija o cadastro antes de cancelar a venda.");
         if(payment.method.isCash){
           const session=await tx.cashSession.findFirst({
             where:{closedAt:null},
