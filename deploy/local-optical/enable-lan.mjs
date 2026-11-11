@@ -20,7 +20,7 @@ let env = await readFile(envPath, "utf8");
 function setEnv(key, value) {
   const line = new RegExp("^" + key + "=.*$", "m");
   if (line.test(env)) env = env.replace(line, key + "=" + value);
-  else env += \`\n\${key}=\${value}\n\`;
+  else env += "\n" + key + "=" + value + "\n";
 }
 setEnv("LAN_HOST", lanHost);
 setEnv("LAN_BIND_ADDRESS", ipv4 ? lanHost : "0.0.0.0");
