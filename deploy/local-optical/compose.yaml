@@ -1,0 +1,76 @@
+name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mb_optica
+      POSTGRES_USER: mb_optica
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    volumes:
+      - mb_optica_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mb_optica -d mb_optica"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: runner
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://mb_optica:${DB_PASSWORD}@db:5432/mb_optica?schema=public
+      DIRECT_URL: postgresql://mb_optica:${DB_PASSWORD}@db:5432/mb_optica?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set in .env}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN must be set in .env}
+      STORE_TRADE_NAME: ${STORE_TRADE_NAME:-Óptica}
+      STORE_STATE: ${STORE_STATE:-SC}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["lan"]
+    environment:
+      LAN_HOST: ${LAN_HOST:-localhost}
+    ports:
+      - "${LAN_BIND_ADDRESS:-127.0.0.1}:443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  mb_optica_data:
+    name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_postgres_data
+  caddy_data:
+    name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_caddy_data
+  caddy_config:
+    name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_caddy_config

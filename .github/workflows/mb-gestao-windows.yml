@@ -5,11 +5,19 @@ on:
     branches: ["main"]
     paths:
       - "desktop/**"
+      - "deploy/local-optical/**"
+      - "Dockerfile"
+      - "prisma/**"
+      - "src/**"
       - ".github/workflows/mb-gestao-windows.yml"
   push:
     branches: ["main"]
     paths:
       - "desktop/**"
+      - "deploy/local-optical/**"
+      - "Dockerfile"
+      - "prisma/**"
+      - "src/**"
       - ".github/workflows/mb-gestao-windows.yml"
   workflow_dispatch:
 
@@ -17,36 +25,72 @@ permissions:
   contents: read
 
 jobs:
+  build-server-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build isolated local server image
+        run: docker build --pull --target runner -f Dockerfile -t mb-optica-local:pilot .
+      - name: Export server image for installer bundle
+        run: docker save mb-optica-local:pilot -o mb-optica-image.tar
+      - name: Upload server image
+        uses: actions/upload-artifact@v4
+        with:
+          name: mb-optica-local-server-image
+          path: mb-optica-image.tar
+          retention-days: 7
+
   build-windows-installer:
+    needs: build-server-image
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: desktop
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      - name: Download bundled server image
+        uses: actions/download-artifact@v4
+        with:
+          name: mb-optica-local-server-image
+          path: desktop/resources
+      - name: Copy local compose resources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force resources | Out-Null
+          Copy-Item ../deploy/local-optical/compose.yaml resources/compose.yaml
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "desktop/src-tauri -> target"
-
       - name: Install Node dependencies
         run: npm install --no-audit --no-fund
-
-      - name: Build Windows NSIS installer
-        run: npm run tauri:build
-
-      - name: Upload homologation installer (not a public release)
+      - name: Validate isolated local installer profile
+        env:
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
+          MB_GESTAO_PRODUCT_NAME: MB Gestão - Óptica Piloto
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
+          MB_GESTAO_INSTALLER_SLUG: optica-piloto
+        run: npm run tauri:validate:customer
+      - name: Build self-contained Windows NSIS installer
+        env:
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
+          MB_GESTAO_PRODUCT_NAME: MB Gestão - Óptica Piloto
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
+          MB_GESTAO_INSTALLER_SLUG: optica-piloto
+        run: npm run tauri:build:customer
+      - name: Upload homologation installer
         uses: actions/upload-artifact@v4
         with:
           name: mb-gestao-windows-installer-homologation

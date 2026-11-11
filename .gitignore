@@ -7,3 +7,8 @@ node_modules
 coverage
 dist
 .DS_Store
+
+# Local optical installations contain private credentials, databases and backups
+/deploy/local-optical/instances/
+/deploy/local-optical/backups/
+/deploy/local-optical/certificates/

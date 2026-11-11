@@ -37,6 +37,15 @@ jobs:
         with:
           node-version: 22
 
+      - name: Validate local deployment scripts
+        run: |
+          node --check deploy/local-optical/install.mjs
+          node --check deploy/local-optical/finalize-bootstrap.mjs
+          node --check deploy/local-optical/backup.mjs
+          node --check deploy/local-optical/enable-lan.mjs
+          node --check desktop/scripts/build-customer-installer.mjs
+          node --check desktop/scripts/build-local-installer.mjs
+
       - run: npm install --no-audit --no-fund
 
       - name: Validate Prisma schema
@@ -76,6 +85,13 @@ jobs:
           --health-retries=20
     steps:
       - uses: actions/checkout@v4
+      - name: Validate independent local Compose definition
+        env:
+          COMPOSE_PROJECT_NAME: ci-optica-local
+          DB_PASSWORD: ci-only-dummy-password
+          AUTH_SECRET: ci-only-dummy-auth-secret
+          BOOTSTRAP_TOKEN: ci-only-dummy-bootstrap-token
+        run: docker compose -f deploy/local-optical/compose.yaml config --quiet
       - name: Build migrator
         run: docker build --target migrator -t mb-optica-migrator .
       - name: Run migrations
