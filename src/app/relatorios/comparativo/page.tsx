@@ -26,7 +26,7 @@ export default function AnaliseComparativa() {
   const [history, setHistory] = useState<any>(null);
   const [legacy, setLegacy] = useState<any>(null);
   const [manual, setManual] = useState<any[]>([]);
-  const [source, setSource] = useState("beepstart");
+  const [source, setSource] = useState("integrado");
   const [period, setPeriod] = useState(6);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
@@ -60,10 +60,22 @@ export default function AnaliseComparativa() {
     }));
     if (source === "operacional") return operationalRows;
     if (source === "manual") return manualRows;
-    return historicalRows;
+    if (source === "beepstart") return historicalRows;
+
+    // Modo integrado: preserva o histórico BeepStart e usa a operação MB
+    // somente nas competências posteriores à última competência histórica.
+    // Nunca soma fontes nem substitui meses já cobertos pelo backup.
+    const lastHistoricalMonth = historicalRows.reduce(
+      (latest, row) => row.month > latest ? row.month : latest,
+      ""
+    );
+    const operationalContinuation = operationalRows
+      .filter(row => !lastHistoricalMonth || row.month > lastHistoricalMonth)
+      .map(row => ({ ...row, origin: "MB Óptica — continuidade operacional" }));
+    return [...historicalRows, ...operationalContinuation];
   }, [operational, history, legacy, manual, source]);
 
-  const sourceLabel = source === "operacional" ? "Faturamento operacional MB Óptica" : source === "manual" ? "Lançamentos manuais" : "Histórico BeepStart";
+  const sourceLabel = source === "integrado" ? "Histórico BeepStart + continuidade operacional MB Óptica" : source === "operacional" ? "Faturamento operacional MB Óptica" : source === "manual" ? "Lançamentos manuais" : "Histórico BeepStart";
   const currentKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
   const byMonth = useMemo(() => new Map<string, MonthRow>(sourceRows.map(r => [r.month, r] as [string, MonthRow])), [sourceRows]);
   const rows = useMemo(() => sourceRows.slice().sort((a,b) => a.month.localeCompare(b.month)), [sourceRows]);
@@ -146,7 +158,7 @@ export default function AnaliseComparativa() {
         <div><span className="eyebrow">INTELIGÊNCIA GERENCIAL</span><h1>Análise comparativa</h1><p>Desempenho mensal, evolução histórica, comparação anual e projeção de faturamento.</p><p><b>Fonte selecionada:</b> {sourceLabel}. As fontes não são somadas entre si.</p></div>
         <div className="cmp-controls">
           <label style={{fontSize:10,color:"var(--muted)"}}>Fonte dos dados</label>
-          <select value={source} onChange={e => setSource(e.target.value)}><option value="beepstart">Histórico BeepStart</option><option value="operacional">Operacional MB Óptica</option><option value="manual">Lançamentos manuais</option></select>
+          <select value={source} onChange={e => setSource(e.target.value)}><option value="integrado">Histórico + operação atual</option><option value="beepstart">Somente histórico BeepStart</option><option value="operacional">Somente operacional MB Óptica</option><option value="manual">Lançamentos manuais</option></select>
           <label style={{fontSize:10,color:"var(--muted)"}}>Janela recente</label>
           <select value={period} onChange={e => setPeriod(Number(e.target.value))}><option value={6}>Últimos 6 meses</option><option value={12}>Últimos 12 meses</option><option value={24}>Últimos 24 meses</option></select>
           <label style={{fontSize:10,color:"var(--muted)"}}>Ano-base</label>
@@ -167,6 +179,7 @@ export default function AnaliseComparativa() {
           <h2>Comparação dos últimos {period} meses</h2><p>Faturamento por competência. “Sem registro” é diferente de faturamento efetivamente igual a zero; o mês atual pode estar parcial.</p>
           <div className="cmp-chart">{chartRows.map(r => <div className="cmp-chart-row" key={r.month}><span>{monthName(r.month, true)} <small>{r.month.slice(0,4)}</small></span><div className="cmp-track"><div className="cmp-bar" style={{ width: `${Math.max(r.total > 0 ? 1 : 0, r.total / chartMax * 100)}%` }} /></div><span className="cmp-value">{r.observed ? money(r.total) : "Sem registro"}</span></div>)}</div>
           <div className="cmp-source"><span>Dados operacionais</span><span>Histórico BeepStart</span><span>Lançamentos manuais</span></div>
+          {source === "integrado" && <p className="cmp-note">Modo integrado sem duplicidade: o histórico BeepStart é mantido até sua última competência disponível; depois, o painel apresenta os meses da operação MB Óptica. As fontes não são somadas. Cada competência mantém sua origem.</p>}
         </div>
         <div className="cmp-panel">
           <h2>Comparação entre anos</h2><p>Totais das competências registradas por ano. Ausência de competência não é interpretada como faturamento zero.</p>
