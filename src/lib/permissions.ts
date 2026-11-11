@@ -109,7 +109,7 @@ export const API_PUBLIC_AUTHENTICATED = new Set([
 export const ROLE_API_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
   GERENTE: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/customers",
+    "/api/platform", "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/suppliers", "/api/site",
     "/api/orders", "/api/frame-adaptation-orders", "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys",
     "/api/finance", "/api/financeiro", "/api/cash", "/api/stock", "/api/sales",
@@ -118,18 +118,18 @@ export const ROLE_API_PREFIXES: Record<string, string[]> = {
     "/api/fiscal/produtos/diagnostico", "/api/fiscal/produtos/lote", "/api/fiscal/validacao/venda", "/api/fiscal/homologacao",
   ],
   VENDEDOR: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/frame-adaptation-orders", "/api/customers",
+    "/api/platform", "/api/auth/me", "/api/messages", "/api/dashboard", "/api/appointments", "/api/agenda/birthdays", "/api/frame-adaptation-orders", "/api/customers",
     "/api/prescriptions", "/api/products", "/api/categories", "/api/orders",
     "/api/payment-methods", "/api/card-machines", "/api/payments", "/api/pix-keys", "/api/sales",
     "/api/quotes", "/api/reports/monthly-target", "/api/third-party-frames",
   ],
   FINANCEIRO: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/payment-methods", "/api/payments",
+    "/api/platform", "/api/auth/me", "/api/messages", "/api/dashboard", "/api/payment-methods", "/api/payments",
     "/api/pix-keys", "/api/finance", "/api/financeiro", "/api/cash", "/api/sales",
     "/api/gestao/indicadores", "/api/reports/monthly-target",
   ],
   LABORATORIO: [
-    "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/frame-adaptation-orders", "/api/prescriptions",
+    "/api/platform", "/api/auth/me", "/api/messages", "/api/dashboard", "/api/customers", "/api/frame-adaptation-orders", "/api/prescriptions",
     "/api/products", "/api/categories", "/api/orders", "/api/stock", "/api/third-party-frames",
   ],
 };
