@@ -56,8 +56,21 @@ const compose = ["compose", "--env-file", envPath, "-p", slug, "-f", resolve(dep
 console.log(`Provisionando instância local vazia: ${storeName} (${slug})`);
 run(docker, [...compose, "up", "-d", "--build"]);
 const bootstrap = env.match(/^BOOTSTRAP_TOKEN=(.+)$/m)?.[1];
-console.log("\nInstância provisionada. Aguarde a aplicação ficar saudável antes de acessar /setup.");
-console.log(`Endereço local: http://127.0.0.1:3000/setup`);
-console.log(`Token de bootstrap (guarde com segurança): ${bootstrap}`);
+console.log("\\nAguardando aplicação e banco...");
+let ready = false;
+for (let attempt = 0; attempt < 90; attempt++) {
+  try {
+    const response = await fetch("http://127.0.0.1:3000/api/health/ready", { signal: AbortSignal.timeout(2500) });
+    if (response.ok) { ready = true; break; }
+  } catch {}
+  await new Promise(resolve => setTimeout(resolve, 2000));
+}
+if (!ready) {
+  console.error("A aplicação ainda não ficou pronta. Consulte os logs com docker compose; a instância e o volume foram preservados.");
+  process.exit(2);
+}
+console.log("\\nInstância provisionada e pronta.");
+console.log(`Configuração inicial: http://127.0.0.1:3000/setup`);
+console.log(`Token de bootstrap (guarde com segurança; exibido uma única vez): ${bootstrap}`);
 console.log(`Segredos e dados de configuração: ${envPath}`);
 console.log("A aplicação e o PostgreSQL têm volume/projeto exclusivos. Não copie o .env para outra óptica.");
