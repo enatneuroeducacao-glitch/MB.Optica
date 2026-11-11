@@ -47,3 +47,13 @@ export async function requirePlatformAccess(
 
   return { user, platformRole: access.role };
 }
+
+/**
+ * Organization-level role guard. The role is read from the persisted membership,
+ * never from the global User.role claim in the session token.
+ */
+export async function requireTenantRole(allowedRoles: string[], requestedOrganizationId?: string | null) {
+  const context = await requireTenantContext(requestedOrganizationId);
+  if (!allowedRoles.includes(context.organizationRole)) throw new Error("FORBIDDEN");
+  return context;
+}
