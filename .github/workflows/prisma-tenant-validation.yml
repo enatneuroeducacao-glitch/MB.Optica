@@ -59,4 +59,4 @@ jobs:
       - name: Validate tenant migration contract
         run: node scripts/validate-tenant-integrity.mjs
       - name: Test PostgreSQL cross-tenant rejection
-        run: docker run --rm --network host -v "$GITHUB_WORKSPACE:/work" -w /work postgres:16 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/tests/tenant-composite-integrity.sql
+        run: docker run --rm --network host -e PGPASSWORD=postgres -v "$GITHUB_WORKSPACE:/work" -w /work postgres:16 psql -h localhost -U postgres -d mb_tenant_test -v ON_ERROR_STOP=1 -f prisma/tests/tenant-composite-integrity.sql
