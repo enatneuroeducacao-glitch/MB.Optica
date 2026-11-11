@@ -54,6 +54,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Validate Prisma schema
         run: npx prisma validate
+      - name: Apply migrations to isolated CI database
+        run: npx prisma migrate deploy
       - name: Generate Prisma Client
         run: npx prisma generate
       - name: Validate tenant migration contract
