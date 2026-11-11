@@ -6,19 +6,24 @@ import { spawnSync } from "node:child_process";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const slug = process.argv[2]?.trim().toLowerCase();
 const lanHost = process.argv[3]?.trim().toLowerCase();
-if (!slug || !/^[a-z][a-z0-9-]{2,39}$/.test(slug) || !lanHost ||
-    !/^(?:(?:\d{1,3}\.){3}\d{1,3}|[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?)$/.test(lanHost)) {
+const ipv4Parts = lanHost?.split(".") ?? [];
+const ipv4 = ipv4Parts.length === 4 && ipv4Parts.every(part => /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255);
+const hostname = !!lanHost && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/.test(lanHost);
+
+if (!slug || !/^[a-z][a-z0-9-]{2,39}$/.test(slug) || !lanHost || (!ipv4 && !hostname)) {
   console.error("Uso: node deploy/local-optical/enable-lan.mjs <slug> <ip-estatico-ou-hostname-da-rede>");
   process.exit(1);
 }
-const ipv4 = lanHost.split(".").length === 4 && lanHost.split(".").every(part => /^\\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255);\nif (lanHost.includes(".") && !ipv4 && !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/.test(lanHost)) {\n  console.error("Informe um IPv4 válido ou hostname DNS válido.");\n  process.exit(1);\n}\nconst envPath = resolve(root, "deploy/local-optical/instances", slug, ".env");
+
+const envPath = resolve(root, "deploy/local-optical/instances", slug, ".env");
 let env = await readFile(envPath, "utf8");
 function setEnv(key, value) {
   const line = new RegExp(`^${key}=.*$`, "m");
   if (line.test(env)) env = env.replace(line, `${key}=${value}`);
   else env += `\n${key}=${value}\n`;
 }
-setEnv("LAN_HOST", lanHost);\nsetEnv("LAN_BIND_ADDRESS", ipv4 ? lanHost : "0.0.0.0");
+setEnv("LAN_HOST", lanHost);
+setEnv("LAN_BIND_ADDRESS", ipv4 ? lanHost : "0.0.0.0");
 await writeFile(envPath, env, { mode: 0o600 });
 if (process.platform !== "win32") await chmod(envPath, 0o600);
 
