@@ -864,7 +864,7 @@ model BirthdayReminder {
   notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete: Restrict)
   @@index([birthDate])
   @@index([customerId])
 }
@@ -899,7 +899,7 @@ model ChartOfAccount {
   parentId String?
   active Boolean @default(true)
   system Boolean @default(false)
-  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   children ChartOfAccount[] @relation("AccountingAccountTree")
   lines AccountingEntryLine[]
   debitMappings AccountingMapping[] @relation("AccountingMappingDebit")
@@ -1006,7 +1006,7 @@ model AccountingEvent {
   processedAt DateTime?
   errorMessage String?
   entryId String? @unique
-  entry AccountingEntry? @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  entry AccountingEntry? @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([eventType, status])
@@ -1033,7 +1033,7 @@ model ThirdPartyFrameIntake {
   createdByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
   @@index([status, createdAt])
   @@index([customerId])
 }
@@ -1068,7 +1068,7 @@ model FrameAdaptationOrder {
   updatedAt DateTime @updatedAt
   sale Sale @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Cascade)
   customer Customer @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Cascade)
-  prescription Prescription? @relation(fields: [prescriptionId, organizationId], references: [id, organizationId], onDelete: SetNull)
+  prescription Prescription? @relation(fields: [prescriptionId, organizationId], references: [id, organizationId], onDelete: Restrict)
   @@index([status, createdAt])
   @@index([customerId])
 }
