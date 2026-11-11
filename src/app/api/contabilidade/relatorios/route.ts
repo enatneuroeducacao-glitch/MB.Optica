@@ -17,13 +17,16 @@ export async function GET(request: Request) {
       orderBy: [{ entryDate: "asc" }, { createdAt: "asc" }],
       include: { lines: { include: { account: { select: { id: true, code: true, name: true, nature: true, accountType: true } } } } },
     });
-    const rows = entries.flatMap(entry => entry.lines.filter(line => line.account !== null).map(line => ({
-      entryId: entry.id, entryDate: entry.entryDate, competenceDate: entry.competenceDate,
-      description: entry.description, entryStatus: entry.status, lineNumber: line.lineNumber,
-      accountId: line.accountId, accountCode: line.account.code, accountName: line.account.name,
-      nature: line.account.nature, accountType: line.account.accountType,
-      debit: Number(line.debit), credit: Number(line.credit),
-    })));
+    const rows = entries.flatMap(entry => entry.lines.flatMap(line => {
+      if (!line.account) return [];
+      return [{
+        entryId: entry.id, entryDate: entry.entryDate, competenceDate: entry.competenceDate,
+        description: entry.description, entryStatus: entry.status, lineNumber: line.lineNumber,
+        accountId: line.accountId, accountCode: line.account.code, accountName: line.account.name,
+        nature: line.account.nature, accountType: line.account.accountType,
+        debit: Number(line.debit), credit: Number(line.credit),
+      }];
+    }));
     if (report === "reconciliacao") {
       // Do not cap reconciliation at an arbitrary number: older events must not disappear silently.
       const events = await db.accountingEvent.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
