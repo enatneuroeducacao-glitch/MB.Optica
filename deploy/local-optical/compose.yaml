@@ -53,7 +53,7 @@ services:
     image: caddy:2-alpine
     profiles: ["lan"]
     environment:
-      LAN_HOST: ${LAN_HOST:?LAN_HOST must be set before enabling LAN HTTPS}
+      LAN_HOST: ${LAN_HOST:-localhost}
     ports:
       - "${LAN_BIND_ADDRESS:-127.0.0.1}:443:443"
     volumes:
