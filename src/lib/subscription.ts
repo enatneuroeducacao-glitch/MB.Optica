@@ -142,3 +142,67 @@ export async function enforceSubscriptionAccess() {
     throw new Error("SUBSCRIPTION_MODULE_LOCKED");
   }
 }
+
+/**
+ * Organization-scoped entitlement for routes migrated to TenantContext.
+ * The organizationId argument must come from requireTenantContext(), never
+ * directly from request JSON/query parameters.
+ */
+export async function getTenantSubscriptionEntitlement(organizationId: string) {
+  if (!organizationId) throw new Error("TENANT_MEMBERSHIP_REQUIRED");
+
+  const subscription = await db.subscription.findUnique({
+    where: { organizationId },
+  });
+  const expiredTrial = trialExpired(subscription?.trialEndsAt);
+  const modules = expiredTrial ? [] : modulesFor(subscription);
+  const activeUsers = await db.organizationMembership.count({
+    where: {
+      organizationId,
+      active: true,
+      organization: { status: "ACTIVE" },
+      user: { active: true },
+    },
+  });
+  const maxUsers = subscription?.maxUsers ?? 1;
+  const status = expiredTrial ? "EXPIRADA" : (subscription?.status ?? "AVALIACAO");
+  const trial = status === "AVALIACAO";
+
+  return {
+    owner: false,
+    plan: subscription?.plan ?? "BASICO",
+    status,
+    trial,
+    modules,
+    maxUsers,
+    activeUsers,
+    trialEndsAt: subscription?.trialEndsAt ?? null,
+    currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
+    maxUnits: subscription?.maxUnits ?? 1,
+    maxClients: subscription?.maxClients ?? 100,
+    maxProducts: subscription?.maxProducts ?? 100,
+    maxSales: subscription?.maxSales ?? 20,
+    maxOrders: subscription?.maxOrders ?? 20,
+    licenseType: subscription?.licenseType ?? "SUBSCRIPTION",
+  };
+}
+
+/**
+ * Tenant-specific counterpart to enforceSubscriptionAccess(). Call only with
+ * organizationId obtained from a validated TenantContext.
+ */
+export async function enforceTenantSubscriptionAccess(organizationId: string) {
+  const pathname = (await headers()).get("x-mb-pathname");
+  if (!pathname || pathname === "/assinatura" || pathname === "/acesso-negado") return;
+
+  const module = moduleForPath(pathname);
+  if (!module) return;
+
+  const entitlement = await getTenantSubscriptionEntitlement(organizationId);
+  if (entitlement.activeUsers !== null && entitlement.activeUsers > entitlement.maxUsers) {
+    throw new Error("SUBSCRIPTION_USER_LIMIT");
+  }
+  if (!entitlement.modules.includes(module)) {
+    throw new Error("SUBSCRIPTION_MODULE_LOCKED");
+  }
+}
