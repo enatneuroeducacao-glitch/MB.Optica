@@ -10,6 +10,18 @@ export function apiError(error: unknown, fallback = "Não foi possível concluir
   if (error instanceof Error && error.message === "FORBIDDEN") {
     return NextResponse.json({ error: "Acesso não autorizado para este perfil." }, { status: 403 });
   }
+  if (error instanceof Error && error.message === "PLATFORM_ACCESS_REQUIRED") {
+    return NextResponse.json({ error: "Acesso restrito à administração da plataforma." }, { status: 403 });
+  }
+  if (error instanceof Error && error.message === "TENANT_ACCESS_DENIED") {
+    return NextResponse.json({ error: "Você não possui vínculo ativo com esta organização." }, { status: 403 });
+  }
+  if (error instanceof Error && error.message === "TENANT_MEMBERSHIP_REQUIRED") {
+    return NextResponse.json({ error: "O usuário ainda não possui vínculo com uma organização." }, { status: 403 });
+  }
+  if (error instanceof Error && error.message === "TENANT_SELECTION_REQUIRED") {
+    return NextResponse.json({ error: "Selecione uma organização para continuar." }, { status: 409 });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") return NextResponse.json({ error: "O registro informado já existe." }, { status: 409 });
     if (error.code === "P2025") return NextResponse.json({ error: "Registro não encontrado." }, { status: 404 });
