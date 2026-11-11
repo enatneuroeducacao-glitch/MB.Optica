@@ -1,12 +1,14 @@
-name: Prisma tenant schema validation
+name: Prisma tenant schema and isolation validation
 
 on:
   pull_request:
     branches:
       - feature/tenant-scope-phase1-clean
+      - feature/tenant-scope-phase2-dependent-models
       - main
     paths:
       - "prisma/**"
+      - "scripts/validate-tenant-integrity.mjs"
       - ".github/workflows/prisma-tenant-validation.yml"
   workflow_dispatch:
 
@@ -16,10 +18,29 @@ permissions:
 jobs:
   prisma-validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mb_tenant_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d mb_tenant_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/mb_schema_validation?schema=public"
-      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/mb_schema_validation?schema=public"
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/mb_tenant_test?schema=public"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/mb_tenant_test?schema=public"
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: mb_tenant_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,5 +52,11 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Validate Prisma schema
         run: npx prisma validate
+      - name: Apply migrations to isolated CI database
+        run: npx prisma migrate deploy
       - name: Generate Prisma Client
         run: npx prisma generate
+      - name: Validate tenant migration contract
+        run: node scripts/validate-tenant-integrity.mjs
+      - name: Test PostgreSQL cross-tenant rejection
+        run: docker run --rm --network host -e PGPASSWORD=postgres -v "$GITHUB_WORKSPACE:/work" -w /work postgres:16 psql -h localhost -U postgres -d mb_tenant_test -v ON_ERROR_STOP=1 -f prisma/tests/tenant-composite-integrity.sql

@@ -29,11 +29,22 @@ const walk=(dir:string):string[]=>{
     return entry.isDirectory()?walk(full):entry.name==="route.ts"?[full]:[];
   });
 };
+const platformGuardedRoutes = [
+  "/api/platform/organizations",
+  "/api/platform/organizations/[id]/memberships",
+];
+for (const route of platformGuardedRoutes) {
+  const relative = route.replace(/^\/api\//, "").split("/");
+  const file = path.join(root, "src/app/api", ...relative, "route.ts");
+  const source = fs.readFileSync(file, "utf8");
+  assert(source.includes("requirePlatformAccess"), route + " must enforce persisted platform access");
+}
+
 const apiRoot=path.join(root,"src/app/api");
 const unmapped=walk(apiRoot).map(file=>{
   const rel=path.relative(apiRoot,path.dirname(file)).split(path.sep).filter(Boolean);
   return "/api/"+rel.join("/");
-}).filter(route=>!API_PUBLIC_AUTHENTICATED.has(route)&&!["/api/auth/login","/api/auth/logout","/api/auth/bootstrap","/api/health"].includes(route)&&!Object.keys(API_PERMISSIONS).some(prefix=>route===prefix||route.startsWith(prefix+"/")));
+}).filter(route=>!API_PUBLIC_AUTHENTICATED.has(route)&&!["/api/auth/login","/api/auth/logout","/api/auth/bootstrap","/api/health"].includes(route)&&!platformGuardedRoutes.includes(route)&&!Object.keys(API_PERMISSIONS).some(prefix=>route===prefix||route.startsWith(prefix+"/")));
 assert(unmapped.length===0, "unmapped API routes: "+unmapped.join(", "));
 
 const schema=fs.readFileSync(path.join(root,"prisma/schema.prisma"),"utf8");

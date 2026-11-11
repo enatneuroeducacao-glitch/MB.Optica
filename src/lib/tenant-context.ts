@@ -77,6 +77,8 @@ export async function resolveTenantContext(
     throw new Error("TENANT_MEMBERSHIP_REQUIRED");
   }
 
+  if (!membership.organization) throw new Error("TENANT_ACCESS_DENIED");
+
   return {
     userId,
     organizationId: membership.organizationId,

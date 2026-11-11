@@ -87,6 +87,7 @@ id String @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   documents FiscalDocument[]
+  @@unique([id, organizationId])
 }
 model FiscalDocument {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -111,12 +112,14 @@ id String @id @default(cuid())
   notes String?
   configId String?
   saleId String? @unique
-  config FiscalConfig? @relation(fields:[configId],references:[id])
-  sale Sale? @relation(fields:[saleId],references:[id])
+  config FiscalConfig? @relation(fields: [configId, organizationId],references: [id, organizationId])
+  sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([status])
   @@index([accessKey])
+  @@unique([id, organizationId])
+  @@unique([saleId, organizationId])
 }
 enum OrganizationStatus {
   ACTIVE
@@ -173,7 +176,7 @@ model OrganizationMembership {
   permissions Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@unique([organizationId, userId])
   @@index([userId, active])
@@ -220,6 +223,7 @@ model Subscription {
   updatedAt DateTime @updatedAt
   @@index([status])
   @@index([currentPeriodEnd])
+  @@unique([id, organizationId])
 }
 
 model User {
@@ -310,6 +314,7 @@ appointments Appointment[]
 thirdPartyFrameIntakes ThirdPartyFrameIntake[]
   frameAdaptationOrders FrameAdaptationOrder[]
 birthdayReminders BirthdayReminder[]
+  @@unique([id, organizationId])
 }
 model Address {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -323,7 +328,8 @@ district String?
 city String?
 state String?
 postalCode String?
-customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
+  @@unique([id, organizationId])
 }
 model Prescription {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -351,10 +357,11 @@ oeHeight Decimal? @db.Decimal(6,2)
 pdTotal Decimal? @db.Decimal(6,2)
 notes String?
 originalText String?
-customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
 orders OpticalOrder[]
 quotes Quote[]
   frameAdaptationOrders FrameAdaptationOrder[]
+  @@unique([id, organizationId])
 }
 model Category {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -362,6 +369,7 @@ id String @id @default(cuid())
 name String @unique
 active Boolean @default(true)
 products Product[]
+  @@unique([id, organizationId])
 }
 model Supplier {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -374,6 +382,7 @@ notes String?
 active Boolean @default(true)
 products Product[]
 accounts Account[]
+  @@unique([id, organizationId])
 }
 model Product {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -414,13 +423,14 @@ stockControlled Boolean @default(true)
 active Boolean @default(true)
 categoryId String?
 supplierId String?
-category Category? @relation(fields:[categoryId],references:[id])
-supplier Supplier? @relation(fields:[supplierId],references:[id])
+category Category? @relation(fields: [categoryId, organizationId],references: [id, organizationId])
+supplier Supplier? @relation(fields: [supplierId, organizationId],references: [id, organizationId])
 lots StockLot[]
 movements StockMovement[]
 orderItems OpticalOrderItem[]
 quoteItems QuoteItem[]
 saleItems SaleItem[]
+  @@unique([id, organizationId])
 }
 model StockLot {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -433,8 +443,9 @@ quantity Decimal @db.Decimal(12,3)
 cost Decimal? @db.Decimal(12,2)
 expiresAt DateTime?
 archived Boolean @default(false)
-product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId],onDelete:Cascade)
 movementLots StockMovementLot[]
+  @@unique([id, organizationId])
 }
 model StockMovement {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -447,8 +458,9 @@ reference String?
 referenceId String?
 notes String?
 createdAt DateTime @default(now())
-product Product @relation(fields:[productId],references:[id])
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
 lotLinks StockMovementLot[]
+  @@unique([id, organizationId])
 }
 model StockMovementLot {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -456,10 +468,11 @@ id String @id @default(cuid())
 movementId String
 lotId String
 quantity Decimal @db.Decimal(12,3)
-movement StockMovement @relation(fields:[movementId],references:[id],onDelete:Cascade)
-lot StockLot @relation(fields:[lotId],references:[id])
+movement StockMovement? @relation(fields: [movementId, organizationId],references: [id, organizationId],onDelete:Cascade)
+lot StockLot? @relation(fields: [lotId, organizationId],references: [id, organizationId])
 @@unique([movementId,lotId])
 @@index([lotId])
+  @@unique([id, organizationId])
 }
 model Quote {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -480,13 +493,14 @@ installments Int?
 notes String?
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
-customer Customer @relation(fields:[customerId],references:[id])
-prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+prescription Prescription? @relation(fields: [prescriptionId, organizationId],references: [id, organizationId])
 seller User? @relation(fields:[sellerId],references:[id])
 items QuoteItem[]
 order OpticalOrder?
 @@index([status])
 @@index([customerId,createdAt])
+  @@unique([id, organizationId])
 }
 model QuoteItem {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -498,8 +512,9 @@ kind String?
 eye String?
 quantity Decimal @db.Decimal(12,3)
 unitPrice Decimal @db.Decimal(12,2)
-quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+quote Quote? @relation(fields: [quoteId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
+  @@unique([id, organizationId])
 }
 model OpticalOrder {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -519,14 +534,16 @@ total Decimal @default(0) @db.Decimal(12,2)
 discount Decimal @default(0) @db.Decimal(12,2)
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
-customer Customer @relation(fields:[customerId],references:[id])
-prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+prescription Prescription? @relation(fields: [prescriptionId, organizationId],references: [id, organizationId])
 seller User? @relation(fields:[sellerId],references:[id])
 items OpticalOrderItem[]
 events OrderEvent[]
 quoteId String? @unique
-quote Quote? @relation(fields:[quoteId],references:[id])
+quote Quote? @relation(fields: [quoteId, organizationId],references: [id, organizationId])
 sale Sale?
+  @@unique([id, organizationId])
+  @@unique([quoteId, organizationId])
 }
 model OpticalOrderItem {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -538,8 +555,9 @@ kind String
 eye String?
 quantity Decimal @default(1) @db.Decimal(12,3)
 unitPrice Decimal @default(0) @db.Decimal(12,2)
-order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+order OpticalOrder? @relation(fields: [orderId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
+  @@unique([id, organizationId])
 }
 model OrderEvent {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -548,7 +566,8 @@ orderId String
 status OrderStatus
 message String
 createdAt DateTime @default(now())
-order OpticalOrder @relation(fields:[orderId],references:[id])
+order OpticalOrder? @relation(fields: [orderId, organizationId],references: [id, organizationId])
+  @@unique([id, organizationId])
 }
 model Sale {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -570,14 +589,16 @@ canceled Boolean @default(false)
 canceledAt DateTime?
 cancelReason String?
 createdAt DateTime @default(now())
-customer Customer? @relation(fields:[customerId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
 seller User @relation(fields:[sellerId],references:[id])
-order OpticalOrder? @relation(fields:[orderId],references:[id])
+order OpticalOrder? @relation(fields: [orderId, organizationId],references: [id, organizationId])
 items SaleItem[]
 payments Payment[]
 accounts Account[]
 fiscalDocument FiscalDocument?
   frameAdaptationOrder FrameAdaptationOrder?
+  @@unique([id, organizationId])
+  @@unique([orderId, organizationId])
 }
 model SaleItem {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -590,8 +611,9 @@ unitPrice Decimal @db.Decimal(12,2)
 unitCost Decimal @default(0) @db.Decimal(12,2)
 discount Decimal @default(0) @db.Decimal(12,2)
 total Decimal @default(0) @db.Decimal(12,2)
-sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
-product Product? @relation(fields:[productId],references:[id])
+sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId],onDelete:Cascade)
+product Product? @relation(fields: [productId, organizationId],references: [id, organizationId])
+  @@unique([id, organizationId])
 }
 model PaymentMethod {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -602,6 +624,7 @@ isCash Boolean @default(true)
 payments Payment[]
 settlements AccountSettlement[]
 accountingMappings AccountingMapping[]
+  @@unique([id, organizationId])
 }
 
 model CardMachine {
@@ -613,6 +636,7 @@ model CardMachine {
   updatedAt DateTime @updatedAt
   payments Payment[]
   settlements AccountSettlement[]
+  @@unique([id, organizationId])
 }
 
 model PixKey {
@@ -626,6 +650,7 @@ model PixKey {
   active Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([id, organizationId])
 }
 model Payment {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -643,10 +668,12 @@ reversedAt DateTime?
 reversalReference String?
 paidAt DateTime @default(now())
 accountSettlementId String? @unique
-sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
-method PaymentMethod @relation(fields:[methodId],references:[id])
-cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
-accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
+sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId],onDelete:Cascade)
+method PaymentMethod? @relation(fields: [methodId, organizationId],references: [id, organizationId])
+cardMachine CardMachine? @relation(fields: [cardMachineId, organizationId],references: [id, organizationId])
+accountSettlement AccountSettlement? @relation(fields: [accountSettlementId, organizationId],references: [id, organizationId])
+  @@unique([id, organizationId])
+  @@unique([accountSettlementId, organizationId])
 }
 model Account {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -664,10 +691,11 @@ status PaymentStatus @default(PENDENTE)
 notes String?
   writtenOffAt DateTime?
   writtenOffReason String?
-customer Customer? @relation(fields:[customerId],references:[id])
-supplier Supplier? @relation(fields:[supplierId],references:[id])
-sale Sale? @relation(fields:[saleId],references:[id])
+customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+supplier Supplier? @relation(fields: [supplierId, organizationId],references: [id, organizationId])
+sale Sale? @relation(fields: [saleId, organizationId],references: [id, organizationId])
 settlements AccountSettlement[]
+  @@unique([id, organizationId])
 }
 model AccountSettlement {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -685,11 +713,12 @@ cardNetAmount Decimal? @db.Decimal(12,2)
 reference String?
 notes String?
 reversedAt DateTime?
-account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
-paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id])
-cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
+account Account? @relation(fields: [accountId, organizationId],references: [id, organizationId],onDelete:Cascade)
+paymentMethod PaymentMethod? @relation(fields: [methodId, organizationId],references: [id, organizationId])
+cardMachine CardMachine? @relation(fields: [cardMachineId, organizationId],references: [id, organizationId])
 payment Payment?
 @@index([accountId,paidAt])
+  @@unique([id, organizationId])
 }
 model CashSession {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -700,6 +729,7 @@ openingCash Decimal @db.Decimal(12,2)
 closingCash Decimal? @db.Decimal(12,2)
 notes String?
 movements CashMovement[]
+  @@unique([id, organizationId])
 }
 model CashMovement {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -710,7 +740,8 @@ amount Decimal @db.Decimal(12,2)
 description String
 referenceId String?
 createdAt DateTime @default(now())
-session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+session CashSession? @relation(fields: [sessionId, organizationId],references: [id, organizationId],onDelete:Cascade)
+  @@unique([id, organizationId])
 }
 model AuditLog {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -722,6 +753,7 @@ entityId String?
 metadata Json?
 createdAt DateTime @default(now())
 user User? @relation(fields:[userId],references:[id])
+  @@unique([id, organizationId])
 }
 model MigrationRun {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -738,6 +770,7 @@ model MigrationRun {
   startedAt DateTime @default(now())
   completedAt DateTime?
   legacyRecords LegacyRecord[]
+  @@unique([id, organizationId])
 }
 model LegacyRecord {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -754,12 +787,13 @@ model LegacyRecord {
   status String @default("PRESERVED")
   errorMessage String?
   importedAt DateTime @default(now())
-  customer Customer? @relation(fields:[customerId],references:[id])
-  migrationRun MigrationRun? @relation(fields:[migrationRunId],references:[id])
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId])
+  migrationRun MigrationRun? @relation(fields: [migrationRunId, organizationId],references: [id, organizationId])
   @@index([collectionKey])
   @@index([legacyId])
   @@index([migrationRunId])
   @@index([targetEntity,targetId])
+  @@unique([id, organizationId])
 }
 enum PayrollRecordType {
   PROLABORE
@@ -784,6 +818,7 @@ model PayrollSettings {
   taxRules Json
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([id, organizationId])
 }
 
 model PayrollRecord {
@@ -810,6 +845,7 @@ model PayrollRecord {
   @@index([competence])
   @@index([personName,competence])
   @@index([status])
+  @@unique([id, organizationId])
 }
 
 model StoreSettings {
@@ -838,6 +874,7 @@ model StoreSettings {
   active Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([id, organizationId])
 }
 model Appointment {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -851,9 +888,10 @@ model Appointment {
   notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete:Cascade)
   @@index([scheduledAt])
   @@index([customerId,scheduledAt])
+  @@unique([id, organizationId])
 }
 model BirthdayReminder {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -864,9 +902,10 @@ model BirthdayReminder {
   notes String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields:[customerId],references:[id],onDelete:SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId],references: [id, organizationId],onDelete: Restrict)
   @@index([birthDate])
   @@index([customerId])
+  @@unique([id, organizationId])
 }
 
 model ServiceOrderSequence {
@@ -874,6 +913,7 @@ model ServiceOrderSequence {
   id String @id
   nextNumber Int @default(1)
   updatedAt DateTime @updatedAt
+  @@unique([id, organizationId])
 }
 
 // Accounting foundation — double-entry bookkeeping. Operational modules remain the source of business events.
@@ -886,6 +926,7 @@ model AccountingSettings {
   timezone String @default("America/Sao_Paulo")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  @@unique([id, organizationId])
 }
 
 model ChartOfAccount {
@@ -899,7 +940,7 @@ model ChartOfAccount {
   parentId String?
   active Boolean @default(true)
   system Boolean @default(false)
-  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId, organizationId], references: [id, organizationId], onDelete: Restrict)
   children ChartOfAccount[] @relation("AccountingAccountTree")
   lines AccountingEntryLine[]
   debitMappings AccountingMapping[] @relation("AccountingMappingDebit")
@@ -908,6 +949,7 @@ model ChartOfAccount {
   updatedAt DateTime @updatedAt
   @@index([parentId])
   @@index([active, nature])
+  @@unique([id, organizationId])
 }
 
 model AccountingPeriod {
@@ -926,6 +968,7 @@ model AccountingPeriod {
   updatedAt DateTime @updatedAt
   @@unique([year, month])
   @@index([status, startDate, endDate])
+  @@unique([id, organizationId])
 }
 
 model AccountingEntry {
@@ -941,7 +984,7 @@ model AccountingEntry {
   totalDebit Decimal @default(0) @db.Decimal(14,2)
   totalCredit Decimal @default(0) @db.Decimal(14,2)
   periodId String
-  period AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  period AccountingPeriod? @relation(fields: [periodId, organizationId], references: [id, organizationId], onDelete: Restrict)
   lines AccountingEntryLine[]
   sourceEvent AccountingEvent?
   createdByUserId String?
@@ -955,6 +998,7 @@ model AccountingEntry {
   @@index([competenceDate])
   @@index([periodId, status])
   @@index([sourceType, sourceId])
+  @@unique([id, organizationId])
 }
 
 model AccountingEntryLine {
@@ -968,12 +1012,13 @@ model AccountingEntryLine {
   credit Decimal @default(0) @db.Decimal(14,2)
   referenceType String?
   referenceId String?
-  entry AccountingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  entry AccountingEntry? @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  account ChartOfAccount? @relation(fields: [accountId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   @@unique([entryId, lineNumber])
   @@index([accountId, createdAt])
   @@index([referenceType, referenceId])
+  @@unique([id, organizationId])
 }
 
 model AccountingMapping {
@@ -985,13 +1030,14 @@ model AccountingMapping {
   creditAccountId String
   active Boolean @default(true)
   description String?
-  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
-  debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId], references: [id], onDelete: Restrict)
-  creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId], references: [id], onDelete: Restrict)
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  debitAccount ChartOfAccount? @relation("AccountingMappingDebit", fields: [debitAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  creditAccount ChartOfAccount? @relation("AccountingMappingCredit", fields: [creditAccountId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@unique([eventType, paymentMethodId, debitAccountId, creditAccountId])
   @@index([eventType, paymentMethodId, active])
+  @@unique([id, organizationId])
 }
 
 model AccountingEvent {
@@ -1006,11 +1052,13 @@ model AccountingEvent {
   processedAt DateTime?
   errorMessage String?
   entryId String? @unique
-  entry AccountingEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  entry AccountingEntry? @relation(fields: [entryId, organizationId], references: [id, organizationId], onDelete: Restrict)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([eventType, status])
   @@index([sourceType, sourceId])
+  @@unique([id, organizationId])
+  @@unique([entryId, organizationId])
 }
 
 model ThirdPartyFrameIntake {
@@ -1033,9 +1081,10 @@ model ThirdPartyFrameIntake {
   createdByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Restrict)
   @@index([status, createdAt])
   @@index([customerId])
+  @@unique([id, organizationId])
 }
 
 
@@ -1066,9 +1115,11 @@ model FrameAdaptationOrder {
   createdByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  sale Sale? @relation(fields: [saleId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  customer Customer? @relation(fields: [customerId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  prescription Prescription? @relation(fields: [prescriptionId, organizationId], references: [id, organizationId], onDelete: Restrict)
   @@index([status, createdAt])
   @@index([customerId])
+  @@unique([id, organizationId])
+  @@unique([saleId, organizationId])
 }

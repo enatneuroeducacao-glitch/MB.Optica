@@ -24,12 +24,14 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         }
       });
       if(!sale) throw new Error("Venda não encontrada");
+      if(sale.payments.some(payment => !payment.method)) throw new Error("Há pagamento sem meio de pagamento vinculado; corrija o cadastro antes de cancelar a venda.");
       if(sale.canceled) return sale;
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
       let cashRefunds=0;
 
       for(const payment of activePayments){
+        if(!payment.method) throw new Error("Pagamento sem meio de pagamento vinculado; corrija o cadastro antes de cancelar a venda.");
         if(payment.method.isCash){
           const session=await tx.cashSession.findFirst({
             where:{closedAt:null},
@@ -86,28 +88,42 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       }
 
       const movements=await tx.stockMovement.findMany({
-        where:{reference:"VENDA",referenceId:sale.id,type:"SAIDA"},
-        include:{lotLinks:true}
+        where:{reference:"VENDA",referenceId:sale.id,type:"SAIDA"}
       });
+      // Read the join table directly: Prisma composite relations do not resolve legacy rows
+      // when organizationId is NULL during the additive tenant migration.
+      const movementIds=movements.map(movement=>movement.id);
+      const movementLotLinks=movementIds.length?await tx.stockMovementLot.findMany({where:{movementId:{in:movementIds}}}):[];
+      const linksByMovement=new Map<string,typeof movementLotLinks>();
+      for(const link of movementLotLinks){const list=linksByMovement.get(link.movementId)||[];list.push(link);linksByMovement.set(link.movementId,list);}
       for(const movement of movements){
-        if(movement.lotLinks.length===0) throw new Error("Venda possui saída de estoque sem rastreabilidade por lote; cancelamento bloqueado");
-        for(const link of movement.lotLinks){
+        const lotLinks=linksByMovement.get(movement.id)||[];
+        if(lotLinks.length===0) throw new Error("Venda possui saída de estoque sem rastreabilidade por lote; cancelamento bloqueado");
+        for(const link of lotLinks){
           const updated=await tx.stockLot.updateMany({
             where:{id:link.lotId},
             data:{quantity:{increment:link.quantity}}
           });
           if(updated.count!==1) throw new Error("Lote de estoque não encontrado durante a devolução");
         }
-        await tx.stockMovement.create({
+        const returnMovement=await tx.stockMovement.create({
           data:{
+            organizationId:movement.organizationId??null,
             productId:movement.productId,
             type:"DEVOLUCAO",
             quantity:movement.quantity,
             reference:"CANCELAMENTO_VENDA",
             referenceId:sale.id,
-            notes:reason,
-            lotLinks:{create:movement.lotLinks.map(l=>({lotId:l.lotId,quantity:l.quantity}))}
+            notes:reason
           }
+        });
+        await tx.stockMovementLot.createMany({
+          data:lotLinks.map(link=>({
+            organizationId:returnMovement.organizationId??null,
+            movementId:returnMovement.id,
+            lotId:link.lotId,
+            quantity:link.quantity
+          }))
         });
       }
 

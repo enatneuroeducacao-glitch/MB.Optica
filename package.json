@@ -23,7 +23,9 @@
     "migration:beepstart": "tsx scripts/import-beepstart.ts",
     "backup:operational": "tsx scripts/backup-operational-data.ts",
     "rollback:beepstart": "tsx scripts/rollback-latest-beepstart.ts",
-    "db:preflight": "tsx scripts/preflight-operational.ts"
+    "db:preflight": "tsx scripts/preflight-operational.ts",
+    "tenant:preflight": "tsx scripts/preflight-tenant-backfill.ts",
+    "test:tenant-isolation": "tsx scripts/integration-tenant-isolation.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.16.0",

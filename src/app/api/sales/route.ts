@@ -277,17 +277,27 @@ export async function POST(req:Request){
           }
           if(remaining>0) throw new Error("Estoque insuficiente para "+product.description);
 
-          await tx.stockMovement.create({
+          const stockMovement=await tx.stockMovement.create({
             data:{
+              organizationId:product.organizationId??null,
               productId:product.id,
               type:"SAIDA",
               quantity,
               reference:"VENDA",
               referenceId:sale.id,
-              notes:"Saída por venda",
-              lotLinks:{create:consumedLots}
+              notes:"Saída por venda"
             }
           });
+          if(consumedLots.length){
+            await tx.stockMovementLot.createMany({
+              data:consumedLots.map(link=>({
+                organizationId:stockMovement.organizationId??null,
+                movementId:stockMovement.id,
+                lotId:link.lotId,
+                quantity:link.quantity
+              }))
+            });
+          }
         }
       }
 

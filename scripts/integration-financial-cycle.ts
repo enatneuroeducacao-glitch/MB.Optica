@@ -66,6 +66,9 @@ async function main() {
 
   let currentLot = await db.stockLot.findUnique({ where: { id: lot.id } });
   assert(money(currentLot?.quantity) === 9, "baixa de estoque");
+  const saleStockMovements=await db.stockMovement.findMany({where:{reference:"VENDA",referenceId:sale.body.id,type:"SAIDA"}});
+  const saleStockLinks=await db.stockMovementLot.findMany({where:{movementId:{in:saleStockMovements.map(m=>m.id)}}});
+  assert(saleStockMovements.length===1&&saleStockLinks.length===1&&saleStockLinks[0].lotId===lot.id&&Math.abs(money(saleStockLinks[0].quantity)-1)<.01,"rastreabilidade do lote na saída por venda");
 
   for (const [index, method] of [[0, pix], [1, card]] as const) {
     const settled = await api("/api/financeiro", {
@@ -78,7 +81,9 @@ async function main() {
   }
 
   let finance = await api("/api/financeiro", { headers });
-  assert(Math.abs(money(finance.body.summary.received) - 100) < .01, "recebimento total antes do cancelamento");
+  const paymentAudit = await db.payment.findMany({ where: { saleId: sale.body.id }, include: { method: { select: { name: true } } } });
+  console.log("FINANCIAL_CYCLE_RECEIPT_DIAGNOSTIC", JSON.stringify({ expected: 100, summaryReceived: money(finance.body.summary.received), saleId: sale.body.id, saleTotal: money(sale.body.total), payments: paymentAudit.map(p => ({ amount: money(p.amount), method: p.method?.name, reversedAt: p.reversedAt })), accounts: await db.account.findMany({ where: { saleId: sale.body.id }, select: { amount: true, paidAmount: true, status: true } }) }));
+  assert(Math.abs(money(finance.body.summary.received) - 100) < .01, "recebimento total antes do cancelamento (esperado 100; recebido " + money(finance.body.summary.received) + ")");
 
   await api("/api/sales/" + sale.body.id + "/cancel", {
     method: "POST", headers, body: JSON.stringify({ reason: "Teste integrado de devolução financeira" })
