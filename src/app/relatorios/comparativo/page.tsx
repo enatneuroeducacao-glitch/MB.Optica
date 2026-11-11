@@ -105,7 +105,9 @@ export default function AnaliseComparativa() {
     const month = String(index + 1).padStart(2, "0");
     return { month, values: yearsAscending.map(year => {
       const row = byMonth.get(`${year}-${month}`);
-      return row && !row.partial ? row.total : null;
+      // Exibe qualquer competência observada, inclusive mês parcial.
+      // O asterisco na tabela sinaliza que o período ainda não está fechado.
+      return row && row.observed ? { total: row.total, partial: Boolean(row.partial) } : null;
     }) };
   });
   const annualTotals = useMemo(() => years.slice().reverse().map(year => {
@@ -191,8 +193,9 @@ export default function AnaliseComparativa() {
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
         <h2>Comparação da mesma competência entre todos os anos</h2><p>Leia cada linha horizontalmente para verificar como o mesmo mês se comportou ao longo da série histórica.</p>
         <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th>{yearsAscending.map(y => <th key={y}>{y}</th>)}</tr></thead><tbody>
-          {monthMatrix.map(row => <tr key={row.month}><td>{new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date(2020, Number(row.month) - 1, 1))}</td>{row.values.map((value, i) => <td key={yearsAscending[i]}>{value === null ? "—" : money(value)}</td>)}</tr>)}
+          {monthMatrix.map(row => <tr key={row.month}><td>{new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date(2020, Number(row.month) - 1, 1))}</td>{row.values.map((value, i) => <td key={yearsAscending[i]}>{value === null ? "—" : <>{money(value.total)}{value.partial ? <sup title="Competência parcial / mês em andamento">*</sup> : null}</>}</td>)}</tr>)}
         </tbody></table></div>
+        <p className="cmp-note">* Competência parcial: o valor observado é exibido para transparência, mas não deve ser comparado como mês fechado. “—” indica ausência de registro na fonte selecionada.</p>
       </div>
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
