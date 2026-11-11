@@ -100,16 +100,24 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           });
           if(updated.count!==1) throw new Error("Lote de estoque não encontrado durante a devolução");
         }
-        await tx.stockMovement.create({
+        const returnMovement=await tx.stockMovement.create({
           data:{
+            organizationId:movement.organizationId??null,
             productId:movement.productId,
             type:"DEVOLUCAO",
             quantity:movement.quantity,
             reference:"CANCELAMENTO_VENDA",
             referenceId:sale.id,
-            notes:reason,
-            lotLinks:{create:movement.lotLinks.map(l=>({lotId:l.lotId,quantity:l.quantity}))}
+            notes:reason
           }
+        });
+        await tx.stockMovementLot.createMany({
+          data:movement.lotLinks.map(link=>({
+            organizationId:returnMovement.organizationId??null,
+            movementId:returnMovement.id,
+            lotId:link.lotId,
+            quantity:link.quantity
+          }))
         });
       }
 
