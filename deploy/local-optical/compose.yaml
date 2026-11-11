@@ -49,6 +49,28 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["lan"]
+    environment:
+      LAN_HOST: ${LAN_HOST:?LAN_HOST must be set before enabling LAN HTTPS}
+    ports:
+      - "${LAN_BIND_ADDRESS:-127.0.0.1}:443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
 volumes:
   mb_optica_data:
     name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_postgres_data
+  caddy_data:
+    name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_caddy_data
+  caddy_config:
+    name: ${COMPOSE_PROJECT_NAME:-mb-optica-local}_caddy_config
