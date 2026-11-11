@@ -1,0 +1,47 @@
+name: ${COMPOSE_PROJECT_NAME:-mb-gestao-optica-piloto}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: mb_optica
+      POSTGRES_USER: mb_optica
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    volumes:
+      - mb_optica_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mb_optica -d mb_optica"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  app:
+    image: mb-optica-local:pilot
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://mb_optica:${DB_PASSWORD}@db:5432/mb_optica?schema=public
+      DIRECT_URL: postgresql://mb_optica:${DB_PASSWORD}@db:5432/mb_optica?schema=public
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET must be set}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN must be set}
+      STORE_TRADE_NAME: ${STORE_TRADE_NAME:-Óptica}
+      STORE_STATE: ${STORE_STATE:-SC}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 90s
+    restart: unless-stopped
+    init: true
+
+volumes:
+  mb_optica_data:
+    name: ${COMPOSE_PROJECT_NAME:-mb-gestao-optica-piloto}_postgres_data

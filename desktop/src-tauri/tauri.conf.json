@@ -10,11 +10,13 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "MB Gestão Inteligente",
         "width": 1360,
         "height": 900,
         "minWidth": 980,
         "minHeight": 680,
+        "visible": false,
         "url": "http://127.0.0.1:3000/"
       }
     ],
@@ -25,8 +27,8 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "shortDescription": "Aplicativo Windows do MB Gestão Inteligente",
-    "longDescription": "Cliente desktop local para o servidor independente MB Gestão Inteligente da óptica. Requer servidor local e autenticação.",
+    "shortDescription": "MB Gestão Inteligente — servidor local independente",
+    "longDescription": "Instalação local independente do MB Gestão. Requer Docker Desktop.",
     "category": "Business"
   }
 }
