@@ -95,3 +95,31 @@ A branch `feature/tenant-scope-phase2-dependent-models` adiciona `organizationId
 Esta fase é estritamente aditiva: colunas nullable, sem backfill, sem NOT NULL, sem alteração de constraints globais e sem mudança de APIs, autenticação ou consultas. `MailMessageState` e `MailContactPreference` permanecem vinculados à identidade do usuário, conforme a estratégia de escopo por usuário.
 
 **Limite de segurança:** a presença da coluna não aplica isolamento. Nenhum tenant adicional pode ser ativado até backfill auditado, validação de relações intra-organização, escopo de todas as rotas/jobs/relatórios e testes negativos entre duas organizações.
+
+
+## Fase de integridade referencial composta — 11/11/2026
+
+Na branch `feature/tenant-composite-integrity`, o schema foi preparado com chaves candidatas compostas `(id, organizationId)` para 45 modelos que já possuem `organizationId`. Foram identificados e convertidos 51 relacionamentos entre modelos pertencentes a organizações para usar os campos `(foreignKey, organizationId)` apontando para `(id, organizationId)`.
+
+A migration `20261111130000_add_composite_tenant_foreign_keys` cria os índices únicos compostos e as 51 FKs compostas. Relações com `User` e entidades globais da plataforma permanecem fora desse mecanismo; nelas, o servidor deve validar membership e autorização. Relações opcionais com comportamento legado `SetNull` foram alteradas para `Restrict` quando apagar o pai apagaria também o `organizationId` do filho e perderia seu escopo.
+
+### Matriz de relacionamentos protegidos
+
+- Cliente: Address, Prescription, Quote, OpticalOrder, Sale, Account, Appointment, BirthdayReminder, LegacyRecord, ThirdPartyFrameIntake e FrameAdaptationOrder.
+- Catálogo/estoque: Product–Category/Supplier; StockLot–Product; StockMovement–Product; StockMovementLot–StockMovement/StockLot.
+- Comercial: QuoteItem–Quote/Product; OpticalOrder–Customer/Prescription/Quote; OpticalOrderItem–OpticalOrder/Product; OrderEvent–OpticalOrder; Sale–Customer/OpticalOrder; SaleItem–Sale/Product.
+- Financeiro: Payment–Sale/PaymentMethod/CardMachine/AccountSettlement; Account–Customer/Supplier/Sale; AccountSettlement–Account/PaymentMethod/CardMachine; CashMovement–CashSession.
+- Fiscal: FiscalDocument–FiscalConfig/Sale.
+- Migração: LegacyRecord–Customer/MigrationRun.
+- Contabilidade: ChartOfAccount–parent; AccountingEntry–AccountingPeriod; AccountingEntryLine–AccountingEntry/ChartOfAccount; AccountingMapping–PaymentMethod/ChartOfAccount (débito/crédito); AccountingEvent–AccountingEntry.
+- Adaptação: FrameAdaptationOrder–Sale/Customer/Prescription.
+
+### Limites importantes
+
+As FKs compostas rejeitam vínculos cruzados quando ambos os registros já têm `organizationId` preenchido. Como a coluna permanece nullable durante a migração, registros com `organizationId = NULL` ainda podem contornar a validação composta. Portanto, esta fase não substitui o backfill auditado, a posterior aplicação de NOT NULL, nem o escopo de APIs, autenticação, jobs e relatórios. Não habilitar novas óticas.
+
+### Testes
+
+- `scripts/validate-tenant-integrity.mjs`: verifica a presença dos 45 índices únicos e das 51 FKs compostas no contrato de migration/schema.
+- `prisma/tests/tenant-composite-integrity.sql`: teste PostgreSQL isolado, com duas organizações fictícias; confirma que relação da mesma organização é aceita e relação cruzada é rejeitada.
+- O workflow GitHub Actions executa Prisma validate/generate, validação do contrato e teste PostgreSQL. Nenhum banco Render é acessado.
