@@ -63,6 +63,16 @@ docker compose --env-file deploy/local-optical/instances/optica-piloto/.env -p o
 
 `down` não apaga o volume. **Nunca use `down -v`** em uma instalação com dados.
 
+## Backup manual por óptica
+
+Com a instância ativa, gere um dump PostgreSQL independente:
+
+```bash
+node deploy/local-optical/backup.mjs optica-piloto
+```
+
+O arquivo é salvo em `deploy/local-optical/backups/<slug>/` e esse diretório é ignorado pelo Git. Copie o backup para uma mídia externa protegida e criptografada. O dump contém dados pessoais e comerciais; restrinja o acesso. Esta etapa gera backup, mas ainda não configura agenda automática nem comprova restauração. Não considere a estratégia de recuperação concluída até restaurar o arquivo em um PostgreSQL isolado e validar os dados.
+
 ## Limites desta etapa
 
 Este kit cria uma aplicação e um banco locais vazios. Ainda não é um instalador autossuficiente: exige Docker Desktop e o código/imagem da aplicação para construir a imagem. O instalador Tauri ainda precisa ser ajustado para abrir o endereço local e para iniciar/parar o serviço local com segurança. O acesso LAN por HTTPS, backup agendado, restauração testada, integração do ciclo de vida do servidor ao instalador, assinatura do instalador e homologação completa são etapas obrigatórias antes da distribuição comercial.
