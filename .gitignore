@@ -11,3 +11,4 @@ dist
 # Local optical installations contain private credentials, databases and backups
 /deploy/local-optical/instances/
 /deploy/local-optical/backups/
+/deploy/local-optical/certificates/
