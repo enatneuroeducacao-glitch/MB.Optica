@@ -73,7 +73,7 @@ node deploy/local-optical/enable-lan.mjs optica-piloto 192.168.1.50
 
 Use o IP real reservado para o servidor, não copie o exemplo. Para hostname interno, garanta que todas as estações resolvam o nome para o servidor.
 
-O script sobe o Caddy com autoridade certificadora interna, configura HTTPS e exporta o certificado raiz em `deploy/local-optical/certificates/<slug>/local-root-ca.crt`. Instale esse certificado como Autoridade Raiz Confiável nos computadores autorizados da loja, por procedimento administrativo. Depois, acesse `https://IP-OU-NOME-DO-SERVIDOR/`.
+O script sobe o Caddy com autoridade certificadora interna, configura HTTPS e exporta o certificado raiz em `deploy/local-optical/certificates/<slug>/local-root-ca.crt`. Instale esse certificado como Autoridade Raiz Confiável nos computadores autorizados da loja, por procedimento administrativo. No Windows, em um Prompt de Comando executado como administrador, o comando é `certutil -addstore -f Root caminho\\local-root-ca.crt` (substitua pelo caminho real do certificado). Depois, acesse `https://IP-OU-NOME-DO-SERVIDOR/`.
 
 **Firewall obrigatório:** crie uma regra de entrada TCP 443 apenas para o perfil de rede privada e para a sub-rede local da óptica. Não exponha a porta 443 ou 3000 à internet e não configure encaminhamento no roteador. Proteja o certificado raiz exportado e não o substitua por certificado de origem desconhecida.
 
