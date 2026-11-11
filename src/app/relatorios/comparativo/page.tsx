@@ -177,7 +177,7 @@ export default function AnaliseComparativa() {
       <div className="cmp-panels">
         <div className="cmp-panel">
           <h2>Comparação dos últimos {period} meses</h2><p>Faturamento por competência. “Sem registro” é diferente de faturamento efetivamente igual a zero; o mês atual pode estar parcial.</p>
-          <div className="cmp-chart">{chartRows.map(r => <div className="cmp-chart-row" key={r.month}><span>{monthName(r.month, true)} <small>{r.month.slice(0,4)}</small></span><div className="cmp-track"><div className="cmp-bar" style={{ width: `${Math.max(r.total > 0 ? 1 : 0, r.total / chartMax * 100)}%` }} /></div><span className="cmp-value">{r.observed ? money(r.total) : "Sem registro"}</span></div>)}</div>
+          <div className="cmp-chart">{chartRows.map(r => <div className="cmp-chart-row" key={r.month}><span>{monthName(r.month, true)} <small>{r.month.slice(0,4)}</small><small style={{display:"block",fontSize:8,color:"var(--muted)"}}>{r.origin || sourceLabel}</small></span><div className="cmp-track"><div className="cmp-bar" style={{ width: `${Math.max(r.total > 0 ? 1 : 0, r.total / chartMax * 100)}%` }} /></div><span className="cmp-value">{r.observed ? money(r.total) : "Sem registro"}</span></div>)}</div>
           <div className="cmp-source"><span>Dados operacionais</span><span>Histórico BeepStart</span><span>Lançamentos manuais</span></div>
           {source === "integrado" && <p className="cmp-note">Modo integrado sem duplicidade: o histórico BeepStart é mantido até sua última competência disponível; depois, o painel apresenta os meses da operação MB Óptica. As fontes não são somadas. Cada competência mantém sua origem.</p>}
         </div>
