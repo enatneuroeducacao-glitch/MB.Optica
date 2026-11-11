@@ -1,0 +1,35 @@
+name: Prisma tenant schema validation
+
+on:
+  pull_request:
+    branches:
+      - feature/tenant-scope-phase1-clean
+      - main
+    paths:
+      - "prisma/**"
+      - ".github/workflows/prisma-tenant-validation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prisma-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/mb_schema_validation?schema=public"
+      DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/mb_schema_validation?schema=public"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npx prisma validate
+      - name: Generate Prisma Client
+        run: npx prisma generate
