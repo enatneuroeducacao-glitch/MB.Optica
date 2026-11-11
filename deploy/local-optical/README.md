@@ -8,7 +8,7 @@ Cada óptica terá uma instância própria do MB Gestão e um PostgreSQL própri
 - Banco: PostgreSQL 16 no contêiner `db`.
 - Acesso inicial: `http://127.0.0.1:3000`.
 - Banco não publica porta no Windows host.
-- Aplicação publica apenas em loopback por padrão.
+- Aplicação publica apenas em loopback; acesso pela LAN fica bloqueado até implantação de HTTPS com certificado confiável.
 - Segredos são gerados no primeiro provisionamento e guardados em `.env`, fora do Git.
 - Migrações Prisma são aplicadas pela inicialização da aplicação.
 - Reinicialização automática dos contêineres.
@@ -65,6 +65,6 @@ docker compose --env-file deploy/local-optical/instances/optica-piloto/.env -p o
 
 ## Limites desta etapa
 
-Este kit cria uma aplicação e um banco locais vazios. Ainda não é um instalador autossuficiente: exige Docker Desktop e o código/imagem da aplicação para construir a imagem. O instalador Tauri ainda precisa ser ajustado para abrir o endereço local e para iniciar/parar o serviço local com segurança. O provisionamento LAN, backup agendado, restauração testada, assinatura do instalador e homologação completa são etapas obrigatórias antes da distribuição comercial.
+Este kit cria uma aplicação e um banco locais vazios. Ainda não é um instalador autossuficiente: exige Docker Desktop e o código/imagem da aplicação para construir a imagem. O instalador Tauri ainda precisa ser ajustado para abrir o endereço local e para iniciar/parar o serviço local com segurança. O acesso LAN por HTTPS, backup agendado, restauração testada, integração do ciclo de vida do servidor ao instalador, assinatura do instalador e homologação completa são etapas obrigatórias antes da distribuição comercial.
 
 A instância atual da MB Óptica, seu Render e seu banco de produção não são alterados por este procedimento.
