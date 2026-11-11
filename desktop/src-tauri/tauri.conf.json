@@ -26,7 +26,7 @@
     "active": true,
     "targets": ["nsis"],
     "shortDescription": "Aplicativo Windows do MB Gestão Inteligente",
-    "longDescription": "Cliente desktop conectado ao MB Gestão Inteligente online. Requer internet e autenticação.",
+    "longDescription": "Cliente desktop local para o servidor independente MB Gestão Inteligente da óptica. Requer servidor local e autenticação.",
     "category": "Business"
   }
 }
