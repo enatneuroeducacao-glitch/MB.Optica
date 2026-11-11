@@ -119,6 +119,7 @@ id String @id @default(cuid())
   @@index([status])
   @@index([accessKey])
   @@unique([id, organizationId])
+  @@unique([saleId, organizationId])
 }
 enum OrganizationStatus {
   ACTIVE
@@ -542,6 +543,7 @@ quoteId String? @unique
 quote Quote? @relation(fields: [quoteId, organizationId],references: [id, organizationId])
 sale Sale?
   @@unique([id, organizationId])
+  @@unique([quoteId, organizationId])
 }
 model OpticalOrderItem {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -596,6 +598,7 @@ accounts Account[]
 fiscalDocument FiscalDocument?
   frameAdaptationOrder FrameAdaptationOrder?
   @@unique([id, organizationId])
+  @@unique([orderId, organizationId])
 }
 model SaleItem {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -670,6 +673,7 @@ method PaymentMethod? @relation(fields: [methodId, organizationId],references: [
 cardMachine CardMachine? @relation(fields: [cardMachineId, organizationId],references: [id, organizationId])
 accountSettlement AccountSettlement? @relation(fields: [accountSettlementId, organizationId],references: [id, organizationId])
   @@unique([id, organizationId])
+  @@unique([accountSettlementId, organizationId])
 }
 model Account {
   organizationId String? // Nullable during the additive multi-tenant rollout.
@@ -1054,6 +1058,7 @@ model AccountingEvent {
   @@index([eventType, status])
   @@index([sourceType, sourceId])
   @@unique([id, organizationId])
+  @@unique([entryId, organizationId])
 }
 
 model ThirdPartyFrameIntake {
