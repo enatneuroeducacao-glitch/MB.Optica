@@ -67,3 +67,15 @@ MB_GESTAO_TARGET_URL=https://pilot.example.com MB_GESTAO_PRODUCT_NAME="MB Gestã
 ```
 
 The customer build rejects the MB Óptica production host and requires a unique application identifier. It does not provision a server or database; those must exist independently before the installer is built. The variables above are configuration, not secrets.
+
+## Local-server edition (one optical per computer/server)
+
+The local edition opens only `http://127.0.0.1:3000/`. It does not point to the MB Óptica production URL. Provision the local application and PostgreSQL first using the instructions in `deploy/local-optical/README.md`; Docker Desktop is required for this pilot.
+
+Build the local Windows installer from this directory:
+
+```bash
+MB_GESTAO_PRODUCT_NAME="MB Gestão - Óptica Piloto" MB_GESTAO_APP_IDENTIFIER=br.com.mboptica.piloto MB_GESTAO_INSTALLER_SLUG=optica-piloto npm run tauri:build:local
+```
+
+The local Tauri installer is currently a desktop client for the already-running local service. It does not yet install Docker Desktop, provision PostgreSQL, or automatically start/stop the local server. Those are explicit remaining installer-integration tasks; do not distribute this artifact as a one-click all-in-one installer until those tasks and clean-machine acceptance tests are complete.
