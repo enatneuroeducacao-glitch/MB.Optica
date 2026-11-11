@@ -67,6 +67,7 @@ async function main() {
   let currentLot = await db.stockLot.findUnique({ where: { id: lot.id } });
   assert(money(currentLot?.quantity) === 9, "baixa de estoque");
   const saleStockMovements=await db.stockMovement.findMany({where:{reference:"VENDA",referenceId:sale.body.id,type:"SAIDA"},include:{lotLinks:true}});
+  console.log("STOCK_LOT_TRACE_DIAGNOSTIC",JSON.stringify({productOrganizationId:product.organizationId,lotOrganizationId:lot.organizationId,lotId:lot.id,movements:saleStockMovements.map(m=>({id:m.id,organizationId:m.organizationId,productId:m.productId,quantity:money(m.quantity),links:m.lotLinks.map(l=>({lotId:l.lotId,organizationId:l.organizationId,quantity:money(l.quantity)}))})),rawLinks:await db.stockMovementLot.findMany({where:{movementId:{in:saleStockMovements.map(m=>m.id)}}})}));
   assert(saleStockMovements.length===1&&saleStockMovements[0].lotLinks.length===1&&Math.abs(money(saleStockMovements[0].lotLinks[0].quantity)-1)<.01,"rastreabilidade do lote na saída por venda");
 
   for (const [index, method] of [[0, pix], [1, card]] as const) {
