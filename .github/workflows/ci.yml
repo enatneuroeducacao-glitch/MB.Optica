@@ -42,6 +42,7 @@ jobs:
           node --check deploy/local-optical/install.mjs
           node --check deploy/local-optical/finalize-bootstrap.mjs
           node --check deploy/local-optical/backup.mjs
+          node --check deploy/local-optical/enable-lan.mjs
           node --check desktop/scripts/build-customer-installer.mjs
           node --check desktop/scripts/build-local-installer.mjs
 
