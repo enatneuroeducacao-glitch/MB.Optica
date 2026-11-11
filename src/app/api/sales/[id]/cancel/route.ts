@@ -24,6 +24,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         }
       });
       if(!sale) throw new Error("Venda não encontrada");
+      if(sale.payments.some(payment => !payment.method)) throw new Error("Há pagamento sem meio de pagamento vinculado; corrija o cadastro antes de cancelar a venda.");
       if(sale.canceled) return sale;
 
       const activePayments=sale.payments.filter(p=>!p.reversedAt);
