@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "feature/tenant-scope-phase2-dependent-models"]
+    branches: ["main", "feature/tenant-scope-phase2-dependent-models", "feature/tenant-api-security-rollout"]
   pull_request:
     branches: ["main", "feature/tenant-scope-phase2-dependent-models"]
   workflow_dispatch:
