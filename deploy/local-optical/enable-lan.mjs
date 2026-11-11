@@ -19,7 +19,7 @@ const envPath = resolve(root, "deploy/local-optical/instances", slug, ".env");
 let env = await readFile(envPath, "utf8");
 function setEnv(key, value) {
   const line = new RegExp("^" + key + "=.*$", "m");
-  if (line.test(env)) env = env.replace(line, \`\${key}=\${value}\`);
+  if (line.test(env)) env = env.replace(line, key + "=" + value);
   else env += \`\n\${key}=\${value}\n\`;
 }
 setEnv("LAN_HOST", lanHost);
