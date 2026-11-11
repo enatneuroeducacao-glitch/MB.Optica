@@ -48,8 +48,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Validate Prisma schema
@@ -61,4 +59,4 @@ jobs:
       - name: Validate tenant migration contract
         run: node scripts/validate-tenant-integrity.mjs
       - name: Test PostgreSQL cross-tenant rejection
-        run: psql -v ON_ERROR_STOP=1 -f prisma/tests/tenant-composite-integrity.sql
+        run: docker run --rm --network host -v "$GITHUB_WORKSPACE:/work" -w /work postgres:16 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/tests/tenant-composite-integrity.sql
