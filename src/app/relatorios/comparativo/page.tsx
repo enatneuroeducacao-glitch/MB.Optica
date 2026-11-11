@@ -91,9 +91,16 @@ export default function AnaliseComparativa() {
   const currentYearTotal = selectedYearRows.filter(r => !r.partial).reduce((s, r) => s + r.total, 0);
   const monthComparisons = selectedYearRows.map(r => {
     const prior = byMonth.get(`${activeYear - 1}-${r.month.slice(5, 7)}`);
-    const comparable = Boolean(prior && !prior.partial && !r.partial);
-    return { ...r, prior: comparable ? prior!.total : null, change: comparable ? pctChange(r.total, prior!.total) : null };
-  }).filter(r => r.observed && (r.total > 0 || (r.prior ?? 0) > 0));
+    const priorObserved = Boolean(prior?.observed);
+    const comparable = Boolean(priorObserved && !prior!.partial && !r.partial);
+    // Exibe o valor do ano anterior mesmo quando o ano-base atual é parcial.
+    // A variação percentual só é calculada quando ambos os meses estão completos.
+    return {
+      ...r,
+      prior: priorObserved ? { total: prior!.total, partial: Boolean(prior!.partial) } : null,
+      change: comparable ? pctChange(r.total, prior!.total) : null
+    };
+  }).filter(r => r.observed && (r.total > 0 || (r.prior?.total ?? 0) > 0));
   const comparableMonths = monthComparisons.filter(r => r.change !== null);
   const currentComparableTotal = comparableMonths.reduce((s, r) => s + r.total, 0);
   const previousComparableTotal = comparableMonths.reduce((s, r) => s + (r.prior || 0), 0);
@@ -199,9 +206,9 @@ export default function AnaliseComparativa() {
       </div>
 
       <div className="cmp-panel" style={{ marginBottom: 14 }}>
-        <h2>Mesmo mês, anos diferentes — {activeYear}</h2><p>Identifica quais competências cresceram ou recuaram em relação ao mesmo mês do ano anterior.</p>
+        <h2>Mesmo mês, anos diferentes — {activeYear}</h2><p>Exibe os valores registrados nos dois anos. A variação só é calculada quando ambas as competências estão completas; * identifica mês parcial.</p>
         <div className="cmp-table-wrap"><table className="cmp-table"><thead><tr><th>Mês</th><th>{activeYear - 1}</th><th>{activeYear}</th><th>Variação</th><th>Leitura</th></tr></thead><tbody>
-          {monthComparisons.map(r => <tr key={r.month}><td>{monthName(r.month)}</td><td>{r.prior === null ? "Sem base completa" : money(r.prior)}</td><td>{money(r.total)}</td><td className={r.change === null ? "cmp-neutral" : r.change >= 0 ? "cmp-up" : "cmp-down"}>{r.change === null ? "Sem base completa" : percent(r.change)}</td><td><span className="cmp-pill">{r.change === null ? "Sem comparação" : r.change > 0 ? "Evolução" : r.change < 0 ? "Regressão" : "Estável"}</span></td></tr>)}
+          {monthComparisons.map(r => <tr key={r.month}><td>{monthName(r.month)}</td><td>{r.prior === null ? "Sem registro" : <>{money(r.prior.total)}{r.prior.partial ? <sup title="Competência parcial">*</sup> : null}</>}</td><td>{money(r.total)}{r.partial ? <sup title="Competência parcial">*</sup> : null}</td><td className={r.change === null ? "cmp-neutral" : r.change >= 0 ? "cmp-up" : "cmp-down"}>{r.change === null ? "Sem comparação — competência parcial ou base ausente" : percent(r.change)}</td><td><span className="cmp-pill">{r.change === null ? "Sem comparação" : r.change > 0 ? "Evolução" : r.change < 0 ? "Regressão" : "Estável"}</span></td></tr>)}
           {!monthComparisons.length && <tr><td colSpan={5}>Ainda não existem competências suficientes para comparar este ano.</td></tr>}
         </tbody></table></div>
       </div>
