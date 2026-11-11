@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       });
 
       const settings = await tx.storeSettings.create({
-        data: { tradeName: "MB Óptica", state: "SC", active: true },
+        data: { tradeName: process.env.STORE_TRADE_NAME?.trim() || "Óptica", state: process.env.STORE_STATE?.trim().toUpperCase() || "SC", active: true },
       });
 
       await tx.auditLog.create({
