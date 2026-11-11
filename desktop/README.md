@@ -4,9 +4,9 @@ This package creates a Windows NSIS installer for the existing online MB Gestão
 
 ## Architecture
 
-- The app opens `https://gestao.mboptica.com.br/` in a Tauri WebView.
-- Authentication and operational data remain on the existing online service.
-- No local database is created and no offline writes are supported.
+- The local-server edition opens `http://127.0.0.1:3000/` in a Tauri WebView. The application and PostgreSQL run separately on the optical store's local server.
+- Authentication and operational data remain on the dedicated local application and PostgreSQL instance for that optical store.
+- The desktop shell does not itself embed PostgreSQL; the local server stack provides the database and application. Internet is required for the first image/dependency download during provisioning.
 - No production API secrets are embedded in the executable.
 - The Tauri window receives no privileged IPC capabilities by default.
 
