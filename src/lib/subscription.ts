@@ -57,8 +57,28 @@ function matches(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(prefix + "/");
 }
 
+const API_ROUTE_MODULES: Array<[string, SubscriptionModule]> = [
+  ["/api/agenda", "Agenda"], ["/api/appointments", "Agenda"],
+  ["/api/customers", "Clientes"], ["/api/prescriptions", "Receitas"],
+  ["/api/messages", "Mensagens"], ["/api/products", "Produtos e estoque"],
+  ["/api/categories", "Produtos e estoque"], ["/api/stock", "Produtos e estoque"],
+  ["/api/suppliers", "Fornecedores"], ["/api/sales", "Vendas"],
+  ["/api/payments", "Vendas"], ["/api/payment-methods", "Vendas"],
+  ["/api/pix-keys", "Vendas"], ["/api/card-machines", "Vendas"],
+  ["/api/finance", "Financeiro"], ["/api/financeiro", "Financeiro"],
+  ["/api/cash", "Financeiro"], ["/api/contabilidade", "Financeiro"],
+  ["/api/relatorios", "Relatórios"], ["/api/reports", "Relatórios"],
+  ["/api/settings", "Configurações"], ["/api/fiscal", "Configurações"],
+  ["/api/migration", "Migração"], ["/api/orders", "Pedidos"],
+  ["/api/quotes", "Orçamentos"], ["/api/frame-adaptation-orders", "Pedidos"],
+  ["/api/third-party-frames", "Produtos e estoque"], ["/api/service-orders", "Pedidos"],
+  ["/api/dashboard", "Dashboard"], ["/api/gestao", "Relatórios"],
+];
+
 export function moduleForPath(pathname: string) {
-  return ROUTE_MODULES.find(([prefix]) => matches(pathname, prefix))?.[1] ?? null;
+  return API_ROUTE_MODULES.find(([prefix]) => matches(pathname, prefix))?.[1]
+    ?? ROUTE_MODULES.find(([prefix]) => matches(pathname, prefix))?.[1]
+    ?? null;
 }
 
 function modulesFor(subscription: {plan:string; status:string; modules:unknown} | null): SubscriptionModule[] {
