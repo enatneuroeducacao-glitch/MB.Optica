@@ -101,6 +101,7 @@ export async function POST(request: Request) {
         const original = await tx.accountingEntry.findUnique({ where: { id: entryId }, include: { lines: true, period: true } });
         if (!original) throw new Error("Lançamento não encontrado.");
         if (original.status !== "CONTABILIZADO" || original.reversedAt) throw new Error("Somente lançamentos contabilizados e ainda não estornados podem ser estornados.");
+        if (!original.period) throw new Error("O período contábil original não está vinculado ao lançamento.");
         if (original.period.status !== "ABERTO") throw new Error("O período original está fechado. Reabra-o formalmente antes do estorno.");
         const now = new Date();
         const reversalDate = dateOnly(body.reversalDate || now.toISOString());
