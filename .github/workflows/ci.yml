@@ -4,7 +4,7 @@ on:
   push:
     branches: ["main", "feature/tenant-scope-phase2-dependent-models"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "feature/tenant-scope-phase2-dependent-models"]
   workflow_dispatch:
 
 jobs:
