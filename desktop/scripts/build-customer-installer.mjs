@@ -25,7 +25,7 @@ if (mode === "local") {
 if (parsed.username || parsed.password || parsed.search || parsed.hash) throw new Error("Installer URL cannot contain credentials, query parameters or fragments");
 if (mode === "cloud" && parsed.hostname.toLowerCase() === "gestao.mboptica.com.br") throw new Error("Refusing production target");
 if (!/^[a-z][a-z0-9-]{1,47}$/.test(slug)) throw new Error("Invalid installer slug");
-if (!/^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$/.test(identifier) || identifier === "br.com.mboptica.gestao") throw new Error("Invalid customer identifier");
+if (!/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)+$/.test(identifier) || identifier === "br.com.mboptica.gestao") throw new Error("Invalid customer identifier");
 
 const configPath = resolve("src-tauri/tauri.customer.generated.conf.json");
 const config = {
