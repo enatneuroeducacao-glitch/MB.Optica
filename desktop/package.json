@@ -6,7 +6,9 @@
   "scripts": {
     "build:web": "node -e \"require('fs').mkdirSync('dist',{recursive:true}); require('fs').copyFileSync('index.html','dist/index.html')\"",
     "tauri:icon": "tauri icon ./icons/mb-gestao.svg --output ./src-tauri/icons",
-    "tauri:build": "npm run build:web && npm run tauri:icon && tauri build"
+    "tauri:build": "npm run build:web && npm run tauri:icon && tauri build",
+    "tauri:build:customer": "node scripts/build-customer-installer.mjs",
+    "tauri:validate:customer": "node scripts/build-customer-installer.mjs --validate-only"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.8.4"
