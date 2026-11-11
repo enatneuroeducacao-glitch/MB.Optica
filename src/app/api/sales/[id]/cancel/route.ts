@@ -88,12 +88,18 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       }
 
       const movements=await tx.stockMovement.findMany({
-        where:{reference:"VENDA",referenceId:sale.id,type:"SAIDA"},
-        include:{lotLinks:true}
+        where:{reference:"VENDA",referenceId:sale.id,type:"SAIDA"}
       });
+      // Read the join table directly: Prisma composite relations do not resolve legacy rows
+      // when organizationId is NULL during the additive tenant migration.
+      const movementIds=movements.map(movement=>movement.id);
+      const movementLotLinks=movementIds.length?await tx.stockMovementLot.findMany({where:{movementId:{in:movementIds}}}):[];
+      const linksByMovement=new Map<string,typeof movementLotLinks>();
+      for(const link of movementLotLinks){const list=linksByMovement.get(link.movementId)||[];list.push(link);linksByMovement.set(link.movementId,list);}
       for(const movement of movements){
-        if(movement.lotLinks.length===0) throw new Error("Venda possui saída de estoque sem rastreabilidade por lote; cancelamento bloqueado");
-        for(const link of movement.lotLinks){
+        const lotLinks=linksByMovement.get(movement.id)||[];
+        if(lotLinks.length===0) throw new Error("Venda possui saída de estoque sem rastreabilidade por lote; cancelamento bloqueado");
+        for(const link of lotLinks){
           const updated=await tx.stockLot.updateMany({
             where:{id:link.lotId},
             data:{quantity:{increment:link.quantity}}
@@ -112,7 +118,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
           }
         });
         await tx.stockMovementLot.createMany({
-          data:movement.lotLinks.map(link=>({
+          data:lotLinks.map(link=>({
             organizationId:returnMovement.organizationId??null,
             movementId:returnMovement.id,
             lotId:link.lotId,
