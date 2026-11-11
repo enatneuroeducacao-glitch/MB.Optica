@@ -107,3 +107,28 @@ Login, reset de senha, health, version e vitrine pública precisam de contratos 
 - Usuários legados da MB Óptica mantêm acesso somente após backfill validado; antes disso, rollout em modo compatibilidade sem abrir novas organizações.
 - Testes negativos de isolamento passam no PostgreSQL e nas rotas HTTP.
 - Nenhuma migration é executada em produção sem aprovação expressa.
+
+
+## Atualização da implementação — 2026-11-11
+
+### Implementado nesta branch
+- Guards separados `requireTenantContext`, `requireTenantRole` e `requirePlatformAccess`.
+- Entitlement por organização conectado ao guard operacional, com mapeamento de módulos também para endpoints `/api/*`.
+- APIs de controle central:
+  - `GET/POST /api/platform/organizations`: listar e criar organizações, criando vínculo ADMIN inicial e assinatura em transação.
+  - `GET/POST /api/platform/organizations/[id]/memberships`: listar e criar/atualizar vínculos.
+- A autorização dos endpoints centrais é feita por `PlatformAccess` persistido. O middleware deixa a requisição chegar ao guard, sem conceder o acesso por si só.
+- `GET/POST /api/customers` migrados para membership role e escopo `organizationId`; endereços incluídos na leitura também são filtrados.
+- `scripts/preflight-tenant-backfill.ts` e comando `npm run tenant:preflight`: relatório somente leitura de totais, registros sem organização, órfãos, memberships e assinatura legada.
+- `scripts/integration-tenant-isolation.ts` e comando `npm run test:tenant-isolation`: teste HTTP com dois usuários e duas organizações; valida leitura do próprio cliente e bloqueio ao selecionar outra organização.
+- CI ajustada para validar este branch e executar typecheck, build e teste de integração.
+
+### Ainda não concluído
+- As demais 105 rotas ainda precisam ser migradas e revisadas por domínio. Não se deve aplicar um wrapper genérico sem filtrar todas as consultas e validar as relações de cada handler.
+- Os endpoints administrativos da plataforma ainda precisam de testes HTTP próprios e revisão de limites de criação/alteração.
+- O backfill permanece apenas em modo preflight; nenhum dado foi alterado.
+- O teste HTTP de isolamento só cobre a API de clientes nesta etapa; não comprova isolamento em produtos, estoque, vendas, financeiro, fiscal, mensagens, relatórios ou jobs.
+- A execução do CI deste branch precisa concluir para confirmar typecheck, build e os testes. Falha ou sucesso parcial não equivale à homologação integral.
+
+### Segurança de rollout
+Não ativar as rotas não migradas para novos tenants. Não criar a organização MB Óptica nem atribuir registros automaticamente até o relatório de preflight ser revisado, as contagens serem reconciliadas e existir backup restaurável validado. Nenhuma ação de produção está autorizada por este PR.
