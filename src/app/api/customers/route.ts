@@ -3,7 +3,7 @@ export const revalidate=0;
 import {NextResponse} from "next/server";
 import {z} from "zod";
 import {db} from "@/lib/db";
-import {requireRole} from "@/lib/auth";
+import {requireTenantRole} from "@/lib/tenant-auth";
 import {writeAudit} from "@/lib/audit";
 import {apiError} from "@/lib/api-error";
 
@@ -24,9 +24,10 @@ export async function GET(req:Request){
     const url=new URL(req.url);
     const includeArchived=url.searchParams.get("includeArchived")==="1";
     const q=(url.searchParams.get("q")||"").trim();
-    await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]);
+    const tenant=await requireTenantRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"],url.searchParams.get("organizationId"));
     const data=await db.customer.findMany({
       where:{
+        organizationId:tenant.organizationId,
         ...(includeArchived?{}:{active:true}),
         ...(q.length>=2?{OR:[
           {name:{contains:q,mode:"insensitive"}},
@@ -35,7 +36,7 @@ export async function GET(req:Request){
       },
       orderBy:{name:"asc"},
       take:q.length>=2?50:500,
-      include:{addresses:true,_count:{select:{orders:true,sales:true,prescriptions:true,accounts:true}}}
+      include:{addresses:{where:{organizationId:tenant.organizationId}},_count:{select:{orders:true,sales:true,prescriptions:true,accounts:true}}}
     });
     return NextResponse.json(data);
   }catch(error){return apiError(error,"Não foi possível carregar os clientes.");}
@@ -43,16 +44,17 @@ export async function GET(req:Request){
 
 export async function POST(req:Request){
   try{
-    const actor=await requireRole(["ADMIN","GERENTE","VENDEDOR"]);
+    const tenant=await requireTenantRole(["ADMIN","GERENTE","VENDEDOR"]);
     const b=schema.parse(await req.json());
     const data=await db.$transaction(async tx=>{
       const created=await tx.customer.create({
         data:{
+          organizationId:tenant.organizationId,
           name:b.name,cpfCnpj:b.cpfCnpj||undefined,phone:b.phone||undefined,whatsapp:b.whatsapp||undefined,
           email:b.email||undefined,birthDate:b.birthDate?new Date(b.birthDate):undefined,notes:b.notes||undefined
         }
       });
-      await writeAudit(tx,{action:"CREATE",entity:"Customer",entityId:created.id,userId:actor.id,metadata:{name:created.name,cpfCnpj:created.cpfCnpj}});
+      await writeAudit(tx,{action:"CREATE",entity:"Customer",entityId:created.id,userId:tenant.userId,metadata:{name:created.name,cpfCnpj:created.cpfCnpj}});
       return created;
     });
     return NextResponse.json(data,{status:201});
