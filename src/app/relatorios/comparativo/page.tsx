@@ -103,7 +103,7 @@ export default function AnaliseComparativa() {
   }).filter(r => r.observed && (r.total > 0 || (r.prior?.total ?? 0) > 0));
   const comparableMonths = monthComparisons.filter(r => r.change !== null);
   const currentComparableTotal = comparableMonths.reduce((s, r) => s + r.total, 0);
-  const previousComparableTotal = comparableMonths.reduce((s, r) => s + (r.prior || 0), 0);
+  const previousComparableTotal = comparableMonths.reduce((s, r) => s + (r.prior?.total ?? 0), 0);
   const annualGrowth = pctChange(currentComparableTotal, previousComparableTotal);
   const improved = comparableMonths.filter(r => r.change !== null && r.change! > 0);
   const declined = comparableMonths.filter(r => r.change !== null && r.change! < 0);
