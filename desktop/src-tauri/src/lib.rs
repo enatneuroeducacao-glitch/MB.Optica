@@ -110,7 +110,7 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             let window: WebviewWindow = app.get_webview_window("main")
-                .ok_or("Janela principal não encontrada")?;
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Janela principal não encontrada"))?;
             window.hide()?;
             let handle = app.handle().clone();
             thread::spawn(move || {
