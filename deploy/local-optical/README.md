@@ -63,6 +63,22 @@ docker compose --env-file deploy/local-optical/instances/optica-piloto/.env -p o
 
 `down` não apaga o volume. **Nunca use `down -v`** em uma instalação com dados.
 
+## Habilitar acesso HTTPS nas estações da loja
+
+Depois de reservar um IP fixo para o computador-servidor no roteador/DHCP, habilite o proxy HTTPS local:
+
+```bash
+node deploy/local-optical/enable-lan.mjs optica-piloto 192.168.1.50
+```
+
+Use o IP real reservado para o servidor, não copie o exemplo. Para hostname interno, garanta que todas as estações resolvam o nome para o servidor.
+
+O script sobe o Caddy com autoridade certificadora interna, configura HTTPS e exporta o certificado raiz em `deploy/local-optical/certificates/<slug>/local-root-ca.crt`. Instale esse certificado como Autoridade Raiz Confiável nos computadores autorizados da loja, por procedimento administrativo. Depois, acesse `https://IP-OU-NOME-DO-SERVIDOR/`.
+
+**Firewall obrigatório:** crie uma regra de entrada TCP 443 apenas para o perfil de rede privada e para a sub-rede local da óptica. Não exponha a porta 443 ou 3000 à internet e não configure encaminhamento no roteador. Proteja o certificado raiz exportado e não o substitua por certificado de origem desconhecida.
+
+O acesso LAN usa HTTPS para proteger as sessões e cookies Secure. O serviço Next.js continua sem porta publicada diretamente na rede; somente o proxy recebe conexões LAN. O acesso local do Tauri no computador-servidor continua em `http://127.0.0.1:3000/`.
+
 ## Backup manual por óptica
 
 Com a instância ativa, gere um dump PostgreSQL independente:
@@ -75,6 +91,6 @@ O arquivo é salvo em `deploy/local-optical/backups/<slug>/` e esse diretório �
 
 ## Limites desta etapa
 
-Este kit cria uma aplicação e um banco locais vazios. Ainda não é um instalador autossuficiente: exige Docker Desktop e o código/imagem da aplicação para construir a imagem. O instalador Tauri ainda precisa ser ajustado para abrir o endereço local e para iniciar/parar o serviço local com segurança. O acesso LAN por HTTPS, backup agendado, restauração testada, integração do ciclo de vida do servidor ao instalador, assinatura do instalador e homologação completa são etapas obrigatórias antes da distribuição comercial.
+Este kit cria uma aplicação e um banco locais vazios. Ainda não é um instalador autossuficiente: exige Docker Desktop e o código/imagem da aplicação para construir a imagem. O instalador Tauri ainda precisa ser ajustado para abrir o endereço local e para iniciar/parar o serviço local com segurança. A instalação automatizada da CA nas estações, regra de firewall automatizada e validada, backup agendado, restauração testada, integração do ciclo de vida do servidor ao instalador, assinatura do instalador e homologação completa são etapas obrigatórias antes da distribuição comercial.
 
 A instância atual da MB Óptica, seu Render e seu banco de produção não são alterados por este procedimento.
