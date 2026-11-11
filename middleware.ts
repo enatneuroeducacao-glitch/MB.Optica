@@ -8,6 +8,10 @@ const PUBLIC_API = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/bo
 
 const ROLE_PREFIXES: Record<string, string[]> = {
   ADMIN: ["*"],
+  GERENTE: ["/api/platform"],
+  VENDEDOR: ["/api/platform"],
+  FINANCEIRO: ["/api/platform"],
+  LABORATORIO: ["/api/platform"],
   GERENTE: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/laboratorio", "/produtos", "/estoque", "/fornecedores", "/vendas", "/financeiro", "/relatorios", "/configuracoes", "/migracao"],
   VENDEDOR: ["/", "/agenda", "/clientes", "/receitas", "/orcamentos", "/pedidos", "/vendas", "/produtos"],
   FINANCEIRO: ["/", "/vendas", "/financeiro", "/relatorios"],
