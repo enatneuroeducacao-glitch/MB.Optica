@@ -46,7 +46,7 @@ if (copy.error || copy.status !== 0) {
   console.error("Proxy iniciou, mas não foi possível exportar a CA. Consulte os logs; não distribua o certificado até verificar a origem.");
   process.exit(copy.status ?? 1);
 }
-console.log(\`HTTPS LAN configurado: https://\${lanHost}/\`);
-console.log(\`Certificado raiz para instalar nos computadores autorizados: \${certPath}\`);
+console.log(`HTTPS LAN configurado: https://${lanHost}/`);
+console.log(`Certificado raiz para instalar nos computadores autorizados: ${certPath}`);
 console.log("Instale a CA no repositório de Autoridades Raiz Confiáveis do Windows em cada estação, usando procedimento administrativo.");
 console.log("Antes de conectar as estações, restrinja a porta TCP 443 no Firewall do Windows à sub-rede privada da óptica. Não faça encaminhamento no roteador.");
