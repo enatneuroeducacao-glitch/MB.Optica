@@ -12,7 +12,7 @@ const compositeFks = [...migration.matchAll(/ALTER TABLE "([^"]+)" ADD CONSTRAIN
 
 assert.equal(uniqueIndexes.length, 45, "Expected composite unique indexes for all tenant-scoped models");
 assert.equal(compositeFks.length, 51, "Expected composite foreign keys for all tenant-to-tenant relations");
-for (const [, table] of uniqueIndexes) {
+for (const [, , table] of uniqueIndexes) {
   assert.match(schema, new RegExp("model\\s+" + table + "\\s+\\{[\\s\\S]*?@@unique\\(\\[id, organizationId\\]\\)"));
 }
 for (const [, child, , fields] of compositeFks) {
