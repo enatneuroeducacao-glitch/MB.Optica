@@ -43,9 +43,10 @@ jobs:
       - name: Install Node dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate isolated customer installer profile
+      - name: Validate isolated local installer profile
         env:
-          MB_GESTAO_TARGET_URL: https://pilot.example.invalid
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
           MB_GESTAO_PRODUCT_NAME: MB Gestão - Óptica Piloto
           MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
           MB_GESTAO_INSTALLER_SLUG: optica-piloto
