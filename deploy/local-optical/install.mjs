@@ -21,7 +21,7 @@ const slug = option("--slug", "").trim().toLowerCase();
 const storeName = option("--name", "").trim();
 const state = option("--state", "SC").trim().toUpperCase();
 if (!/^[a-z][a-z0-9-]{2,39}$/.test(slug)) fail("Use --slug com 3 a 40 caracteres: letras minúsculas, números e hífen.");
-if (storeName.length < 2 || storeName.length > 100 || /[$#=\\r\\n]/.test(storeName)) fail("Informe --name com 2 a 100 caracteres, sem $, # ou quebras de linha.");
+if (storeName.length < 2 || storeName.length > 100 || /[$#=\r\n]/.test(storeName)) fail("Informe --name com 2 a 100 caracteres, sem $, # ou quebras de linha.");
 if (!/^[A-Z]{2}$/.test(state)) fail("--state deve ser uma UF com duas letras.");
 const docker = process.platform === "win32" ? "docker.exe" : "docker";
 const check = spawnSync(docker, ["compose", "version"], { cwd: root, encoding: "utf8" });
