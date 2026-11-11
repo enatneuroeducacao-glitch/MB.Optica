@@ -22,6 +22,12 @@ export function apiError(error: unknown, fallback = "Não foi possível concluir
   if (error instanceof Error && error.message === "TENANT_SELECTION_REQUIRED") {
     return NextResponse.json({ error: "Selecione uma organização para continuar." }, { status: 409 });
   }
+  if (error instanceof Error && error.message === "SUBSCRIPTION_USER_LIMIT") {
+    return NextResponse.json({ error: "O limite de usuários desta organização foi atingido." }, { status: 403 });
+  }
+  if (error instanceof Error && error.message === "SUBSCRIPTION_MODULE_LOCKED") {
+    return NextResponse.json({ error: "Este módulo não está disponível no plano desta organização." }, { status: 403 });
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2002") return NextResponse.json({ error: "O registro informado já existe." }, { status: 409 });
     if (error.code === "P2025") return NextResponse.json({ error: "Registro não encontrado." }, { status: 404 });
