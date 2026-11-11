@@ -49,6 +49,7 @@ export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){
         include:{customer:{select:{id:true,name:true,active:true}}}
       });
       if(!prescription) throw new Error("Receita não encontrada.");
+      if(!prescription.customer) throw new Error("Receita sem cliente vinculado; corrija o cadastro antes de alterar.");
       const data=await parseUpdate(body);
       const updated=await tx.prescription.update({where:{id},data});
       await writeAudit(tx,{
@@ -80,6 +81,7 @@ export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){
         }
       });
       if(!prescription)throw new Error("Receita não encontrada.");
+      if(!prescription.customer) throw new Error("Receita sem cliente vinculado; corrija o cadastro antes de excluir.");
       if(prescription._count.orders>0||prescription._count.quotes>0){
         return {blocked:true,reason:"Esta receita está vinculada a pedido ou orçamento e não pode ser excluída isoladamente."};
       }
