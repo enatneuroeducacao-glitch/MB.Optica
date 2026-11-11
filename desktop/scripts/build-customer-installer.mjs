@@ -29,7 +29,7 @@ if (parsed.hostname.toLowerCase() === "gestao.mboptica.com.br") {
 if (!/^[a-z][a-z0-9-]{1,47}$/.test(slug)) {
   throw new Error("MB_GESTAO_INSTALLER_SLUG must be 2-48 lowercase letters, digits or hyphens");
 }
-if (!/^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$/.test(identifier)) {
+if (!/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)+$/.test(identifier)) {
   throw new Error("MB_GESTAO_APP_IDENTIFIER must be a unique reverse-domain identifier");
 }
 if (identifier === "br.com.mboptica.gestao") {
