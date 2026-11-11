@@ -20,7 +20,6 @@ function run(command, commandArgs, options = {}) {
 const slug = option("--slug", "").trim().toLowerCase();
 const storeName = option("--name", "").trim();
 const state = option("--state", "SC").trim().toUpperCase();
-const lanEnabled = args.includes("--lan");
 if (!/^[a-z][a-z0-9-]{2,39}$/.test(slug)) fail("Use --slug com 3 a 40 caracteres: letras minúsculas, números e hífen.");
 if (storeName.length < 2 || storeName.length > 100 || /[$#=\\r\\n]/.test(storeName)) fail("Informe --name com 2 a 100 caracteres, sem $, # ou quebras de linha.");
 if (!/^[A-Z]{2}$/.test(state)) fail("--state deve ser uma UF com duas letras.");
@@ -44,7 +43,7 @@ const env = [
   `COMPOSE_PROJECT_NAME=${slug}`,
   `STORE_TRADE_NAME=${storeName.replace(/[\r\n]/g, " ")}`,
   `STORE_STATE=${state}`,
-  `APP_BIND_ADDRESS=${lanEnabled ? "0.0.0.0" : "127.0.0.1"}`,
+  "APP_BIND_ADDRESS=127.0.0.1",
   `DB_PASSWORD=${secret()}`,
   `AUTH_SECRET=${secret()}`,
   `BOOTSTRAP_TOKEN=${secret()}`,
@@ -74,5 +73,5 @@ console.log("\\nInstância provisionada e pronta.");
 console.log(`Configuração inicial: http://127.0.0.1:3000/setup`);
 console.log(`Token de bootstrap (guarde com segurança; exibido uma única vez): ${bootstrap}`);
 console.log(`Segredos e dados de configuração: ${envPath}`);
-console.log(lanEnabled ? "Acesso LAN habilitado em todas as interfaces. Restrinja a porta 3000 à rede privada da loja no Firewall do Windows; não exponha à internet." : "Acesso limitado ao computador-servidor (loopback). Use --lan somente após configurar o firewall para a sub-rede da loja.");
+console.log("Acesso limitado ao computador-servidor (loopback). Acesso por outros computadores será habilitado somente após implantação de HTTPS e certificado confiável na LAN.");
 console.log("A aplicação e o PostgreSQL têm volume/projeto exclusivos. Não copie o .env para outra óptica.");
