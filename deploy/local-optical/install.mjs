@@ -43,7 +43,6 @@ const env = [
   `COMPOSE_PROJECT_NAME=${slug}`,
   `STORE_TRADE_NAME=${storeName.replace(/[\r\n]/g, " ")}`,
   `STORE_STATE=${state}`,
-  "APP_BIND_ADDRESS=127.0.0.1",
   `DB_PASSWORD=${secret()}`,
   `AUTH_SECRET=${secret()}`,
   `BOOTSTRAP_TOKEN=${secret()}`,
