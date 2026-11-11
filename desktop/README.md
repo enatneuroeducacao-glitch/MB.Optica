@@ -37,3 +37,10 @@ Do not publish this installer as an approved production release until:
 5. The operational-data reconciliation gates are passed.
 
 The desktop wrapper itself does not implement backup operations. Manual and scheduled cloud backup must be implemented and validated in the online service before this phase can be considered complete. Keep financial writes blocked until the backup and restore evidence is accepted.
+## Independent customer installations
+
+The current installer is a WebView client pinned to the MB Óptica production URL. It is **not** an independent installation and must not be copied or distributed to another optical store as-is.
+
+The approved target model is one application service, one PostgreSQL database, independent secrets/backups and one URL-specific installer profile per optical store. See [Independent optical deployments](../docs/architecture/INDEPENDENT_OPTICAL_DEPLOYMENTS.md).
+
+A customer-specific installer must be built only after its dedicated application URL exists and has passed the isolation and acceptance checks. Never embed database credentials, API secrets or bootstrap tokens in the installer.
