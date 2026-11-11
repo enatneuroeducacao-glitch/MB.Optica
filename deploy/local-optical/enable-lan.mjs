@@ -36,7 +36,7 @@ if (up.error || up.status !== 0) process.exit(up.status ?? 1);
 const certDir = resolve(root, "deploy/local-optical/certificates", slug);
 await mkdir(certDir, { recursive: true });
 const certPath = resolve(certDir, "local-root-ca.crt");
-const copy = spawnSync(docker, [...compose, "cp", "proxy:/data/caddy/pki/authorities/local/root.crt", certPath], { cwd: root, stdio: "inherit" });
+const wait = spawnSync(docker, [...compose, "exec", "-T", "proxy", "sh", "-c", "for i in $(seq 1 30); do test -s /data/caddy/pki/authorities/local/root.crt && exit 0; sleep 1; done; exit 1"], { cwd: root, stdio: "inherit" });\nif (wait.error || wait.status !== 0) {\n  console.error("Caddy não gerou a CA raiz no tempo esperado.");\n  process.exit(wait.status ?? 1);\n}\nconst copy = spawnSync(docker, [...compose, "cp", "proxy:/data/caddy/pki/authorities/local/root.crt", certPath], { cwd: root, stdio: "inherit" });
 if (copy.error || copy.status !== 0) {
   console.error("Proxy iniciou, mas não foi possível exportar a CA. Consulte os logs; não distribua o certificado até verificar a origem.");
   process.exit(copy.status ?? 1);
