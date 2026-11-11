@@ -47,7 +47,48 @@ FiscalConfig, FiscalDocument, Subscription, User, MailMessageState, MailContactP
 
 **Esta etapa não implementa isolamento de dados.** Os 49 modelos de negócio ainda não têm `organizationId`; as rotas ainda não filtram por organização; login e assinatura ainda são globais. A migration é apenas fundação aditiva e não deve ser tratada como pronta para abrir cadastro de novas óticas.
 
+## Escopo organizacional aditivo — fase 1
+
+A migration `20261110150000_add_nullable_org_scope_roots` adiciona a coluna escalar nullable `organizationId` aos modelos-raiz operacionais e configuráveis (incluindo clientes, catálogo, vendas, pedidos, financeiro, fiscal, contabilidade, folha, configurações e auditoria).
+
+Limites deliberados desta fase:
+- As colunas começam nullable para preservar todas as linhas existentes.
+- Não foram adicionadas FKs, índices compostos ou constraints NOT NULL nesta fase.
+- Não há backfill e nenhum registro existente recebe organização automaticamente.
+- Nenhuma API, autenticação, autorização ou consulta foi alterada.
+- Esta migration não cria isolamento efetivo e não habilita novas óticas.
+- A aplicação desta migration exige revisão e homologação separadas; não executar em produção agora.
+
+A próxima etapa deve adicionar escopo aos modelos dependentes e preparar backfill transacional com validação de contagens e relações antes de tornar qualquer coluna obrigatória.
+
 ## Implementação incremental — contexto de organização\n\nFoi adicionado nesta branch `src/lib/tenant-context.ts` com `resolveTenantContext(userId, requestedOrganizationId?)`. O helper consulta memberships ativos e organizações ACTIVE, valida qualquer organização solicitada contra o membership, resolve automaticamente quando há apenas um vínculo e exige seleção quando há vários. `PlatformAccess` é consultado separadamente e não substitui membership operacional. O helper ainda não foi conectado aos guardas nem às rotas: isso só deve ocorrer junto ao backfill e à cobertura das APIs, para não bloquear o administrador atual nem criar falsa segurança.\n\nA estratégia de classificação dos 49 modelos, relações, unicidades e sequência de migração está em `docs/architecture/MULTI_TENANT_MODEL_STRATEGY.md`.\n\n## Próximos passos técnicos
+
+1. Implementar resolução de contexto de organização no servidor e sessão com membership validado.
+2. Identificar o usuário administrador atual por consulta autenticada ao banco de produção; inserir um único registro `PlatformAccess` após confirmar o ID da conta.
+3. Criar a primeira organização MB Óptica e membership ADMIN do usuário atual, em operação de backfill revisável.
+4. Adicionar `organizationId` aos modelos raiz e dependentes, respeitando a ordem de FKs e constraints.
+5. Atualizar cada rota, job, integração e consulta agregada para aplicar escopo obrigatório.
+6. Fazer a assinatura e todos os limites funcionarem por organização.
+7. Testar tentativas de leitura e escrita cruzadas em cada domínio antes de liberar novos tenants.
+
+## Critérios mínimos de liberação
+
+- Nenhuma API operacional retorna ou altera registros de outro tenant.
+- Nenhuma relação aceita IDs de entidades pertencentes a outra organização.
+- Admin de ótica não consegue invocar APIs de proprietário central.
+- Platform Owner tem ações globais auditadas e não depende de `UserRole.ADMIN`.
+- A MB Óptica mantém contagens e IDs históricos após o backfill.
+- Assinaturas, degustação de 60 dias, limites e suspensão são independentes por organização.
+
+## Descoberta de produção — 10/11/2026
+
+O serviço Render publicado `mb-optica-gestao` está executando o commit de `main` e seus logs de inicialização do Prisma identificam o banco Render `mb_optica_db_contingencia` (recurso `dpg-db9p7flg1s2s739hstn0-a`). O recurso está no plano Free e informa expiração em 16/11/2026. A consulta administrativa via conector foi bloqueada porque a allowlist de rede do banco está vazia. A aplicação está acessível publicamente, mas o banco não está acessível pelo conector.
+
+A lista de projetos Neon disponível não identificou um projeto chamado MB Óptica/MB Gestão. Logo, o Neon consultado anteriormente não pode ser assumido como origem dos dados de produção. Não alterar conexão, não migrar e não aplicar backfill sem acesso autenticado, backup restaurável e validação de contagens.
+
+**Bloqueio de segurança:** os novos modelos `Organization`, `OrganizationMembership` e `PlatformAccess` e a coluna opcional `Subscription.organizationId` são somente a fundação. Nenhum dos 49 modelos de operação possui escopo por empresa ainda; as rotas continuam globais. Não existe ainda cadastro público multi-ótica seguro. A branch não foi implantada no Render.
+
+\n\nFoi adicionado nesta branch `src/lib/tenant-context.ts` com `resolveTenantContext(userId, requestedOrganizationId?)`. O helper consulta memberships ativos e organizações ACTIVE, valida qualquer organização solicitada contra o membership, resolve automaticamente quando há apenas um vínculo e exige seleção quando há vários. `PlatformAccess` é consultado separadamente e não substitui membership operacional. O helper ainda não foi conectado aos guardas nem às rotas: isso só deve ocorrer junto ao backfill e à cobertura das APIs, para não bloquear o administrador atual nem criar falsa segurança.\n\nA estratégia de classificação dos 49 modelos, relações, unicidades e sequência de migração está em `docs/architecture/MULTI_TENANT_MODEL_STRATEGY.md`.\n\n## Próximos passos técnicos
 
 1. Implementar resolução de contexto de organização no servidor e sessão com membership validado.
 2. Identificar o usuário administrador atual por consulta autenticada ao banco de produção; inserir um único registro `PlatformAccess` após confirmar o ID da conta.

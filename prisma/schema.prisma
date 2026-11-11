@@ -65,6 +65,7 @@ enum FiscalIntegrationMode {
   MANUAL
 }
 model FiscalConfig {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
   legalName String?
   tradeName String?
@@ -285,6 +286,7 @@ model PasswordResetToken {
 }
 
 model Customer {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 name String
 cpfCnpj String? @unique
@@ -352,12 +354,14 @@ quotes Quote[]
   frameAdaptationOrders FrameAdaptationOrder[]
 }
 model Category {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 name String @unique
 active Boolean @default(true)
 products Product[]
 }
 model Supplier {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 name String
 document String?
@@ -369,6 +373,7 @@ products Product[]
 accounts Account[]
 }
 model Product {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 ncm String?
 cest String?
@@ -451,6 +456,7 @@ lot StockLot @relation(fields:[lotId],references:[id])
 @@index([lotId])
 }
 model Quote {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String
@@ -489,6 +495,7 @@ quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
 product Product? @relation(fields:[productId],references:[id])
 }
 model OpticalOrder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String
@@ -535,6 +542,7 @@ createdAt DateTime @default(now())
 order OpticalOrder @relation(fields:[orderId],references:[id])
 }
 model Sale {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 number Int @unique @default(autoincrement())
 customerId String?
@@ -576,6 +584,7 @@ sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
 product Product? @relation(fields:[productId],references:[id])
 }
 model PaymentMethod {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 name String @unique
 active Boolean @default(true)
@@ -586,6 +595,7 @@ accountingMappings AccountingMapping[]
 }
 
 model CardMachine {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   name String @unique
   active Boolean @default(true)
@@ -596,6 +606,7 @@ model CardMachine {
 }
 
 model PixKey {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   type String
   key String @unique
@@ -627,6 +638,7 @@ cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
 accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
 }
 model Account {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 type AccountType
 classification String @default("OUTRA_OBRIGACAO")
@@ -668,6 +680,7 @@ payment Payment?
 @@index([accountId,paidAt])
 }
 model CashSession {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 openedAt DateTime @default(now())
 closedAt DateTime?
@@ -687,6 +700,7 @@ createdAt DateTime @default(now())
 session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
 }
 model AuditLog {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())
 userId String?
 action String
@@ -697,6 +711,7 @@ createdAt DateTime @default(now())
 user User? @relation(fields:[userId],references:[id])
 }
 model MigrationRun {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   source String
   sourceFingerprint String @unique
@@ -712,6 +727,7 @@ model MigrationRun {
   legacyRecords LegacyRecord[]
 }
 model LegacyRecord {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   source String @default("BEEPSTART")
   collectionKey String?
@@ -745,6 +761,7 @@ enum PayrollStatus {
 }
 
 model PayrollSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   ownerName String @default("Moni Becker")
   ownerRole String @default("Proprietária / Administradora")
@@ -782,6 +799,7 @@ model PayrollRecord {
 }
 
 model StoreSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   legalName String?
   tradeName String @default("MB Óptica")
@@ -808,6 +826,7 @@ model StoreSettings {
   updatedAt DateTime @updatedAt
 }
 model Appointment {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   customerId String
   type String
@@ -823,6 +842,7 @@ model Appointment {
   @@index([customerId,scheduledAt])
 }
 model BirthdayReminder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   name String
   birthDate DateTime
@@ -836,6 +856,7 @@ model BirthdayReminder {
 }
 
 model ServiceOrderSequence {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id
   nextNumber Int @default(1)
   updatedAt DateTime @updatedAt
@@ -843,6 +864,7 @@ model ServiceOrderSequence {
 
 // Accounting foundation — double-entry bookkeeping. Operational modules remain the source of business events.
 model AccountingSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   taxRegime String @default("SIMPLES_NACIONAL")
   accountingStartDate DateTime?
@@ -853,6 +875,7 @@ model AccountingSettings {
 }
 
 model ChartOfAccount {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   code String @unique
   name String
@@ -874,6 +897,7 @@ model ChartOfAccount {
 }
 
 model AccountingPeriod {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   year Int
   month Int
@@ -891,6 +915,7 @@ model AccountingPeriod {
 }
 
 model AccountingEntry {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   entryDate DateTime
   competenceDate DateTime
@@ -937,6 +962,7 @@ model AccountingEntryLine {
 }
 
 model AccountingMapping {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   eventType String
   paymentMethodId String?
@@ -972,6 +998,7 @@ model AccountingEvent {
 }
 
 model ThirdPartyFrameIntake {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   customerName String
   customerId String?
@@ -997,6 +1024,7 @@ model ThirdPartyFrameIntake {
 
 
 model FrameAdaptationOrder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
   id String @id @default(cuid())
   number Int @unique @default(autoincrement())
   saleId String @unique
