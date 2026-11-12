@@ -19,10 +19,10 @@ services:
       - no-new-privileges:true
 
   app:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-      target: runner
+    # The Windows installer imports this exact image from its bundled TAR.
+    # Do not rebuild from source on the customer's machine.
+    image: mb-optica-local:pilot
+    pull_policy: never
     environment:
       NODE_ENV: production
       PORT: "3000"
