@@ -33,6 +33,7 @@ services:
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?BOOTSTRAP_TOKEN must be set in .env}
       STORE_TRADE_NAME: ${STORE_TRADE_NAME:-Óptica}
       STORE_STATE: ${STORE_STATE:-SC}
+      MB_OPTICA_OWNER_INSTANCE: ${MB_OPTICA_OWNER_INSTANCE:-false}
     depends_on:
       db:
         condition: service_healthy

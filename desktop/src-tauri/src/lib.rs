@@ -15,6 +15,8 @@ use tauri::{Manager, WebviewWindow};
 const IMAGE: &str = "mb-optica-local:pilot";
 const PROJECT: &str = "mb-gestao-optica-piloto";
 const HEALTH: &str = "127.0.0.1:3000";
+const PILOT_MODE: &str = match option_env!("MB_GESTAO_PILOT_MODE") { Some(value) => value, None => "" };
+const CUSTOMER_NAME: &str = match option_env!("MB_GESTAO_CUSTOMER_NAME") { Some(value) => value, None => "Optica" };
 
 fn secret() -> String {
     rand::thread_rng().sample_iter(&Alphanumeric).take(64).map(char::from).collect()
@@ -79,17 +81,36 @@ fn wait_for_server() -> bool {
     false
 }
 
+
+fn set_env_value(path: &Path, key: &str, value: &str) -> Result<(), String> {
+    let current = fs::read_to_string(path).map_err(|e| format!("Falha ao ler configuração local: {e}"))?;
+    let mut found = false;
+    let mut lines = Vec::new();
+    for line in current.lines() {
+        if line.split_once('=').map(|(k, _)| k.trim() == key).unwrap_or(false) {
+            if !found { lines.push(format!("{key}={value}")); found = true; }
+        } else { lines.push(line.to_string()); }
+    }
+    if !found { lines.push(format!("{key}={value}")); }
+    fs::write(path, format!("{}\n", lines.join("\n"))).map_err(|e| format!("Falha ao atualizar configuração local: {e}"))
+}
+
 fn prepare_instance(resource_dir: PathBuf, data_dir: PathBuf) -> Result<(), String> {
     fs::create_dir_all(&data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
     let env_path = data_dir.join(".env");
     if !env_path.exists() {
         let env = format!(
-            "COMPOSE_PROJECT_NAME={PROJECT}\nSTORE_TRADE_NAME=Optica\nSTORE_STATE=SC\nDB_PASSWORD={}\nAUTH_SECRET={}\nBOOTSTRAP_TOKEN={}\n",
+            "COMPOSE_PROJECT_NAME={PROJECT}\nSTORE_TRADE_NAME={CUSTOMER_NAME}\nSTORE_STATE=SC\nDB_PASSWORD={}\nAUTH_SECRET={}\nBOOTSTRAP_TOKEN={}\n",
             secret(), secret(), secret()
         );
         let mut file = OpenOptions::new().write(true).create_new(true).open(&env_path)
             .map_err(|e| format!("Falha ao criar configuração local: {e}"))?;
         file.write_all(env.as_bytes()).map_err(|e| format!("Falha ao gravar configuração local: {e}"))?;
+    }
+
+    if PILOT_MODE == "true" {
+        set_env_value(&env_path, "STORE_TRADE_NAME", CUSTOMER_NAME)?;
+        set_env_value(&env_path, "MB_OPTICA_OWNER_INSTANCE", "true")?;
     }
 
     let docker_exe = docker_executable()?;

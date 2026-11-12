@@ -1,0 +1,75 @@
+name: MB Gestão — Instalador piloto Ótica Imagem
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build server image
+        run: docker build --pull --target runner -f Dockerfile -t mb-optica-local:pilot .
+      - name: Export server image
+        run: docker save mb-optica-local:pilot -o mb-optica-image.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: optica-imagem-server
+          path: mb-optica-image.tar
+          retention-days: 14
+
+  build-installer:
+    needs: build-server
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: optica-imagem-server
+          path: desktop/resources
+      - name: Copy local compose resources
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force resources | Out-Null
+          Copy-Item ../deploy/local-optical/compose.yaml resources/compose.yaml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "desktop/src-tauri -> target"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate dedicated pilot installer
+        env:
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
+          MB_GESTAO_PRODUCT_NAME: MB Gestão - Ótica Imagem
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
+          MB_GESTAO_INSTALLER_SLUG: optica-imagem
+        run: npm run tauri:validate:customer
+      - name: Build dedicated pilot installer
+        env:
+          MB_GESTAO_DEPLOYMENT_MODE: local
+          MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
+          MB_GESTAO_PRODUCT_NAME: MB Gestão - Ótica Imagem
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
+          MB_GESTAO_INSTALLER_SLUG: optica-imagem
+          MB_GESTAO_PILOT_MODE: "true"
+          MB_GESTAO_CUSTOMER_NAME: Ótica Imagem
+        run: npm run tauri:build:customer
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mb-gestao-optica-imagem-pilot-installer
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
