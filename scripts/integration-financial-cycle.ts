@@ -52,6 +52,40 @@ async function main() {
     method: "POST", headers, body: JSON.stringify({ openingCash: 100, openingReason: "INICIO_EXPEDIENTE", notes: "Abertura automatizada do teste integrado" })
   });
 
+  // Venda à vista deve criar pagamento, evento contábil e movimento de caixa
+  // atomicamente, sem uma segunda chamada para /api/payments.
+  const atomicSale = await api("/api/sales", {
+    method: "POST", headers, body: JSON.stringify({
+      customerId: customer.id, sellerId: user.id, paymentCondition: "AVISTA",
+      paymentMethodId: cash.id,
+      items: [{ description: "Venda à vista atômica", quantity: 1, unitPrice: 15 }]
+    })
+  });
+  assert(atomicSale.body.payments?.length === 1, "pagamento criado junto com a venda à vista");
+  assert(money(atomicSale.body.payments[0].amount) === 15, "valor do recebimento atômico");
+  assert(await db.accountingEvent.findUnique({ where: { idempotencyKey: "PAYMENT_RECEIVED:" + atomicSale.body.payments[0].id } }), "evento contábil do recebimento atômico");
+  assert(await db.cashMovement.findFirst({ where: { referenceId: atomicSale.body.id, kind: "ENTRADA", amount: 15 } }), "entrada no caixa do recebimento atômico");
+  let atomicFinance = await api("/api/financeiro", { headers });
+  assert(Math.abs(money(atomicFinance.body.summary.received) - 15) < .01, "financeiro reconhece recebimento da venda atômica");
+  await api("/api/sales/" + atomicSale.body.id + "/cancel", {
+    method: "POST", headers, body: JSON.stringify({ reason: "Limpeza do teste de recebimento atômico" })
+  });
+  atomicFinance = await api("/api/financeiro", { headers });
+  assert(Math.abs(money(atomicFinance.body.summary.received)) < .01, "estorno da venda atômica remove recebimento do resumo");
+
+  let immediateWithoutMethodFailed = false;
+  try {
+    await api("/api/sales", {
+      method: "POST", headers, body: JSON.stringify({
+        customerId: customer.id, sellerId: user.id, paymentCondition: "AVISTA",
+        items: [{ description: "Venda sem meio de recebimento", quantity: 1, unitPrice: 10 }]
+      })
+    });
+  } catch {
+    immediateWithoutMethodFailed = true;
+  }
+  assert(immediateWithoutMethodFailed, "bloqueio de venda à vista sem meio de recebimento");
+
   const sale = await api("/api/sales", {
     method: "POST", headers, body: JSON.stringify({
       customerId: customer.id, sellerId: user.id, discount: 20, installments: 2,

@@ -64,9 +64,21 @@ const payrollDefaults=()=>({ownerName:"Moni Becker",ownerRole:"Proprietária / A
 
 export async function GET(){
   try{
-    const [accounts,sales,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales,legacyAggregates]=await Promise.all([
+    const now=new Date();
+    const localParts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
+    const localPart=(type:string)=>Number(localParts.find(part=>part.type===type)?.value||0);
+    const localYear=localPart("year"),localMonth=localPart("month"),localDay=localPart("day");
+    // São Paulo uses UTC-3. These boundaries match the month shown in the Vendas tab.
+    const monthStart=new Date(Date.UTC(localYear,localMonth-1,1,3));
+    const nextMonthStart=new Date(Date.UTC(localYear,localMonth,1,3));
+    const todayStart=new Date(Date.UTC(localYear,localMonth-1,localDay,3));
+    const tomorrowStart=new Date(todayStart.getTime()+24*60*60*1000);
+    const [accounts,sales,monthlySalesAggregate,todayPayments,allReceivedPayments,openCash,methods,payrollSettings,fiscalConfig,payrollRecords,legacySales,legacyAggregates]=await Promise.all([
       db.account.findMany({orderBy:{dueDate:"asc"},take:200,include:{customer:{select:{id:true,name:true}},supplier:{select:{id:true,name:true}},sale:{select:{number:true}},settlements:{orderBy:{paidAt:"desc"},include:{paymentMethod:{select:{name:true}}}}}}),
       db.sale.findMany({where:{canceled:false},orderBy:{createdAt:"desc"},take:100,include:{customer:{select:{name:true}},payments:{include:{method:{select:{name:true}}}}}}),
+      db.sale.aggregate({where:{canceled:false,createdAt:{gte:monthStart,lt:nextMonthStart}},_count:{_all:true},_sum:{total:true}}),
+      db.payment.aggregate({where:{reversedAt:null,paidAt:{gte:todayStart,lt:tomorrowStart},sale:{is:{canceled:false}}},_sum:{amount:true}}),
+      db.payment.aggregate({where:{reversedAt:null,sale:{is:{canceled:false}}},_sum:{amount:true}}),
       db.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"},include:{movements:{orderBy:{createdAt:"desc"},take:100}}}),
       db.paymentMethod.findMany({where:{active:true},orderBy:{name:"asc"}}),
       db.payrollSettings.findFirst({orderBy:{updatedAt:"desc"}}),
@@ -112,7 +124,6 @@ export async function GET(){
       const month=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
       if(!aggregateMonths.has(month))addSale(s.createdAt,money(s.total));
     });
-    const now=new Date();
     const closedMonths:number[]=[];
     for(let i=1;i<=6;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");closedMonths.push(monthlyMap.get(key)?.revenue||0)}
     const average6=closedMonths.reduce((a,b)=>a+b,0)/6;
@@ -131,12 +142,15 @@ export async function GET(){
       regime:fiscalConfig?.taxRegime||"SIMEI"
     };
     const today=new Date(); today.setHours(0,0,0,0);
-    const received=sales.flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
+    const received=money(allReceivedPayments._sum.amount);
     const receivable=accounts.filter(a=>a.type==="RECEBER"&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const payable=accounts.filter(a=>a.type==="PAGAR"&&a.status!=="PAGO"&&a.status!=="CANCELADO").reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const writtenOff=accounts.filter(a=>a.type==="RECEBER"&&a.writtenOffAt).reduce((a,x)=>a+Math.max(0,money(x.amount)-money(x.paidAmount)),0);
     const dueToday=accounts.filter(a=>a.dueDate<=today&&a.status!=="PAGO"&&a.status!=="CANCELADO"&&!a.writtenOffAt);
-    const todayReceived=sales.filter(s=>s.createdAt>=today).flatMap(s=>s.payments).filter(p=>!p.reversedAt).reduce((a,p)=>a+money(p.amount),0);
+    const todayReceived=money(todayPayments._sum.amount);
+    const monthSalesCount=monthlySalesAggregate._count._all;
+    const monthRevenue=money(monthlySalesAggregate._sum.total);
+    const monthTicket=monthSalesCount?monthRevenue/monthSalesCount:0;
     const cashMovements=openCash?.movements||[];
     const cashIn=money(openCash?.openingCash)+cashMovements.filter(m=>["ENTRADA","REFORCO"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
     const cashOut=cashMovements.filter(m=>["SAIDA","SANGRIA"].includes(m.kind)).reduce((a,m)=>a+money(m.amount),0);
@@ -145,7 +159,7 @@ export async function GET(){
       return {month:String(p.month||r.legacyId||""),total:Math.round(Number(p.total||0)*100)/100};
     }).filter((r:any)=>/^\d{4}-(0[1-9]|1[0-2])$/.test(r.month)).sort((a:any,b:any)=>a.month.localeCompare(b.month));
     const historicalBilling={months:historicalBillingRows,total:Math.round(historicalBillingRows.reduce((sum:number,r:any)=>sum+r.total,0)*100)/100,source:"BEEPSTART_AGREGADO"};
-    return NextResponse.json({accounts,sales,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:sales.length?sales.reduce((a,s)=>a+money(s.total),0)/sales.length:0}});
+    return NextResponse.json({accounts,sales,methods,openCash,historicalBilling,payroll:{settings,payrollRecords,recommendation:payrollRecommendation,taxRules:(settings as any).taxRules||DEFAULT_TAX_RULES},summary:{receivable,payable,writtenOff,received,todayReceived,dueToday:dueToday.length,cashBalance:cashIn-cashOut,ticket:monthTicket,monthSalesCount,monthRevenue}});
   }catch(error){return NextResponse.json({error:"Não foi possível carregar o centro financeiro",detail:String(error)},{status:500})}
 }
 
