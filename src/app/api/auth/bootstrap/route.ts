@@ -9,7 +9,10 @@ const schema = z.object({
   token: z.string().min(32).max(256),
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().email().max(160),
-  password: z.string().min(12).max(200),
+  password: z.string()
+    .min(8, "A senha deve ter pelo menos 8 caracteres.")
+    .max(200)
+    .regex(/^(?=.*[A-Za-z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,200}$/, "A senha deve conter letras, números e caracteres especiais."),
 });
 
 export async function POST(request: Request) {
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, user: { id: result.id, name: result.name, email: result.email, role: result.role } }, { status: 201 });
   } catch (error) {
-    if (error instanceof z.ZodError) return NextResponse.json({ error: "Dados de inicialização inválidos." }, { status: 422 });
+    if (error instanceof z.ZodError) return NextResponse.json({ error: "A senha deve ter pelo menos 8 caracteres e conter letras, números e caracteres especiais." }, { status: 422 });
     if (error instanceof Error && error.message === "BOOTSTRAP_ALREADY_INITIALIZED") {
       return NextResponse.json({ error: "O sistema já foi inicializado." }, { status: 409 });
     }
