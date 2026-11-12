@@ -1,6 +1,16 @@
 name: MB Gestão — Instalador Windows nativo (sem Docker)
 
 on:
+  push:
+    branches: ["feat/native-windows-no-docker"]
+    paths:
+      - "desktop/**"
+      - "prisma/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - ".github/workflows/mb-gestao-windows-native.yml"
   pull_request:
     branches: ["main"]
     paths:
