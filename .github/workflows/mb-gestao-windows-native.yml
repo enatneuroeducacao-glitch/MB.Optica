@@ -1,0 +1,129 @@
+name: MB Gestão — Instalador Windows nativo (sem Docker)
+
+on:
+  push:
+    branches: ["feat/native-windows-no-docker"]
+    paths:
+      - "desktop/**"
+      - "prisma/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - ".github/workflows/mb-gestao-windows-native.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "desktop/**"
+      - "prisma/**"
+      - "src/**"
+      - "package.json"
+      - "package-lock.json"
+      - "next.config.ts"
+      - ".github/workflows/mb-gestao-windows-native.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-native-installer:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "desktop/src-tauri -> target"
+
+      - name: Install application dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Windows Next.js application
+        env:
+          NODE_ENV: production
+          DATABASE_URL: postgresql://mb_optica:build-only@127.0.0.1:55432/mb_optica?schema=public
+          DIRECT_URL: postgresql://mb_optica:build-only@127.0.0.1:55432/mb_optica?schema=public
+          AUTH_SECRET: build-only-not-a-real-secret
+          BOOTSTRAP_TOKEN: build-only-not-a-real-token
+        run: npm run build
+
+      - name: Download and verify PostgreSQL 16 portable binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $url = "https://get.enterprisedb.com/postgresql/postgresql-16.15-1-windows-x64-binaries.zip"
+          $archive = Join-Path $env:RUNNER_TEMP "postgresql-windows.zip"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $expected = "25e6fcdfb8caec38691bf461125e7564508760666f7b8e5dc6a5f0818f58f81e"
+          $actual = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "SHA-256 PostgreSQL divergente: $actual" }
+          $extract = Join-Path $env:RUNNER_TEMP "postgresql-extracted"
+          Expand-Archive -Path $archive -DestinationPath $extract -Force
+          $pgsql = Get-ChildItem -Path $extract -Directory -Filter "pgsql" -Recurse | Select-Object -First 1
+          if (-not $pgsql) { throw "Diretório pgsql não encontrado no pacote oficial EDB" }
+          New-Item -ItemType Directory -Force "desktop/resources/native/postgres" | Out-Null
+          Copy-Item "$($pgsql.FullName)\*" "desktop/resources/native/postgres" -Recurse -Force
+          foreach ($optional in @("doc","include","installer","pgAdmin 4","stackbuilder","symbols")) {
+            $target = Join-Path "desktop/resources/native/postgres" $optional
+            if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+          }
+
+      - name: Bundle Node.js and standalone application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force "desktop/resources/native/app" | Out-Null
+          $node = (Get-Command node).Source
+          Copy-Item $node "desktop/resources/native/node.exe" -Force
+          Copy-Item ".next/standalone/*" "desktop/resources/native/app" -Recurse -Force
+          if (Test-Path ".next/static") {
+            New-Item -ItemType Directory -Force "desktop/resources/native/app/.next/static" | Out-Null
+            Copy-Item ".next/static/*" "desktop/resources/native/app/.next/static" -Recurse -Force
+          }
+          if (Test-Path "public") {
+            New-Item -ItemType Directory -Force "desktop/resources/native/app/public" | Out-Null
+            Copy-Item "public/*" "desktop/resources/native/app/public" -Recurse -Force
+          }
+          Copy-Item "prisma" "desktop/resources/native/app/prisma" -Recurse -Force
+          New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules" | Out-Null
+          Copy-Item "node_modules/prisma" "desktop/resources/native/app/node_modules/prisma" -Recurse -Force
+          Copy-Item "node_modules/@prisma" "desktop/resources/native/app/node_modules/@prisma" -Recurse -Force
+          if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
+          if (-not (Test-Path "desktop/resources/native/app/node_modules/prisma/build/index.js")) { throw "Prisma CLI ausente" }
+
+      - name: Validate native payload
+        working-directory: desktop
+        run: node scripts/prepare-native-bundle.mjs
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Build native no-Docker installer
+        working-directory: desktop
+        env:
+          MB_GESTAO_NATIVE_MODE: "true"
+          MB_GESTAO_PILOT_MODE: "true"
+          MB_GESTAO_CUSTOMER_NAME: "Ótica Imagem"
+          MB_GESTAO_PRODUCT_NAME: "MB Gestão - Ótica Imagem"
+          MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.opticaimagem"
+          MB_GESTAO_INSTALLER_SLUG: "optica-imagem-native"
+        run: npm run tauri:build:native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mb-gestao-optica-imagem-native-no-docker
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14

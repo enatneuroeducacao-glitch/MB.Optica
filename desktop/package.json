@@ -9,7 +9,8 @@
     "tauri:build": "npm run build:web && npm run tauri:icon && tauri build",
     "tauri:build:customer": "node scripts/build-customer-installer.mjs",
     "tauri:validate:customer": "node scripts/build-customer-installer.mjs --validate-only",
-    "tauri:build:local": "node scripts/build-local-installer.mjs"
+    "tauri:build:local": "node scripts/build-local-installer.mjs",
+    "tauri:build:native": "node scripts/build-native-installer.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.8.4"
