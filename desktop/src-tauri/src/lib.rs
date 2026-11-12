@@ -18,7 +18,7 @@ const PROJECT: &str = "mb-gestao-optica-piloto";
 const HEALTH: &str = "127.0.0.1:3000";
 const PILOT_MODE: &str = match option_env!("MB_GESTAO_PILOT_MODE") { Some(value) => value, None => "" };
 const CUSTOMER_NAME: &str = match option_env!("MB_GESTAO_CUSTOMER_NAME") { Some(value) => value, None => "Optica" };
-const NATIVE_MODE: bool = match option_env!("MB_GESTAO_NATIVE_MODE") { Some("true") => true, _ => false };
+const NATIVE_MODE: bool = option_env!("MB_GESTAO_NATIVE_MODE").is_some();
 const NATIVE_DB_PORT: &str = "55432";
 static NATIVE_SERVER_PROCESS: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 
