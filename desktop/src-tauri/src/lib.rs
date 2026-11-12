@@ -6,7 +6,8 @@ use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
-    process::{Command, Output},
+    process::{Child, Command, Output},
+    sync::{Mutex, OnceLock},
     thread,
     time::{Duration, Instant},
 };
@@ -17,6 +18,9 @@ const PROJECT: &str = "mb-gestao-optica-piloto";
 const HEALTH: &str = "127.0.0.1:3000";
 const PILOT_MODE: &str = match option_env!("MB_GESTAO_PILOT_MODE") { Some(value) => value, None => "" };
 const CUSTOMER_NAME: &str = match option_env!("MB_GESTAO_CUSTOMER_NAME") { Some(value) => value, None => "Optica" };
+const NATIVE_MODE: bool = match option_env!("MB_GESTAO_NATIVE_MODE") { Some("true") => true, _ => false };
+const NATIVE_DB_PORT: &str = "55432";
+static NATIVE_SERVER_PROCESS: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 
 fn secret() -> String {
     rand::thread_rng().sample_iter(&Alphanumeric).take(64).map(char::from).collect()
@@ -95,7 +99,111 @@ fn set_env_value(path: &Path, key: &str, value: &str) -> Result<(), String> {
     fs::write(path, format!("{}\n", lines.join("\n"))).map_err(|e| format!("Falha ao atualizar configuração local: {e}"))
 }
 
+
+fn native_run(exe: &Path, args: &[&str]) -> Result<Output, String> {
+    let output = Command::new(exe).args(args).output()
+        .map_err(|e| format!("Falha ao executar {}: {e}", exe.display()))?;
+    if !output.status.success() {
+        return Err(format!("{} falhou: {}", exe.file_name().unwrap_or_default().to_string_lossy(), String::from_utf8_lossy(&output.stderr)));
+    }
+    Ok(output)
+}
+
+fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
+    let root = resource_dir.join("native");
+    let app_dir = root.join("app");
+    let node = root.join("node.exe");
+    let pg_bin = root.join("postgres").join("bin");
+    let initdb = pg_bin.join("initdb.exe");
+    let pg_ctl = pg_bin.join("pg_ctl.exe");
+    let postgres = pg_bin.join("postgres.exe");
+    let server_js = app_dir.join("server.js");
+    let prisma_cli = app_dir.join("node_modules").join("prisma").join("build").join("index.js");
+    for required in [&node, &initdb, &pg_ctl, &postgres, &server_js, &prisma_cli] {
+        if !required.is_file() {
+            return Err(format!("Componente nativo ausente: {}", required.display()));
+        }
+    }
+    fs::create_dir_all(data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
+    let pg_data = data_dir.join("postgres-data");
+    let env_path = data_dir.join(".env");
+    if !env_path.exists() {
+        let env = format!("STORE_TRADE_NAME={CUSTOMER_NAME}\nSTORE_STATE=SC\nDB_PASSWORD={}\nAUTH_SECRET={}\nBOOTSTRAP_TOKEN={}\n", secret(), secret(), secret());
+        fs::write(&env_path, env).map_err(|e| format!("Falha ao criar configuração local: {e}"))?;
+    }
+    let env_text = fs::read_to_string(&env_path).map_err(|e| e.to_string())?;
+    let value = |key: &str| -> Result<String, String> {
+        env_text.lines().find_map(|line| line.strip_prefix(&format!("{key}=")).map(str::to_string))
+            .ok_or_else(|| format!("Configuração {key} ausente"))
+    };
+    let db_password = value("DB_PASSWORD")?;
+    let auth_secret = value("AUTH_SECRET")?;
+    let bootstrap_token = value("BOOTSTRAP_TOKEN")?;
+
+    if !pg_data.join("PG_VERSION").exists() {
+        fs::create_dir_all(&pg_data).map_err(|e| e.to_string())?;
+        let pwfile = data_dir.join("postgres-init-password.tmp");
+        fs::write(&pwfile, &db_password).map_err(|e| e.to_string())?;
+        let pw = pwfile.to_string_lossy().to_string();
+        let data = pg_data.to_string_lossy().to_string();
+        let result = native_run(&initdb, &["-D", &data, "-U", "mb_optica", "--pwfile", &pw, "--auth-host", "scram-sha-256", "--auth-local", "scram-sha-256", "--encoding", "UTF8"]);
+        let _ = fs::remove_file(&pwfile);
+        result?;
+    }
+
+    let pgdata_text = pg_data.to_string_lossy().to_string();
+    let status = Command::new(&pg_ctl).args(["-D", &pgdata_text, "status"]).output()
+        .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
+    if !status.status.success() {
+        let log = data_dir.join("postgres.log").to_string_lossy().to_string();
+        let options = format!("-h 127.0.0.1 -p {NATIVE_DB_PORT}");
+        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log, "-o", &options, "-w", "start"])?;
+    }
+
+    let database_url = format!("postgresql://mb_optica:{db_password}@127.0.0.1:{NATIVE_DB_PORT}/mb_optica?schema=public");
+    let mut migration = Command::new(&node);
+    migration.arg(&prisma_cli).args(["migrate", "deploy"])
+        .current_dir(&app_dir)
+        .env("NODE_ENV", "production")
+        .env("DATABASE_URL", &database_url)
+        .env("DIRECT_URL", &database_url)
+        .env("AUTH_SECRET", &auth_secret)
+        .env("BOOTSTRAP_TOKEN", &bootstrap_token)
+        .env("STORE_TRADE_NAME", CUSTOMER_NAME)
+        .env("STORE_STATE", "SC");
+    let migration_output = migration.output().map_err(|e| format!("Falha ao executar migrações: {e}"))?;
+    if !migration_output.status.success() {
+        return Err(format!("Migrações do banco falharam: {}", String::from_utf8_lossy(&migration_output.stderr)));
+    }
+
+    let mut slot = NATIVE_SERVER_PROCESS.get_or_init(|| Mutex::new(None)).lock()
+        .map_err(|_| "Controle do servidor local indisponível".to_string())?;
+    if slot.as_mut().and_then(|child| child.try_wait().ok().flatten()).is_some() {
+        *slot = None;
+    }
+    if slot.is_none() {
+        let mut server = Command::new(&node);
+        server.arg("server.js").current_dir(&app_dir)
+            .env("NODE_ENV", "production")
+            .env("PORT", "3000")
+            .env("HOSTNAME", "127.0.0.1")
+            .env("DATABASE_URL", &database_url)
+            .env("DIRECT_URL", &database_url)
+            .env("AUTH_SECRET", &auth_secret)
+            .env("BOOTSTRAP_TOKEN", &bootstrap_token)
+            .env("STORE_TRADE_NAME", CUSTOMER_NAME)
+            .env("STORE_STATE", "SC")
+            .env("MB_OPTICA_OWNER_INSTANCE", if PILOT_MODE == "true" { "true" } else { "false" })
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        *slot = Some(server.spawn().map_err(|e| format!("Não foi possível iniciar o servidor MB Gestão: {e}"))?);
+    }
+    Ok(())
+}
+
 fn prepare_instance(resource_dir: PathBuf, data_dir: PathBuf) -> Result<(), String> {
+    if NATIVE_MODE { return native_prepare(&resource_dir, &data_dir); }
     fs::create_dir_all(&data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
     let env_path = data_dir.join(".env");
     if !env_path.exists() {
