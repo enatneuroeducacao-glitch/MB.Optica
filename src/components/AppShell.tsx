@@ -141,6 +141,22 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
   },[path]);
   if(path==="/inicio"||path==="/login"||path==="/setup"||path==="/primeiro-acesso") return <>{children}</>;
   if(user?.mustChangePassword){ router.replace("/primeiro-acesso"); return null; }
+  async function handleUpdate(){
+    const invoke=(window as any).__TAURI__?.core?.invoke;
+    if(!invoke){window.location.reload();return;}
+    if(updateBusy)return;
+    try{
+      setUpdateBusy(true);
+      const available=await invoke("check_for_update");
+      if(!available){setNotice({title:"Sistema atualizado",detail:"Esta instalação já está na versão mais recente publicada.",kind:"success"});return;}
+      const info=available as {version:string;notes?:string};
+      if(!window.confirm("Está disponível a versão "+info.version+".\\n\\nAntes da atualização será criado um backup completo do PostgreSQL. Deseja continuar?"))return;
+      const result=await invoke("apply_update");
+      setNotice({title:"Atualização concluída",detail:String(result),kind:"success"});
+      window.setTimeout(()=>window.location.reload(),1800);
+    }catch(error){setNotice({title:"Atualização não concluída",detail:error instanceof Error?error.message:String(error),kind:"error"});}
+    finally{setUpdateBusy(false);}
+  }
   async function logout(){setBusy(true);try{await fetch("/api/auth/logout",{method:"POST"});router.replace("/inicio");router.refresh();}finally{setBusy(false);}}
   async function downloadLocalBackup(){
     try{
@@ -172,7 +188,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     <main className="main">
       <header className="topbar">
         <div className="topbar-left"><button className="mobile-menu-button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={()=>setMenuOpen(true)}>☰</button><div><span className="eyebrow">OPERAÇÃO</span><strong>Centro de controle</strong></div></div>
-        <div className="top-actions">{user&&<a className="version-control university-top-link" href="https://universidade.mboptica.com.br/" target="_blank" rel="noopener noreferrer" title="Abrir a Universidade MB em uma nova aba">🎓 Universidade MB ↗</a>}{user&&<button className="version-control backup-top-button" type="button" onClick={downloadLocalBackup} disabled={busy} title="Gerar um backup operacional JSON para salvar no computador">⇩ Backup</button>}{user&&<Link className="version-control" href="/vendas#caixa" title={cashSession===undefined?"Consultar situação do caixa":cashSession===null?"Abrir o caixa e registrar o horário de início":"Conferir o caixa e registrar o fechamento"}>{cashSession===undefined?"Caixa":cashSession===null?"Abrir caixa":"Fechar caixa"}</Link>}{user&&cashSession&&cashSession.closingPending&&<Link className="version-control update-available" href="/vendas#caixa" title="Há um caixa aberto de dia anterior">Fechamento pendente</Link>}<button className={"version-control"+(updateAvailable?" update-available":"")} onClick={()=>window.location.reload()} title="Verificar e aplicar a versão mais recente">{updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button>{entitlement&&!entitlement.owner&&<span className="version-badge" title={entitlement.trial?"Modo degustação":"Recursos conforme assinatura"}>{entitlement.trial?"Degustação":"Plano "+entitlement.plan}</span>}<span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
+        <div className="top-actions">{user&&<a className="version-control university-top-link" href="https://universidade.mboptica.com.br/" target="_blank" rel="noopener noreferrer" title="Abrir a Universidade MB em uma nova aba">🎓 Universidade MB ↗</a>}{user&&<button className="version-control backup-top-button" type="button" onClick={downloadLocalBackup} disabled={busy} title="Gerar um backup operacional JSON para salvar no computador">⇩ Backup</button>}{user&&<Link className="version-control" href="/vendas#caixa" title={cashSession===undefined?"Consultar situação do caixa":cashSession===null?"Abrir o caixa e registrar o horário de início":"Conferir o caixa e registrar o fechamento"}>{cashSession===undefined?"Caixa":cashSession===null?"Abrir caixa":"Fechar caixa"}</Link>}{user&&cashSession&&cashSession.closingPending&&<Link className="version-control update-available" href="/vendas#caixa" title="Há um caixa aberto de dia anterior">Fechamento pendente</Link>}<button className={"version-control"+(updateAvailable?" update-available":"")} onClick={handleUpdate} disabled={updateBusy} title="Verificar, baixar e aplicar atualização com backup e rollback">{updateBusy?"↻ Atualizando...":updateAvailable?"↻ Nova versão":"↻ Atualizar sistema"}</button>{entitlement&&!entitlement.owner&&<span className="version-badge" title={entitlement.trial?"Modo degustação":"Recursos conforme assinatura"}>{entitlement.trial?"Degustação":"Plano "+entitlement.plan}</span>}<span className="version-badge">v{version ? version.slice(0,8) : "..."}</span><button className="icon-button">⌕</button><button className="user-chip" onClick={logout} disabled={busy}>{user?.name ?? "Usuário"} <span>{roleLabel[user?.role ?? ""] ?? user?.role ?? ""} · {busy?"Saindo...":"Sair"}</span></button></div>
       </header>
       {children}
     </main>
