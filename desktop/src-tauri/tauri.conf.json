@@ -22,11 +22,14 @@
     ],
     "security": {
       "capabilities": []
-    }
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "shortDescription": "MB Gestão Inteligente — servidor local independente",
     "longDescription": "Instalação local independente do MB Gestão. Requer Docker Desktop.",
     "category": "Business"

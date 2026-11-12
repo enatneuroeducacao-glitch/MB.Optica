@@ -1,3 +1,4 @@
+mod updater;
 use rand::{distributions::Alphanumeric, Rng};
 use std::{
     env,
@@ -131,6 +132,7 @@ fn show_error(window: &WebviewWindow, message: &str) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![updater::check_for_update, updater::apply_update])
         .setup(|app| {
             let window: WebviewWindow = app.get_webview_window("main")
                 .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Janela principal não encontrada"))?;
