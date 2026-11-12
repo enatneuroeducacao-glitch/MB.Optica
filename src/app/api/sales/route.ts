@@ -86,6 +86,19 @@ export async function POST(req:Request){
       const installments=Math.max(0,Math.floor(Number(b.installments||0)));
       const entryAmount=Math.max(0,Math.min(total,Number(b.entryAmount||0)));
       const paymentMethodId=b.paymentMethodId?String(b.paymentMethodId):null;
+      const paymentCondition=String(b.paymentCondition||"");
+      const immediatePayment=["AVISTA","PIX","CARTAO"].includes(paymentCondition);
+      const cardMachineId=b.cardMachineId?String(b.cardMachineId):null;
+      const cardInstallments=b.cardInstallments===undefined||b.cardInstallments===null||b.cardInstallments===""?null:Math.floor(Number(b.cardInstallments));
+      const cardFeeRate=b.cardFeeRate===undefined||b.cardFeeRate===null||b.cardFeeRate===""?null:Number(b.cardFeeRate);
+      if(immediatePayment&&!paymentMethodId) throw new Error("Selecione o meio de recebimento. Para receber depois, use Misto ou Crediário/Carnê.");
+      if(paymentCondition==="CARTAO"){
+        if(!cardMachineId) throw new Error("Selecione a maquininha utilizada.");
+        if(!Number.isInteger(cardInstallments)||Number(cardInstallments)<1||Number(cardInstallments)>24) throw new Error("Informe um número válido de parcelas do cartão.");
+        if(cardFeeRate===null||!Number.isFinite(cardFeeRate)||cardFeeRate<0||cardFeeRate>100) throw new Error("Informe uma taxa válida para a maquininha.");
+      }else if(cardMachineId||cardInstallments!==null||cardFeeRate!==null){
+        throw new Error("Dados de maquininha só podem ser informados em venda no cartão de crédito.");
+      }
       const mixedPayments=Array.isArray(b.payments)?b.payments:[];
       const mixedPaid=mixedPayments.reduce((sum:any,p:any)=>sum+Math.max(0,Number(p.amount||0)),0);
       const receivableAmount=Math.max(0,Math.min(total,Number(b.receivable?.amount||0)));
@@ -149,6 +162,67 @@ export async function POST(req:Request){
         idempotencyKey: "SALE_RECOGNIZED:" + sale.id,
         payload: { amount: total, entryDate: sale.createdAt.toISOString(), description: "Reconhecimento da venda #" + sale.number },
       });
+
+      // Venda à vista, PIX e cartão: o recebimento nasce na mesma transação da venda.
+      // Assim não existe venda confirmada sem o respectivo lançamento financeiro.
+      const createdPayments:any[]=[];
+      if(immediatePayment){
+        const method=await tx.paymentMethod.findUnique({where:{id:paymentMethodId!}});
+        if(!method||!method.active) throw new Error("Meio de recebimento inválido ou inativo.");
+        const isCredit=method.name.toLocaleLowerCase("pt-BR").includes("cartão de crédito")||method.name.toLocaleLowerCase("pt-BR").includes("cartao de credito");
+        if(paymentCondition==="CARTAO"&&!isCredit) throw new Error("Selecione o meio Cartão de crédito para esta condição.");
+        if(paymentCondition!=="CARTAO"&&isCredit) throw new Error("Use a condição Cartão de crédito para registrar a maquininha e suas taxas.");
+        let cardMachine:any=null;
+        if(paymentCondition==="CARTAO"){
+          cardMachine=await tx.cardMachine.findUnique({where:{id:cardMachineId!}});
+          if(!cardMachine||!cardMachine.active) throw new Error("Maquininha não encontrada ou inativa.");
+        }
+        const session=method.isCash
+          ? await tx.cashSession.findFirst({where:{closedAt:null},orderBy:{openedAt:"desc"}})
+          : null;
+        if(method.isCash&&!session) throw new Error("Não há caixa aberto para registrar este recebimento.");
+        const cardFeeAmount=paymentCondition==="CARTAO"?Number((total*Number(cardFeeRate)/100).toFixed(2)):null;
+        const cardNetAmount=cardFeeAmount===null?null:Number((total-cardFeeAmount).toFixed(2));
+        const payment=await tx.payment.create({data:{
+          saleId:sale.id,
+          methodId:method.id,
+          amount:total,
+          reference:b.paymentReference?String(b.paymentReference):undefined,
+          cardMachineId:cardMachine?.id,
+          cardInstallments:paymentCondition==="CARTAO"?cardInstallments!:undefined,
+          cardFeeRate:paymentCondition==="CARTAO"?cardFeeRate!:undefined,
+          cardFeeAmount:cardFeeAmount??undefined,
+          cardNetAmount:cardNetAmount??undefined
+        }});
+        createdPayments.push(payment);
+        await enqueueAccountingEvent(tx,{
+          eventType:"PAYMENT_RECEIVED",
+          sourceType:"Payment",
+          sourceId:payment.id,
+          idempotencyKey:"PAYMENT_RECEIVED:"+payment.id,
+          payload:{
+            amount:total,
+            entryDate:payment.paidAt.toISOString(),
+            description:"Recebimento da venda #"+sale.number,
+            paymentMethodId:method.id,
+            paymentMethodName:method.name,
+            isCash:method.isCash,
+            cardMachineId:cardMachine?.id??null,
+            cardFeeAmount:cardFeeAmount??0,
+            cardNetAmount:cardNetAmount??total,
+            reference:payment.reference??null
+          }
+        });
+        if(method.isCash&&session){
+          await tx.cashMovement.create({data:{
+            sessionId:session.id,
+            kind:"ENTRADA",
+            amount:total,
+            description:"Pagamento da venda #"+sale.number,
+            referenceId:sale.id
+          }});
+        }
+      }
 
       let createdAccounts:any[]=[];
       let entryPayment:any=null;
@@ -292,7 +366,7 @@ export async function POST(req:Request){
       }
 
       await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
-      return {...sale,accounts:createdAccounts,entryPayment};
+      return {...sale,accounts:createdAccounts,entryPayment,payments:createdPayments};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:20000});
 
     const siteSync=await syncPublishedProductStocks((b.items||[]).map((item:any)=>String(item.productId||"")).filter(Boolean));
