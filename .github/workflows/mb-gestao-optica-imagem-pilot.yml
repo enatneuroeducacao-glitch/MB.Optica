@@ -1,6 +1,12 @@
 name: MB Gestão — Instalador piloto Ótica Imagem
 
 on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "desktop/**"
+      - "deploy/local-optical/**"
+      - ".github/workflows/mb-gestao-optica-imagem-pilot.yml"
   workflow_dispatch:
 
 permissions:
