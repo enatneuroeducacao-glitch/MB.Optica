@@ -1,0 +1,42 @@
+name: Publish MB Gestão local server update
+on:
+  push:
+    tags: ["server-v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão semântica do servidor (ex.: 0.2.0)"
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then VERSION="${{ inputs.version }}"; else VERSION="${GITHUB_REF_NAME#server-v}"; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Build local server image
+        run: docker build --pull --target runner -f Dockerfile -t mb-optica-local:pilot .
+      - name: Export image
+        run: docker save mb-optica-local:pilot -o mb-optica-image.tar
+      - name: Generate manifest with SHA-256
+        shell: bash
+        run: |
+          SHA="$(sha256sum mb-optica-image.tar | cut -d' ' -f1)"
+          printf '{"version":"%s","imageUrl":"https://github.com/%s/releases/download/server-v%s/mb-optica-image.tar","sha256":"%s","notes":"Atualização do servidor MB Gestão."}\n' "${{ steps.version.outputs.version }}" "$GITHUB_REPOSITORY" "${{ steps.version.outputs.version }}" "$SHA" > mb-gestao-update.json
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: server-v${{ steps.version.outputs.version }}
+          name: MB Gestão Server v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            mb-optica-image.tar
+            mb-gestao-update.json
