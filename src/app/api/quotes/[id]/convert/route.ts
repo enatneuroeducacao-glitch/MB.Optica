@@ -13,8 +13,9 @@ export async function POST(_:Request,{params}:{params:Promise<{id:string}>}){
    if(!quote)throw new Error("Orçamento não encontrado.");
    if(quote.order)return quote.order;
    if(quote.status!=="APROVADO")throw new Error("O orçamento precisa estar APROVADO antes de ser convertido em O.S.");
+   const lastOrder=await tx.opticalOrder.aggregate({_max:{number:true}});
    const order=await tx.opticalOrder.create({
-    data:{
+    data:{number:(lastOrder._max.number??0)+1,
      customerId:quote.customerId,prescriptionId:quote.prescriptionId||undefined,sellerId:quote.sellerId||actor.id,
      status:"PEDIDO",dueDate:quote.deliveryDate||undefined,notes:quote.notes||undefined,total:quote.total,
      quoteId:quote.id,

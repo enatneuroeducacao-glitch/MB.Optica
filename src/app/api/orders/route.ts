@@ -55,8 +55,9 @@ export async function POST(req:Request){
     if(b.total!==undefined&&(!Number.isFinite(Number(b.total))||Number(b.total)<0)) throw new Error("Total inválido");
 
     const order=await db.$transaction(async(tx)=>{
+      const lastOrder=await tx.opticalOrder.aggregate({_max:{number:true}});
       const created=await tx.opticalOrder.create({
-        data:{
+        data:{number:(lastOrder._max.number??0)+1,
           customerId:customer.id,
           prescriptionId:b.prescriptionId?String(b.prescriptionId):undefined,
           sellerId:b.sellerId?String(b.sellerId):undefined,

@@ -113,8 +113,9 @@ export async function POST(req:Request){
         }
       }
 
+      const lastSale=await tx.sale.aggregate({_max:{number:true}});
       const sale=await tx.sale.create({
-        data:{
+        data:{number:(lastSale._max.number??0)+1,
           customerId:customer.id,
           sellerId:seller.id,
           saleType,
@@ -134,7 +135,9 @@ export async function POST(req:Request){
 
       if(saleType==="ARMACAO_ADAPTACAO"){
         const service=b.frameAdaptation;
+        const lastFrameOrder=await tx.frameAdaptationOrder.aggregate({_max:{number:true}});
         await tx.frameAdaptationOrder.create({data:{
+          number:(lastFrameOrder._max.number??0)+1,
           saleId:sale.id,
           customerId:customer.id,
           prescriptionId:service.prescriptionId?String(service.prescriptionId):undefined,

@@ -76,8 +76,9 @@ export async function POST(req:Request){
   const total=Math.max(0,subtotal-b.discount+b.surcharge);
   if(b.entryAmount>total)throw new Error("A entrada não pode ser maior que o total.");
   const data=await db.$transaction(async tx=>{
+   const lastQuote=await tx.quote.aggregate({_max:{number:true}});
    const quote=await tx.quote.create({
-    data:{
+    data:{number:(lastQuote._max.number??0)+1,
      customerId:b.customerId,prescriptionId:b.prescriptionId||undefined,sellerId:actor.id,
      validUntil:dateOrNull(b.validUntil),deliveryDate:dateOrNull(b.deliveryDate),
      discount:b.discount,surcharge:b.surcharge,entryAmount:b.entryAmount,total,
