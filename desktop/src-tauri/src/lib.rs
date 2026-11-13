@@ -101,7 +101,14 @@ fn set_env_value(path: &Path, key: &str, value: &str) -> Result<(), String> {
 
 
 fn native_run(exe: &Path, args: &[&str]) -> Result<Output, String> {
-    let output = Command::new(exe).args(args).output()
+    // Keep PostgreSQL utilities and their child postgres.exe process on a
+    // deterministic UTF-8/C locale instead of inheriting Windows ACP messages.
+    let output = Command::new(exe)
+        .args(args)
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .env("PGCLIENTENCODING", "UTF8")
+        .output()
         .map_err(|e| format!("Falha ao executar {}: {e}", exe.display()))?;
     if !output.status.success() {
         return Err(format!("{} falhou: {}", exe.file_name().unwrap_or_default().to_string_lossy(), String::from_utf8_lossy(&output.stderr)));
@@ -164,13 +171,18 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         fs::write(&pwfile, &db_password).map_err(|e| e.to_string())?;
         let pw = pwfile.to_string_lossy().to_string();
         let data = pg_data.to_string_lossy().to_string();
-        let result = native_run(&initdb, &["-D", &data, "-U", "mb_optica", "--pwfile", &pw, "--auth-host", "scram-sha-256", "--auth-local", "scram-sha-256", "--encoding", "UTF8"]);
+        let result = native_run(&initdb, &["-D", &data, "-U", "mb_optica", "--pwfile", &pw, "--auth-host", "scram-sha-256", "--auth-local", "scram-sha-256", "--locale", "C", "--encoding", "UTF8"]);
         let _ = fs::remove_file(&pwfile);
         result?;
     }
 
     let pgdata_text = pg_data.to_string_lossy().to_string();
-    let status = Command::new(&pg_ctl).args(["-D", &pgdata_text, "status"]).output()
+    let status = Command::new(&pg_ctl)
+        .args(["-D", &pgdata_text, "status"])
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .env("PGCLIENTENCODING", "UTF8")
+        .output()
         .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
     if !status.status.success() {
         let log = data_dir.join("postgres.log").to_string_lossy().to_string();
