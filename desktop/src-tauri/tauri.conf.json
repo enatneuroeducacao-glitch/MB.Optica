@@ -31,7 +31,7 @@
       "nsis"
     ],
     "shortDescription": "MB Gestão Inteligente — servidor local independente",
-    "longDescription": "Instalação local independente do MB Gestão, com banco PostgreSQL nativo e sem Docker.",
+    "longDescription": "Instalação local independente do MB Gestão, com banco SQLite local, independente e sem Docker.",
     "category": "Business"
   }
 }
