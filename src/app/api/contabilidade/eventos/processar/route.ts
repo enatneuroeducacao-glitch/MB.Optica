@@ -78,7 +78,10 @@ export async function POST(request: Request) {
         const methodRecord = sourceSettlement?.paymentMethod?.active
           ? sourceSettlement.paymentMethod
           : legacyMethodName
-            ? await tx.paymentMethod.findFirst({ where: { name: { equals: legacyMethodName, mode: "insensitive" }, active: true } })
+            ? (await tx.paymentMethod.findMany({
+                where: { active: true },
+                select: { id: true, name: true, active: true, isCash: true },
+              })).find((method) => method.name.trim().toLocaleLowerCase("pt-BR") === legacyMethodName.toLocaleLowerCase("pt-BR")) ?? null
             : null;
         payload = {
           ...payload,
