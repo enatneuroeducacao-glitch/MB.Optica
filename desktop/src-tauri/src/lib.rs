@@ -216,7 +216,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
 
     if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(90)) {
         let details = fs::read_to_string(&log_path).unwrap_or_else(|_| "Log PostgreSQL ainda não foi criado.".to_string());
-        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\\n");
+        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
         return Err(format!("PostgreSQL não abriu a porta 55432 após 90 segundos. Log: {tail}"));
     }
 
