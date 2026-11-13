@@ -115,10 +115,10 @@ fn windows_compatible_path(path: &Path) -> PathBuf {
     #[cfg(windows)]
     {
         let value = path.as_os_str().to_string_lossy();
-        if let Some(rest) = value.strip_prefix(r"\\?\\UNC\\") {
-            return PathBuf::from(format!(r"\\\\{}", rest));
+        if let Some(rest) = value.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{}", rest));
         }
-        if let Some(rest) = value.strip_prefix(r"\\?\\") {
+        if let Some(rest) = value.strip_prefix(r"\\?\") {
             return PathBuf::from(rest);
         }
     }
