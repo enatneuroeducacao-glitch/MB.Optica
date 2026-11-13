@@ -1,0 +1,1058 @@
+generator client {
+provider = "prisma-client-js"
+}
+datasource db {
+provider = "sqlite"
+url = env("DATABASE_URL")
+directUrl = env("DIRECT_URL")
+}
+enum UserRole {
+  ADMIN
+  GERENTE
+  VENDEDOR
+  LABORATORIO
+  FINANCEIRO
+}
+enum OrderStatus {
+  ORCAMENTO
+  APROVADO
+  PEDIDO
+  AGUARDANDO_LABORATORIO
+  EM_PRODUCAO
+  RECEBIDO
+  CONFERENCIA
+  RETORNO_GARANTIA
+  PRONTO
+  ENTREGUE
+  CANCELADO
+  DEVOLVIDO
+}
+enum PaymentStatus {
+  PENDENTE
+  PARCIAL
+  PAGO
+  CANCELADO
+}
+enum AccountType {
+  RECEBER
+  PAGAR
+}
+enum StockMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  TRANSFERENCIA
+  DEVOLUCAO
+}
+enum FiscalDocumentType {
+  NFC_E
+  NF_E
+  NFA_E
+  NFS_E
+}
+enum FiscalDocumentStatus {
+  PENDENTE
+  AUTORIZADO
+  REJEITADO
+  CANCELADO
+  INUTILIZADO
+  CONTINGENCIA
+}
+enum FiscalIntegrationMode {
+  NFF
+  NFAE_SAT
+  PAF_NFCE
+  MANUAL
+}
+model FiscalConfig {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+  legalName String?
+  tradeName String?
+  cnpj String?
+  stateRegistration String?
+  municipalRegistration String?
+  uf String @default("SC")
+  city String?
+  taxRegime String @default("SIMEI")
+  integrationMode FiscalIntegrationMode @default(NFF)
+  series String?
+  environment String @default("HOMOLOGACAO")
+  secretReference String?
+  certificateType String?
+  certificateExpiresAt DateTime?
+  certificateAuthority String?
+  certificateLastCheckedAt DateTime?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  documents FiscalDocument[]
+}
+model FiscalDocument {
+id String @id @default(cuid())
+  type FiscalDocumentType
+  status FiscalDocumentStatus @default(PENDENTE)
+  number String?
+  series String?
+  accessKey String?
+  protocol String?
+  issueDate DateTime?
+  authorizationDate DateTime?
+  cancellationDate DateTime?
+  total Decimal @default(0)
+  customerName String?
+  customerDocument String?
+  xml String?
+  danfeUrl String?
+  qrCodeUrl String?
+  rejectionCode String?
+  rejectionMessage String?
+  notes String?
+  configId String?
+  saleId String? @unique
+  config FiscalConfig? @relation(fields:[configId],references:[id])
+  sale Sale? @relation(fields:[saleId],references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status])
+  @@index([accessKey])
+}
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PlatformRole {
+  OWNER
+  SUPER_ADMIN
+  SUPPORT
+}
+
+enum SubscriptionPlan {
+  BASICO
+  PROFISSIONAL
+  PREMIUM
+  ENTERPRISE
+  PROPRIETARIO
+}
+
+enum SubscriptionStatus {
+  AVALIACAO
+  ATIVA
+  PENDENTE
+  SUSPENSA
+  CANCELADA
+  EXPIRADA
+}
+
+enum BillingCycle {
+  MENSAL
+  ANUAL
+}
+
+model Organization {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  status OrganizationStatus @default(ACTIVE)
+  timezone String @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  memberships OrganizationMembership[]
+  subscription Subscription?
+  @@index([status, createdAt])
+}
+
+model OrganizationMembership {
+  id String @id @default(cuid())
+  organizationId String
+  userId String
+  role UserRole @default(VENDEDOR)
+  active Boolean @default(true)
+  permissions Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([organizationId, userId])
+  @@index([userId, active])
+  @@index([organizationId, role, active])
+}
+
+model PlatformAccess {
+  id String @id @default(cuid())
+  userId String @unique
+  role PlatformRole @default(OWNER)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([role, active])
+}
+
+model Subscription {
+  id String @id @default(cuid())
+  organizationId String? @unique
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @default(PROFISSIONAL)
+  status SubscriptionStatus @default(AVALIACAO)
+  billingCycle BillingCycle @default(MENSAL)
+  price Decimal @default(0)
+  maxUsers Int @default(5)
+  maxUnits Int?
+  maxClients Int?
+  maxProducts Int?
+  maxSales Int?
+  maxOrders Int?
+  trialDays Int @default(60)
+  graceDays Int @default(5)
+  licenseType String @default("SUBSCRIPTION")
+  modules Json?
+  provider String?
+  providerCustomerId String?
+  providerSubscriptionId String? @unique
+  trialEndsAt DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd DateTime?
+  canceledAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model User {
+id String @id @default(cuid())
+name String
+email String @unique
+mbEmail String? @unique
+role UserRole @default(VENDEDOR)
+active Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+passwordHash String?
+mustChangePassword Boolean @default(false)
+sessionVersion Int @default(0)
+lastLoginAt DateTime?
+permissions Json?
+passwordResetTokens PasswordResetToken[]
+sales Sale[]
+orders OpticalOrder[]
+quotes Quote[]
+auditLogs AuditLog[]
+  memberships OrganizationMembership[]
+  platformAccess PlatformAccess?
+  mailStates MailMessageState[]
+  mailContactPreferences MailContactPreference[]
+}
+
+model MailMessageState {
+  id String @id @default(cuid())
+  userId String
+  messageId String
+  read Boolean @default(false)
+  archived Boolean @default(false)
+  deleted Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@unique([userId,messageId])
+  @@index([userId,archived,deleted])
+}
+
+model MailContactPreference {
+  id String @id @default(cuid())
+  userId String
+  email String
+  contactType String
+  hidden Boolean @default(false)
+  deleted Boolean @default(false)
+  blocked Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@unique([userId,email])
+  @@index([userId,contactType,hidden])
+}
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@index([userId,expiresAt])
+}
+
+model Customer {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+name String
+cpfCnpj String? @unique
+phone String?
+whatsapp String?
+email String?
+birthDate DateTime?
+notes String?
+active Boolean @default(true)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+addresses Address[]
+prescriptions Prescription[]
+quotes Quote[]
+orders OpticalOrder[]
+sales Sale[]
+accounts Account[]
+legacyRecords LegacyRecord[]
+appointments Appointment[]
+thirdPartyFrameIntakes ThirdPartyFrameIntake[]
+  frameAdaptationOrders FrameAdaptationOrder[]
+birthdayReminders BirthdayReminder[]
+}
+model Address {
+id String @id @default(cuid())
+customerId String
+label String?
+street String?
+number String?
+complement String?
+district String?
+city String?
+state String?
+postalCode String?
+customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+}
+model Prescription {
+id String @id @default(cuid())
+customerId String
+date DateTime @default(now())
+professional String?
+validUntil DateTime?
+odSphere Decimal?
+odCylinder Decimal?
+odAxis Decimal?
+odAdd Decimal?
+odPrism Decimal?
+odBase String?
+odDnp Decimal?
+odHeight Decimal?
+oeSphere Decimal?
+oeCylinder Decimal?
+oeAxis Decimal?
+oeAdd Decimal?
+oePrism Decimal?
+oeBase String?
+oeDnp Decimal?
+oeHeight Decimal?
+pdTotal Decimal?
+notes String?
+originalText String?
+customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+orders OpticalOrder[]
+quotes Quote[]
+  frameAdaptationOrders FrameAdaptationOrder[]
+}
+model Category {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+name String @unique
+active Boolean @default(true)
+products Product[]
+}
+model Supplier {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+name String
+document String?
+phone String?
+email String?
+notes String?
+active Boolean @default(true)
+products Product[]
+accounts Account[]
+}
+model Product {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+ncm String?
+cest String?
+cfop String?
+origin String?
+taxCode String?
+code String @unique
+barcode String? @unique
+description String
+brand String?
+model String?
+color String?
+frameSize String?
+lensWidth Int?
+bridgeWidth Int?
+templeLength Int?
+material String?
+frameShape String?
+photoData String?
+publishedOnSite Boolean @default(false)
+siteCollectionSlug String?
+siteFeatured Boolean @default(false)
+siteSortOrder Int @default(0)
+siteDescription String?
+sitePrice Decimal?
+siteProductId String?
+siteSyncedAt DateTime?
+siteSyncStatus String?
+siteSyncError String?
+unit String @default("UN")
+cost Decimal @default(0)
+salePrice Decimal @default(0)
+minimumStock Decimal @default(0)
+stockControlled Boolean @default(true)
+active Boolean @default(true)
+categoryId String?
+supplierId String?
+category Category? @relation(fields:[categoryId],references:[id])
+supplier Supplier? @relation(fields:[supplierId],references:[id])
+lots StockLot[]
+movements StockMovement[]
+orderItems OpticalOrderItem[]
+quoteItems QuoteItem[]
+saleItems SaleItem[]
+}
+model StockLot {
+id String @id @default(cuid())
+productId String
+code String?
+description String?
+receivedAt DateTime @default(now())
+quantity Decimal
+cost Decimal?
+expiresAt DateTime?
+archived Boolean @default(false)
+product Product @relation(fields:[productId],references:[id],onDelete:Cascade)
+movementLots StockMovementLot[]
+}
+model StockMovement {
+id String @id @default(cuid())
+productId String
+type StockMovementType
+quantity Decimal
+unitCost Decimal?
+reference String?
+referenceId String?
+notes String?
+createdAt DateTime @default(now())
+product Product @relation(fields:[productId],references:[id])
+lotLinks StockMovementLot[]
+}
+model StockMovementLot {
+id String @id @default(cuid())
+movementId String
+lotId String
+quantity Decimal
+movement StockMovement @relation(fields:[movementId],references:[id],onDelete:Cascade)
+lot StockLot @relation(fields:[lotId],references:[id])
+@@unique([movementId,lotId])
+@@index([lotId])
+}
+model Quote {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String
+prescriptionId String?
+sellerId String?
+status String @default("ABERTO")
+validUntil DateTime?
+deliveryDate DateTime?
+discount Decimal @default(0)
+surcharge Decimal @default(0)
+entryAmount Decimal @default(0)
+total Decimal @default(0)
+paymentMethod String?
+installments Int?
+notes String?
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+customer Customer @relation(fields:[customerId],references:[id])
+prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+seller User? @relation(fields:[sellerId],references:[id])
+items QuoteItem[]
+order OpticalOrder?
+@@index([status])
+@@index([customerId,createdAt])
+}
+model QuoteItem {
+id String @id @default(cuid())
+quoteId String
+productId String?
+description String
+kind String?
+eye String?
+quantity Decimal
+unitPrice Decimal
+quote Quote @relation(fields:[quoteId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
+}
+model OpticalOrder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String
+prescriptionId String?
+sellerId String?
+status OrderStatus @default(ORCAMENTO)
+dueDate DateTime?
+laboratory String?
+laboratorySentAt DateTime?
+receivedAt DateTime?
+deliveredAt DateTime?
+notes String?
+total Decimal @default(0)
+discount Decimal @default(0)
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+customer Customer @relation(fields:[customerId],references:[id])
+prescription Prescription? @relation(fields:[prescriptionId],references:[id])
+seller User? @relation(fields:[sellerId],references:[id])
+items OpticalOrderItem[]
+events OrderEvent[]
+quoteId String? @unique
+quote Quote? @relation(fields:[quoteId],references:[id])
+sale Sale?
+}
+model OpticalOrderItem {
+id String @id @default(cuid())
+orderId String
+productId String?
+description String
+kind String
+eye String?
+quantity Decimal @default(1)
+unitPrice Decimal @default(0)
+order OpticalOrder @relation(fields:[orderId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
+}
+model OrderEvent {
+id String @id @default(cuid())
+orderId String
+status OrderStatus
+message String
+createdAt DateTime @default(now())
+order OpticalOrder @relation(fields:[orderId],references:[id])
+}
+model Sale {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+number Int @unique @default(autoincrement())
+customerId String?
+sellerId String
+saleType String @default("BALCAO")
+orderId String? @unique
+subtotal Decimal @default(0)
+discount Decimal @default(0)
+surcharge Decimal @default(0)
+total Decimal @default(0)
+notes String?
+paymentCondition String?
+installments Int?
+pixPayload String?
+canceled Boolean @default(false)
+canceledAt DateTime?
+cancelReason String?
+createdAt DateTime @default(now())
+customer Customer? @relation(fields:[customerId],references:[id])
+seller User @relation(fields:[sellerId],references:[id])
+order OpticalOrder? @relation(fields:[orderId],references:[id])
+items SaleItem[]
+payments Payment[]
+accounts Account[]
+fiscalDocument FiscalDocument?
+  frameAdaptationOrder FrameAdaptationOrder?
+}
+model SaleItem {
+id String @id @default(cuid())
+saleId String
+productId String?
+description String
+quantity Decimal
+unitPrice Decimal
+unitCost Decimal @default(0)
+discount Decimal @default(0)
+total Decimal @default(0)
+sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
+product Product? @relation(fields:[productId],references:[id])
+}
+model PaymentMethod {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+name String @unique
+active Boolean @default(true)
+isCash Boolean @default(true)
+payments Payment[]
+settlements AccountSettlement[]
+accountingMappings AccountingMapping[]
+}
+
+model CardMachine {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  name String @unique
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  payments Payment[]
+  settlements AccountSettlement[]
+}
+
+model PixKey {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  type String
+  key String @unique
+  holderName String
+  holderDocument String?
+  city String?
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Payment {
+id String @id @default(cuid())
+saleId String
+methodId String
+amount Decimal
+reference String?
+cardMachineId String?
+cardInstallments Int?
+cardFeeRate Decimal?
+cardFeeAmount Decimal?
+cardNetAmount Decimal?
+reversedAt DateTime?
+reversalReference String?
+paidAt DateTime @default(now())
+accountSettlementId String? @unique
+sale Sale @relation(fields:[saleId],references:[id],onDelete:Cascade)
+method PaymentMethod @relation(fields:[methodId],references:[id])
+cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
+accountSettlement AccountSettlement? @relation(fields:[accountSettlementId],references:[id])
+}
+model Account {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+type AccountType
+classification String @default("OUTRA_OBRIGACAO")
+description String
+customerId String?
+supplierId String?
+saleId String?
+dueDate DateTime
+amount Decimal
+paidAmount Decimal @default(0)
+status PaymentStatus @default(PENDENTE)
+notes String?
+  writtenOffAt DateTime?
+  writtenOffReason String?
+customer Customer? @relation(fields:[customerId],references:[id])
+supplier Supplier? @relation(fields:[supplierId],references:[id])
+sale Sale? @relation(fields:[saleId],references:[id])
+settlements AccountSettlement[]
+}
+model AccountSettlement {
+id String @id @default(cuid())
+accountId String
+amount Decimal
+paidAt DateTime @default(now())
+method String?
+methodId String?
+cardMachineId String?
+cardInstallments Int?
+cardFeeRate Decimal?
+cardFeeAmount Decimal?
+cardNetAmount Decimal?
+reference String?
+notes String?
+reversedAt DateTime?
+account Account @relation(fields:[accountId],references:[id],onDelete:Cascade)
+paymentMethod PaymentMethod? @relation(fields:[methodId],references:[id])
+cardMachine CardMachine? @relation(fields:[cardMachineId],references:[id])
+payment Payment?
+@@index([accountId,paidAt])
+}
+model CashSession {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+openedAt DateTime @default(now())
+closedAt DateTime?
+openingCash Decimal
+closingCash Decimal?
+notes String?
+movements CashMovement[]
+}
+model CashMovement {
+id String @id @default(cuid())
+sessionId String
+kind String
+amount Decimal
+description String
+referenceId String?
+createdAt DateTime @default(now())
+session CashSession @relation(fields:[sessionId],references:[id],onDelete:Cascade)
+}
+model AuditLog {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+id String @id @default(cuid())
+userId String?
+action String
+entity String
+entityId String?
+metadata Json?
+createdAt DateTime @default(now())
+user User? @relation(fields:[userId],references:[id])
+}
+model MigrationRun {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  source String
+  sourceFingerprint String @unique
+  status String @default("RUNNING")
+  total Int
+  imported Int @default(0)
+  mapped Int @default(0)
+  warnings Int @default(0)
+  errors Int @default(0)
+  report Json?
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  legacyRecords LegacyRecord[]
+}
+model LegacyRecord {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  source String @default("BEEPSTART")
+  collectionKey String?
+  legacyId String?
+  legacyKey String @unique
+  payload Json
+  customerId String?
+  migrationRunId String?
+  targetEntity String?
+  targetId String?
+  status String @default("PRESERVED")
+  errorMessage String?
+  importedAt DateTime @default(now())
+  customer Customer? @relation(fields:[customerId],references:[id])
+  migrationRun MigrationRun? @relation(fields:[migrationRunId],references:[id])
+  @@index([collectionKey])
+  @@index([legacyId])
+  @@index([migrationRunId])
+  @@index([targetEntity,targetId])
+}
+enum PayrollRecordType {
+  PROLABORE
+  SALARIO
+}
+
+enum PayrollStatus {
+  RASCUNHO
+  EMITIDA
+  PAGA
+  CANCELADA
+}
+
+model PayrollSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  ownerName String @default("Moni Becker")
+  ownerRole String @default("Proprietária / Administradora")
+  recommendationMode String @default("MEDIA_6_MESES")
+  reservePercent Decimal @default(10)
+  salaryRules Json
+  taxRules Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PayrollRecord {
+  id String @id @default(cuid())
+  competence DateTime
+  personName String
+  role String?
+  type PayrollRecordType @default(PROLABORE)
+  grossAmount Decimal
+  inssAmount Decimal @default(0)
+  irrfAmount Decimal @default(0)
+  otherDiscounts Decimal @default(0)
+  netAmount Decimal
+  employerInss Decimal @default(0)
+  fgtsAmount Decimal @default(0)
+  totalCost Decimal
+  status PayrollStatus @default(RASCUNHO)
+  paymentDate DateTime?
+  notes String?
+  ruleSnapshot Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([competence])
+  @@index([personName,competence])
+  @@index([status])
+}
+
+model StoreSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  legalName String?
+  tradeName String @default("MB Óptica")
+  logoData String?
+  document String?
+  phone String?
+  whatsapp String?
+  email String?
+  street String?
+  number String?
+  complement String?
+  district String?
+  city String?
+  state String? @default("SC")
+  postalCode String?
+  timezone String @default("America/Sao_Paulo")
+  currency String @default("BRL")
+  shiftStartTime String @default("09:00")
+  shiftEndTime String @default("18:00")
+  timeTrackingEnabled Boolean @default(true)
+  monthlySalesGoal Decimal @default(0)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Appointment {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  customerId String
+  type String
+  professionalType String
+  professionalName String
+  scheduledAt DateTime
+  status String @default("AGENDADO")
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer @relation(fields:[customerId],references:[id],onDelete:Cascade)
+  @@index([scheduledAt])
+  @@index([customerId,scheduledAt])
+}
+model BirthdayReminder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  name String
+  birthDate DateTime
+  customerId String?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer? @relation(fields:[customerId],references:[id],onDelete:SetNull)
+  @@index([birthDate])
+  @@index([customerId])
+}
+
+model ServiceOrderSequence {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id
+  nextNumber Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+// Accounting foundation — double-entry bookkeeping. Operational modules remain the source of business events.
+model AccountingSettings {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  taxRegime String @default("SIMPLES_NACIONAL")
+  accountingStartDate DateTime?
+  currency String @default("BRL")
+  timezone String @default("America/Sao_Paulo")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChartOfAccount {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  description String?
+  nature String
+  accountType String
+  parentId String?
+  active Boolean @default(true)
+  system Boolean @default(false)
+  parent ChartOfAccount? @relation("AccountingAccountTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children ChartOfAccount[] @relation("AccountingAccountTree")
+  lines AccountingEntryLine[]
+  debitMappings AccountingMapping[] @relation("AccountingMappingDebit")
+  creditMappings AccountingMapping[] @relation("AccountingMappingCredit")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([parentId])
+  @@index([active, nature])
+}
+
+model AccountingPeriod {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  year Int
+  month Int
+  startDate DateTime
+  endDate DateTime
+  status String @default("ABERTO")
+  closedAt DateTime?
+  closedByUserId String?
+  notes String?
+  entries AccountingEntry[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([year, month])
+  @@index([status, startDate, endDate])
+}
+
+model AccountingEntry {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  entryDate DateTime
+  competenceDate DateTime
+  description String
+  sourceType String @default("MANUAL")
+  sourceId String?
+  originKey String? @unique
+  status String @default("RASCUNHO")
+  totalDebit Decimal @default(0)
+  totalCredit Decimal @default(0)
+  periodId String
+  period AccountingPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  lines AccountingEntryLine[]
+  sourceEvent AccountingEvent?
+  createdByUserId String?
+  postedAt DateTime?
+  reversedAt DateTime?
+  reversalOfId String?
+  notes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([entryDate])
+  @@index([competenceDate])
+  @@index([periodId, status])
+  @@index([sourceType, sourceId])
+}
+
+model AccountingEntryLine {
+  id String @id @default(cuid())
+  entryId String
+  accountId String
+  lineNumber Int
+  description String?
+  debit Decimal @default(0)
+  credit Decimal @default(0)
+  referenceType String?
+  referenceId String?
+  entry AccountingEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@unique([entryId, lineNumber])
+  @@index([accountId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model AccountingMapping {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  eventType String
+  paymentMethodId String?
+  debitAccountId String
+  creditAccountId String
+  active Boolean @default(true)
+  description String?
+  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  debitAccount ChartOfAccount @relation("AccountingMappingDebit", fields: [debitAccountId], references: [id], onDelete: Restrict)
+  creditAccount ChartOfAccount @relation("AccountingMappingCredit", fields: [creditAccountId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([eventType, paymentMethodId, debitAccountId, creditAccountId])
+  @@index([eventType, paymentMethodId, active])
+}
+
+model AccountingEvent {
+  id String @id @default(cuid())
+  eventType String
+  sourceType String
+  sourceId String
+  idempotencyKey String @unique
+  payload Json?
+  status String @default("PENDENTE")
+  processedAt DateTime?
+  errorMessage String?
+  entryId String? @unique
+  entry AccountingEntry? @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([eventType, status])
+  @@index([sourceType, sourceId])
+}
+
+model ThirdPartyFrameIntake {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  customerName String
+  customerId String?
+  brand String?
+  model String?
+  source String @default("MARKETPLACE")
+  purchaseDate DateTime?
+  condition String
+  risks String?
+  serviceRequested String
+  inspectionNotes String?
+  photoReferences String?
+  customerAcknowledged Boolean @default(false)
+  servicePrice Decimal?
+  status String @default("RECEBIDA")
+  createdByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+  @@index([customerId])
+}
+
+
+model FrameAdaptationOrder {
+  organizationId String? // Nullable during the additive multi-tenant rollout.
+  id String @id @default(cuid())
+  number Int @unique @default(autoincrement())
+  saleId String @unique
+  customerId String
+  prescriptionId String?
+  laboratory String?
+  oldFrameDescription String?
+  newFrameDescription String
+  lensSource String @default("CLIENTE")
+  prescriptionStatus String @default("SEM_RECEITA")
+  lensType String?
+  lensDegreeInfo String?
+  serviceType String @default("MONTAGEM_ADAPTACAO")
+  frameCondition String?
+  preexistingDamage String?
+  inspectionNotes String?
+  photoReferences String?
+  customerAcknowledged Boolean @default(false)
+  status String @default("AGUARDANDO_ENVIO")
+  dueDate DateTime?
+  sentAt DateTime?
+  receivedAt DateTime?
+  createdByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  @@index([status, createdAt])
+  @@index([customerId])
+}
