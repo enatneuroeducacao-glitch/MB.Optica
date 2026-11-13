@@ -10,7 +10,7 @@ const required = [
   join(resources, "node.exe"),
   join(app, "server.js"),
   join(resources, "prisma-cli/node_modules/prisma/build/index.js"),
-  join(app, "node_modules/@prisma/debug/package.json"),
+  join(resources, "prisma-cli/node_modules/prisma/package.json"),
   join(pg, "bin/initdb.exe"),
   join(pg, "bin/pg_ctl.exe"),
   join(pg, "bin/postgres.exe"),
