@@ -142,7 +142,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
             return Err(format!("Componente nativo ausente: {}", required.display()));
         }
     }
-    fs::create_dir_all(data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
+    fs::create_dir_all(&data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
     let pg_data = data_dir.join("postgres-data");
     let env_path = data_dir.join(".env");
     if !env_path.exists() {
