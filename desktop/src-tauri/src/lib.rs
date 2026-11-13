@@ -107,6 +107,10 @@ fn native_run(exe: &Path, args: &[&str]) -> Result<Output, String> {
         .args(args)
         .env("LANG", "C")
         .env("LC_ALL", "C")
+        // Do not inherit a machine-wide PostgreSQL client encoding override.
+        // On Windows pt-BR this can pass ACP bytes (for example 0xE3) into
+        // PostgreSQL's UTF-8 initialization path.
+        .env_remove("PGCLIENTENCODING")
         .output()
         .map_err(|e| format!("Falha ao executar {}: {e}", exe.display()))?;
     if !output.status.success() {
@@ -180,6 +184,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         .args(["-D", &pgdata_text, "status"])
         .env("LANG", "C")
         .env("LC_ALL", "C")
+        .env_remove("PGCLIENTENCODING")
         .output()
         .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
     if !status.status.success() {
