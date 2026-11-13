@@ -98,15 +98,19 @@ jobs:
           Copy-Item "prisma" "desktop/resources/native/app/prisma" -Recurse -Force
           New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules" | Out-Null
           Copy-Item "node_modules/prisma" "desktop/resources/native/app/node_modules/prisma" -Recurse -Force
-          Copy-Item "node_modules/@prisma" "desktop/resources/native/app/node_modules/@prisma" -Recurse -Force
-          # Prisma CLI resolves @prisma/engines from the app node_modules tree
-          # at runtime. Copy it explicitly and fail the build if it is missing.
-          if (-not (Test-Path "node_modules/@prisma/engines/package.json")) { throw "Pacote @prisma/engines ausente na instalação raiz" }
-          New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules/@prisma/engines" | Out-Null
-          Copy-Item "node_modules/@prisma/engines/*" "desktop/resources/native/app/node_modules/@prisma/engines" -Recurse -Force
+          # Merge the CONTENTS of the complete Prisma scope. Copying the
+          # scope directory itself can create a nested @prisma/@prisma folder
+          # when Next standalone has already created the destination.
+          $prismaScopeSource = "node_modules/@prisma"
+          $prismaScopeTarget = "desktop/resources/native/app/node_modules/@prisma"
+          if (-not (Test-Path "$prismaScopeSource/engines/package.json")) { throw "Pacote @prisma/engines ausente na instalação raiz" }
+          if (-not (Test-Path "$prismaScopeSource/debug/package.json")) { throw "Pacote @prisma/debug ausente na instalação raiz" }
+          New-Item -ItemType Directory -Force $prismaScopeTarget | Out-Null
+          Copy-Item "$prismaScopeSource/*" $prismaScopeTarget -Recurse -Force
           if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
           if (-not (Test-Path "desktop/resources/native/app/node_modules/prisma/build/index.js")) { throw "Prisma CLI ausente" }
           if (-not (Test-Path "desktop/resources/native/app/node_modules/@prisma/engines/package.json")) { throw "Pacote @prisma/engines não foi incluído no instalador" }
+          if (-not (Test-Path "desktop/resources/native/app/node_modules/@prisma/debug/package.json")) { throw "Pacote @prisma/debug não foi incluído no instalador" }
           if (-not (Get-ChildItem "desktop/resources/native/app/node_modules/@prisma/engines" -Filter "*windows*.exe" -Recurse | Select-Object -First 1)) { throw "Binários Windows do @prisma/engines ausentes" }
 
       - name: Validate native payload
