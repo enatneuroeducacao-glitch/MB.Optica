@@ -9,8 +9,7 @@ const pg = join(resources, "postgres");
 const required = [
   join(resources, "node.exe"),
   join(app, "server.js"),
-  join(app, "node_modules/prisma/build/index.js"),
-  join(app, "node_modules/@prisma/engines/package.json"),
+  join(resources, "prisma-cli/node_modules/prisma/build/index.js"),
   join(app, "node_modules/@prisma/debug/package.json"),
   join(pg, "bin/initdb.exe"),
   join(pg, "bin/pg_ctl.exe"),
@@ -23,12 +22,10 @@ const pgBin = join(pg, "bin");
 for (const name of ["lib", "share"]) {
   if (!existsSync(join(pg, name))) throw new Error("Diretório PostgreSQL ausente: " + name);
 }
-const enginesDir = join(app, "node_modules/@prisma/engines");
-const windowsEngines = readdirSync(enginesDir).filter(name => /windows.*\.exe$/i.test(name));
-if (windowsEngines.length === 0) throw new Error("Binários Windows do @prisma/engines ausentes no pacote nativo");
+const prismaCli = join(resources, "prisma-cli/node_modules/prisma/build/index.js");
 console.log(JSON.stringify({
   valid: true,
-  prismaEngines: windowsEngines,
+  prismaCli: existsSync(prismaCli),
   runtime: "Node.js bundled",
   database: "PostgreSQL portable",
   appFiles: readdirSync(app).length,
