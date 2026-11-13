@@ -13,7 +13,7 @@ const slug = required("MB_GESTAO_INSTALLER_SLUG");
 if (!/^[a-z][a-z0-9-]{1,47}$/.test(slug)) throw new Error("Slug inválido");
 if (!/^[A-Za-z][A-Za-z0-9]*(\.[A-Za-z][A-Za-z0-9]*)+$/.test(identifier)) throw new Error("Identificador inválido");
 const resourceDir = resolve("resources/native");
-for (const path of ["node.exe", "app/server.js", "prisma-cli/node_modules/prisma/build/index.js", "postgres/bin/initdb.exe", "postgres/bin/pg_ctl.exe", "postgres/bin/postgres.exe"]) {
+for (const path of ["node.exe", "app/server.js", "prisma-cli/node_modules/prisma/build/index.js", "postgres/bin/initdb.exe", "postgres/bin/pg_ctl.exe", "postgres/bin/createdb.exe", "postgres/bin/psql.exe", "postgres/bin/postgres.exe"]) {
   if (!existsSync(resolve(resourceDir, path))) throw new Error("Recurso nativo ausente: " + path);
 }
 const configPath = resolve("src-tauri/tauri.native.generated.conf.json");

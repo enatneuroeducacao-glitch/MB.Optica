@@ -13,6 +13,8 @@ const required = [
   join(resources, "prisma-cli/node_modules/prisma/package.json"),
   join(pg, "bin/initdb.exe"),
   join(pg, "bin/pg_ctl.exe"),
+  join(pg, "bin/createdb.exe"),
+  join(pg, "bin/psql.exe"),
   join(pg, "bin/postgres.exe"),
 ];
 for (const file of required) {
@@ -29,5 +31,5 @@ console.log(JSON.stringify({
   runtime: "Node.js bundled",
   database: "PostgreSQL portable",
   appFiles: readdirSync(app).length,
-  postgresExecutables: ["initdb.exe", "pg_ctl.exe", "postgres.exe"].every(x => existsSync(join(pgBin, x)))
+  postgresExecutables: ["initdb.exe", "pg_ctl.exe", "createdb.exe", "psql.exe", "postgres.exe"].every(x => existsSync(join(pgBin, x)))
 }, null, 2));
