@@ -107,7 +107,6 @@ fn native_run(exe: &Path, args: &[&str]) -> Result<Output, String> {
         .args(args)
         .env("LANG", "C")
         .env("LC_ALL", "C")
-        .env("PGCLIENTENCODING", "UTF8")
         .output()
         .map_err(|e| format!("Falha ao executar {}: {e}", exe.display()))?;
     if !output.status.success() {
@@ -181,7 +180,6 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         .args(["-D", &pgdata_text, "status"])
         .env("LANG", "C")
         .env("LC_ALL", "C")
-        .env("PGCLIENTENCODING", "UTF8")
         .output()
         .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
     if !status.status.success() {
