@@ -159,10 +159,12 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let pg_bin = root.join("postgres").join("bin");
     let initdb = pg_bin.join("initdb.exe");
     let pg_ctl = pg_bin.join("pg_ctl.exe");
+    let createdb = pg_bin.join("createdb.exe");
+    let psql = pg_bin.join("psql.exe");
     let postgres = pg_bin.join("postgres.exe");
     let server_js = app_dir.join("server.js");
     let prisma_cli = root.join("prisma-cli").join("node_modules").join("prisma").join("build").join("index.js");
-    for required in [&node, &initdb, &pg_ctl, &postgres, &server_js, &prisma_cli] {
+    for required in [&node, &initdb, &pg_ctl, &createdb, &psql, &postgres, &server_js, &prisma_cli] {
         if !required.is_file() {
             return Err(format!("Componente nativo ausente: {}", required.display()));
         }
@@ -206,21 +208,44 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let log_text = log_path.to_string_lossy().to_string();
     let options = format!("-h 127.0.0.1 -p {NATIVE_DB_PORT}");
 
-    // A successful pg_ctl status only means that a postmaster PID exists.
-    // It does not guarantee that the configured TCP endpoint is accepting
-    // connections. Confirm the exact endpoint Prisma will use.
+    // Start only when pg_ctl confirms the cluster is stopped. Never restart a
+    // live cluster merely because the TCP listener is not ready immediately.
     if !status.status.success() {
-        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log_text, "-o", &options, "-w", "-t", "60", "start"])?;
-    } else if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(3)) {
-        // The local cluster is ours; if it is running with a stale port or
-        // listen address, restart it with the required endpoint.
-        native_run(&pg_ctl, &["-D", &pgdata_text, "-o", &options, "-w", "-t", "60", "restart"])?;
+        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log_text, "-o", &options, "-w", "-t", "90", "start"])?;
     }
 
-    if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(45)) {
+    if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(90)) {
         let details = fs::read_to_string(&log_path).unwrap_or_else(|_| "Log PostgreSQL ainda não foi criado.".to_string());
-        let tail = details.lines().rev().take(35).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
-        return Err(format!("PostgreSQL não abriu a porta 55432 após a inicialização. Log: {tail}"));
+        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\\n");
+        return Err(format!("PostgreSQL não abriu a porta 55432 após 90 segundos. Log: {tail}"));
+    }
+
+    // initdb creates the cluster and its maintenance databases, but not the
+    // application database. Create mb_optica exactly once, preserving it on
+    // every subsequent application launch.
+    let database_check = Command::new(&psql)
+        .args(["-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'mb_optica'"])
+        .env("PGPASSWORD", &db_password)
+        .env("LANG", "C")
+        .env("LC_ALL", "C")
+        .env_remove("PGCLIENTENCODING")
+        .output()
+        .map_err(|e| format!("Não foi possível verificar o banco mb_optica: {e}"))?;
+    if !database_check.status.success() {
+        return Err(format!("Falha ao consultar bancos PostgreSQL: {}", String::from_utf8_lossy(&database_check.stderr)));
+    }
+    if String::from_utf8_lossy(&database_check.stdout).trim() != "1" {
+        let create = Command::new(&createdb)
+            .args(["-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "mb_optica"])
+            .env("PGPASSWORD", &db_password)
+            .env("LANG", "C")
+            .env("LC_ALL", "C")
+            .env_remove("PGCLIENTENCODING")
+            .output()
+            .map_err(|e| format!("Não foi possível criar o banco mb_optica: {e}"))?;
+        if !create.status.success() {
+            return Err(format!("Falha ao criar o banco mb_optica: {}", String::from_utf8_lossy(&create.stderr)));
+        }
     }
 
     let database_url = format!("postgresql://mb_optica:{db_password}@127.0.0.1:{NATIVE_DB_PORT}/mb_optica?schema=public");
