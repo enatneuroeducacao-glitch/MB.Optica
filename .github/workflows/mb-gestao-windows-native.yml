@@ -28,6 +28,7 @@ permissions:
 
 jobs:
   build-native-installer:
+    if: github.head_ref != 'experiment/sqlite-native-windows' && github.ref_name != 'experiment/sqlite-native-windows'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
