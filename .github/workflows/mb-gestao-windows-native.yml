@@ -96,22 +96,15 @@ jobs:
             Copy-Item "public/*" "desktop/resources/native/app/public" -Recurse -Force
           }
           Copy-Item "prisma" "desktop/resources/native/app/prisma" -Recurse -Force
-          New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules" | Out-Null
-          Copy-Item "node_modules/prisma" "desktop/resources/native/app/node_modules/prisma" -Recurse -Force
-          # Merge the CONTENTS of the complete Prisma scope. Copying the
-          # scope directory itself can create a nested @prisma/@prisma folder
-          # when Next standalone has already created the destination.
-          $prismaScopeSource = "node_modules/@prisma"
-          $prismaScopeTarget = "desktop/resources/native/app/node_modules/@prisma"
-          if (-not (Test-Path "$prismaScopeSource/engines/package.json")) { throw "Pacote @prisma/engines ausente na instalação raiz" }
-          if (-not (Test-Path "$prismaScopeSource/debug/package.json")) { throw "Pacote @prisma/debug ausente na instalação raiz" }
-          New-Item -ItemType Directory -Force $prismaScopeTarget | Out-Null
-          Copy-Item "$prismaScopeSource/*" $prismaScopeTarget -Recurse -Force
+          # Install Prisma CLI in an isolated runtime with its FULL transitive
+          # dependency tree. Next standalone intentionally omits dev dependencies.
+          npm install --prefix "desktop/resources/native/prisma-cli" --no-save --package-lock=false --no-audit --no-fund "prisma@6.16.0"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar runtime isolado do Prisma CLI" }
+          if (-not (Test-Path "desktop/resources/native/prisma-cli/node_modules/prisma/build/index.js")) { throw "Prisma CLI não foi instalado no runtime isolado" }
+          & node "desktop/resources/native/prisma-cli/node_modules/prisma/build/index.js" --version
+          if ($LASTEXITCODE -ne 0) { throw "Prisma CLI não consegue carregar suas dependências completas" }
           if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
-          if (-not (Test-Path "desktop/resources/native/app/node_modules/prisma/build/index.js")) { throw "Prisma CLI ausente" }
-          if (-not (Test-Path "desktop/resources/native/app/node_modules/@prisma/engines/package.json")) { throw "Pacote @prisma/engines não foi incluído no instalador" }
-          if (-not (Test-Path "desktop/resources/native/app/node_modules/@prisma/debug/package.json")) { throw "Pacote @prisma/debug não foi incluído no instalador" }
-          if (-not (Get-ChildItem "desktop/resources/native/app/node_modules/@prisma/engines" -Filter "*windows*.exe" -Recurse | Select-Object -First 1)) { throw "Binários Windows do @prisma/engines ausentes" }
+
 
       - name: Validate native payload
         working-directory: desktop
