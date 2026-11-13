@@ -1,0 +1,114 @@
+name: MB Gestão — Instalador Windows SQLite (Ótica Imagem)
+
+on:
+  push:
+    branches: ["experiment/sqlite-native-windows"]
+    paths:
+      - "desktop/**"
+      - "prisma/**"
+      - "src/**"
+      - "package.json"
+      - "next.config.ts"
+      - ".github/workflows/mb-gestao-windows-sqlite.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "desktop/**"
+      - "prisma/**"
+      - "src/**"
+      - "package.json"
+      - "next.config.ts"
+      - ".github/workflows/mb-gestao-windows-sqlite.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-sqlite-installer:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "desktop/src-tauri -> target"
+
+      - name: Install application dependencies without PostgreSQL postinstall
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      - name: Validate and generate SQLite Prisma Client
+        env:
+          DATABASE_URL: "file:./build-validation.db"
+        run: |
+          npx prisma validate --schema=prisma/schema.sqlite.prisma
+          if ($LASTEXITCODE -ne 0) { throw "Schema SQLite inválido" }
+          npx prisma generate --schema=prisma/schema.sqlite.prisma
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar Prisma Client SQLite" }
+
+      - name: Build Windows Next.js application with SQLite client
+        env:
+          NODE_ENV: production
+          DATABASE_URL: "file:./build-validation.db"
+          AUTH_SECRET: build-only-not-a-real-secret
+          BOOTSTRAP_TOKEN: build-only-not-a-real-token
+        run: npm run build
+
+      - name: Bundle Node.js and standalone application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force "desktop/resources/native/app" | Out-Null
+          Copy-Item (Get-Command node).Source "desktop/resources/native/node.exe" -Force
+          Copy-Item ".next/standalone/*" "desktop/resources/native/app" -Recurse -Force
+          if (Test-Path ".next/static") {
+            New-Item -ItemType Directory -Force "desktop/resources/native/app/.next/static" | Out-Null
+            Copy-Item ".next/static/*" "desktop/resources/native/app/.next/static" -Recurse -Force
+          }
+          if (Test-Path "public") {
+            New-Item -ItemType Directory -Force "desktop/resources/native/app/public" | Out-Null
+            Copy-Item "public/*" "desktop/resources/native/app/public" -Recurse -Force
+          }
+          Copy-Item "prisma" "desktop/resources/native/app/prisma" -Recurse -Force
+          npm install --prefix "desktop/resources/native/prisma-cli" --no-save --package-lock=false --no-audit --no-fund "prisma@6.16.0"
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar runtime isolado do Prisma CLI" }
+          & node "desktop/resources/native/prisma-cli/node_modules/prisma/build/index.js" --version
+          if ($LASTEXITCODE -ne 0) { throw "Prisma CLI isolado inválido" }
+          if (-not (Test-Path "desktop/resources/native/app/prisma/schema.sqlite.prisma")) { throw "Schema SQLite ausente no pacote" }
+          if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
+
+      - name: Validate native SQLite payload
+        working-directory: desktop
+        run: node scripts/prepare-native-bundle.mjs
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: Build SQLite installer without Docker or PostgreSQL
+        working-directory: desktop
+        env:
+          MB_GESTAO_NATIVE_MODE: "true"
+          MB_GESTAO_PILOT_MODE: "true"
+          MB_GESTAO_CUSTOMER_NAME: "Ótica Imagem"
+          MB_GESTAO_PRODUCT_NAME: "MB Gestão - Ótica Imagem"
+          MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.opticaimagem"
+          MB_GESTAO_INSTALLER_SLUG: "optica-imagem-sqlite"
+        run: npm run tauri:build:native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mb-gestao-optica-imagem-native-sqlite
+          path: desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 14
