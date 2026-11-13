@@ -18,7 +18,11 @@ for (const path of ["node.exe", "app/server.js", "app/node_modules/prisma/build/
 }
 const configPath = resolve("src-tauri/tauri.native.generated.conf.json");
 const config = {
-  productName,
+  // PostgreSQL on Windows can fail during initdb when its executable path
+  // contains non-ASCII characters (e.g. "Gestão" -> CP1252 byte 0xE3).
+  // Keep the installed resource path ASCII-only; the window title below
+  // retains the customer-facing Portuguese product name.
+  productName: "MBGestaoOpticaImagem",
   identifier,
   app: { windows: [{ label: "main", title: productName, width: 1360, height: 900, minWidth: 980, minHeight: 680, visible: false, url: "http://127.0.0.1:3000/" }] },
   bundle: {
