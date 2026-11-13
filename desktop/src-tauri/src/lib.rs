@@ -109,7 +109,25 @@ fn native_run(exe: &Path, args: &[&str]) -> Result<Output, String> {
     Ok(output)
 }
 
+// PostgreSQL's Windows utilities do not reliably handle the Win32 extended
+// length prefix (\\\\?\\) when initdb locates the sibling postgres.exe.
+fn windows_compatible_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let value = path.as_os_str().to_string_lossy();
+        if let Some(rest) = value.strip_prefix(r"\\?\\UNC\\") {
+            return PathBuf::from(format!(r"\\\\{}", rest));
+        }
+        if let Some(rest) = value.strip_prefix(r"\\?\\") {
+            return PathBuf::from(rest);
+        }
+    }
+    path.to_path_buf()
+}
+
 fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
+    let resource_dir = windows_compatible_path(resource_dir);
+    let data_dir = windows_compatible_path(data_dir);
     let root = resource_dir.join("native");
     let app_dir = root.join("app");
     let node = root.join("node.exe");
