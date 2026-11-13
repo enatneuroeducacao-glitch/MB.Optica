@@ -245,6 +245,13 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         *slot = None;
     }
     if slot.is_none() {
+        // Keep the local Next.js process output so startup failures and
+        // runtime crashes can be diagnosed instead of silently discarded.
+        let server_log_path = data_dir.join("server.log");
+        let server_log = OpenOptions::new().create(true).append(true).open(&server_log_path)
+            .map_err(|e| format!("Não foi possível abrir o log do servidor: {e}"))?;
+        let server_log_stderr = server_log.try_clone()
+            .map_err(|e| format!("Não foi possível preparar o log de erros: {e}"))?;
         let mut server = Command::new(&node);
         server.arg("server.js").current_dir(&app_dir)
             .env("NODE_ENV", "production")
@@ -258,8 +265,8 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
             .env("STORE_STATE", "SC")
             .env("MB_OPTICA_OWNER_INSTANCE", if PILOT_MODE == "true" { "true" } else { "false" })
             .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null());
+            .stdout(std::process::Stdio::from(server_log))
+            .stderr(std::process::Stdio::from(server_log_stderr));
         *slot = Some(server.spawn().map_err(|e| format!("Não foi possível iniciar o servidor MB Gestão: {e}"))?);
     }
     Ok(())
