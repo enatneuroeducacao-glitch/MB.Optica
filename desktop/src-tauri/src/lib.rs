@@ -146,7 +146,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let pg_ctl = pg_bin.join("pg_ctl.exe");
     let postgres = pg_bin.join("postgres.exe");
     let server_js = app_dir.join("server.js");
-    let prisma_cli = app_dir.join("node_modules").join("prisma").join("build").join("index.js");
+    let prisma_cli = root.join("prisma-cli").join("node_modules").join("prisma").join("build").join("index.js");
     for required in [&node, &initdb, &pg_ctl, &postgres, &server_js, &prisma_cli] {
         if !required.is_file() {
             return Err(format!("Componente nativo ausente: {}", required.display()));
