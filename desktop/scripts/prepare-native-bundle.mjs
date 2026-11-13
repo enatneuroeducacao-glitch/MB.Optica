@@ -7,7 +7,7 @@ const app = join(resources, "app");
 const required = [
   join(resources, "node.exe"),
   join(app, "server.js"),
-  join(app, "prisma/schema.prisma"),
+  join(app, "prisma/schema.sqlite.prisma"),
   join(resources, "prisma-cli/node_modules/prisma/build/index.js"),
   join(resources, "prisma-cli/node_modules/prisma/package.json"),
 ];
