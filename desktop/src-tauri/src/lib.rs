@@ -135,6 +135,21 @@ fn windows_compatible_path(path: &Path) -> PathBuf {
     path.to_path_buf()
 }
 
+fn wait_for_tcp(address: &str, timeout: Duration) -> bool {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if let Ok(addresses) = address.to_socket_addrs() {
+            for socket in addresses {
+                if TcpStream::connect_timeout(&socket, Duration::from_millis(700)).is_ok() {
+                    return true;
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(500));
+    }
+    false
+}
+
 fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let resource_dir = windows_compatible_path(resource_dir);
     let data_dir = windows_compatible_path(data_dir);
@@ -187,10 +202,25 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         .env_remove("PGCLIENTENCODING")
         .output()
         .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
+    let log_path = data_dir.join("postgres.log");
+    let log_text = log_path.to_string_lossy().to_string();
+    let options = format!("-h 127.0.0.1 -p {NATIVE_DB_PORT}");
+
+    // A successful pg_ctl status only means that a postmaster PID exists.
+    // It does not guarantee that the configured TCP endpoint is accepting
+    // connections. Confirm the exact endpoint Prisma will use.
     if !status.status.success() {
-        let log = data_dir.join("postgres.log").to_string_lossy().to_string();
-        let options = format!("-h 127.0.0.1 -p {NATIVE_DB_PORT}");
-        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log, "-o", &options, "-w", "start"])?;
+        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log_text, "-o", &options, "-w", "-t", "60", "start"])?;
+    } else if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(3)) {
+        // The local cluster is ours; if it is running with a stale port or
+        // listen address, restart it with the required endpoint.
+        native_run(&pg_ctl, &["-D", &pgdata_text, "-o", &options, "-w", "-t", "60", "restart"])?;
+    }
+
+    if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(45)) {
+        let details = fs::read_to_string(&log_path).unwrap_or_else(|_| "Log PostgreSQL ainda não foi criado.".to_string());
+        let tail = details.lines().rev().take(35).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\\n");
+        return Err(format!("PostgreSQL não abriu a porta 55432 após a inicialização. Log: {tail}"));
     }
 
     let database_url = format!("postgresql://mb_optica:{db_password}@127.0.0.1:{NATIVE_DB_PORT}/mb_optica?schema=public");
