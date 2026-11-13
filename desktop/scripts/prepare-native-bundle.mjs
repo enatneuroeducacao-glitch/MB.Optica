@@ -23,7 +23,7 @@ for (const name of ["lib", "share"]) {
   if (!existsSync(join(pg, name))) throw new Error("Diretório PostgreSQL ausente: " + name);
 }
 const enginesDir = join(app, "node_modules/@prisma/engines");
-const windowsEngines = readdirSync(enginesDir).filter(name => /windows.*\\.exe$/i.test(name));
+const windowsEngines = readdirSync(enginesDir).filter(name => /windows.*\.exe$/i.test(name));
 if (windowsEngines.length === 0) throw new Error("Binários Windows do @prisma/engines ausentes no pacote nativo");
 console.log(JSON.stringify({
   valid: true,
