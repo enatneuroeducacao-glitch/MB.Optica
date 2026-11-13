@@ -38,9 +38,13 @@ export async function POST(request: Request) {
       // Eventos antigos podem guardar o nome do meio de pagamento sem o ID.
       // Recupera o cadastro ativo pelo nome para permitir o mapeamento correto.
       if (event.eventType === "SUPPLIER_PAYMENT_MADE" && !payload.paymentMethodId && typeof payload.paymentMethod === "string" && payload.paymentMethod.trim()) {
-        const sourceMethod = await tx.paymentMethod.findFirst({
-          where: { name: { equals: payload.paymentMethod.trim(), mode: "insensitive" }, active: true },
+        const activeMethods = await tx.paymentMethod.findMany({
+          where: { active: true },
+          select: { id: true, name: true },
         });
+        const sourceMethod = activeMethods.find(
+          (method) => method.name.trim().toLocaleLowerCase("pt-BR") === payload.paymentMethod.trim().toLocaleLowerCase("pt-BR")
+        );
         if (sourceMethod) {
           payload = { ...payload, paymentMethodId: sourceMethod.id, paymentMethodName: sourceMethod.name };
         }
