@@ -99,8 +99,15 @@ jobs:
           New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules" | Out-Null
           Copy-Item "node_modules/prisma" "desktop/resources/native/app/node_modules/prisma" -Recurse -Force
           Copy-Item "node_modules/@prisma" "desktop/resources/native/app/node_modules/@prisma" -Recurse -Force
+          # Prisma CLI resolves @prisma/engines from the app node_modules tree
+          # at runtime. Copy it explicitly and fail the build if it is missing.
+          if (-not (Test-Path "node_modules/@prisma/engines/package.json")) { throw "Pacote @prisma/engines ausente na instalação raiz" }
+          New-Item -ItemType Directory -Force "desktop/resources/native/app/node_modules/@prisma/engines" | Out-Null
+          Copy-Item "node_modules/@prisma/engines/*" "desktop/resources/native/app/node_modules/@prisma/engines" -Recurse -Force
           if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
           if (-not (Test-Path "desktop/resources/native/app/node_modules/prisma/build/index.js")) { throw "Prisma CLI ausente" }
+          if (-not (Test-Path "desktop/resources/native/app/node_modules/@prisma/engines/package.json")) { throw "Pacote @prisma/engines não foi incluído no instalador" }
+          if (-not (Get-ChildItem "desktop/resources/native/app/node_modules/@prisma/engines" -Filter "*windows*.exe" -Recurse | Select-Object -First 1)) { throw "Binários Windows do @prisma/engines ausentes" }
 
       - name: Validate native payload
         working-directory: desktop
