@@ -190,7 +190,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let database_url = format!("file:{database_path}");
 
     let mut migration = Command::new(&node);
-    migration.arg(&prisma_cli).args(["db", "push", "--skip-generate"])
+    migration.arg(&prisma_cli).args(["db", "push", "--skip-generate", "--schema", "prisma/schema.sqlite.prisma"])
         .current_dir(&app_dir)
         .env("NODE_ENV", "production")
         .env("DATABASE_URL", &database_url)
