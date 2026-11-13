@@ -156,139 +156,51 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let root = resource_dir.join("native");
     let app_dir = root.join("app");
     let node = root.join("node.exe");
-    let pg_bin = root.join("postgres").join("bin");
-    let initdb = pg_bin.join("initdb.exe");
-    let pg_ctl = pg_bin.join("pg_ctl.exe");
-    let createdb = pg_bin.join("createdb.exe");
-    let psql = pg_bin.join("psql.exe");
-    let postgres = pg_bin.join("postgres.exe");
     let server_js = app_dir.join("server.js");
     let prisma_cli = root.join("prisma-cli").join("node_modules").join("prisma").join("build").join("index.js");
-    for required in [&node, &initdb, &pg_ctl, &createdb, &psql, &postgres, &server_js, &prisma_cli] {
+
+    for required in [&node, &server_js, &prisma_cli] {
         if !required.is_file() {
             return Err(format!("Componente nativo ausente: {}", required.display()));
         }
     }
+
     fs::create_dir_all(&data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
-    let pg_data = data_dir.join("postgres-data");
     let env_path = data_dir.join(".env");
     if !env_path.exists() {
-        let env = format!("STORE_TRADE_NAME={CUSTOMER_NAME}\nSTORE_STATE=SC\nDB_PASSWORD={}\nAUTH_SECRET={}\nBOOTSTRAP_TOKEN={}\n", secret(), secret(), secret());
+        let env = format!(
+            "STORE_TRADE_NAME={CUSTOMER_NAME}\nSTORE_STATE=SC\nAUTH_SECRET={}\nBOOTSTRAP_TOKEN={}\n",
+            secret(), secret()
+        );
         fs::write(&env_path, env).map_err(|e| format!("Falha ao criar configuração local: {e}"))?;
     }
+
     let env_text = fs::read_to_string(&env_path).map_err(|e| e.to_string())?;
     let value = |key: &str| -> Result<String, String> {
         env_text.lines().find_map(|line| line.strip_prefix(&format!("{key}=")).map(str::to_string))
             .ok_or_else(|| format!("Configuração {key} ausente"))
     };
-    let db_password = value("DB_PASSWORD")?;
     let auth_secret = value("AUTH_SECRET")?;
     let bootstrap_token = value("BOOTSTRAP_TOKEN")?;
 
-    if !pg_data.join("PG_VERSION").exists() {
-        fs::create_dir_all(&pg_data).map_err(|e| e.to_string())?;
-        let pwfile = data_dir.join("postgres-init-password.tmp");
-        fs::write(&pwfile, &db_password).map_err(|e| e.to_string())?;
-        let pw = pwfile.to_string_lossy().to_string();
-        let data = pg_data.to_string_lossy().to_string();
-        let result = native_run(&initdb, &["-D", &data, "-U", "mb_optica", "--pwfile", &pw, "--auth-host", "scram-sha-256", "--auth-local", "scram-sha-256", "--locale", "C", "--encoding", "UTF8"]);
-        let _ = fs::remove_file(&pwfile);
-        result?;
-    }
+    // SQLite fica na pasta de dados do usuário, fora da pasta de instalação.
+    // Isso preserva os dados em atualizações e permite instalações independentes.
+    let database_file = data_dir.join("mb-gestao.db");
+    let database_path = database_file.to_string_lossy().replace('\\', "/");
+    let database_url = format!("file:{database_path}");
 
-    let pgdata_text = pg_data.to_string_lossy().to_string();
-    let status = Command::new(&pg_ctl)
-        .args(["-D", &pgdata_text, "status"])
-        .env("LANG", "C")
-        .env("LC_ALL", "C")
-        .env_remove("PGCLIENTENCODING")
-        .output()
-        .map_err(|e| format!("Não foi possível verificar PostgreSQL: {e}"))?;
-    let log_path = data_dir.join("postgres.log");
-    let log_text = log_path.to_string_lossy().to_string();
-    let options = format!("-h 127.0.0.1 -p {NATIVE_DB_PORT}");
-
-    // Start only when pg_ctl confirms the cluster is stopped. Never restart a
-    // live cluster merely because the TCP listener is not ready immediately.
-    if !status.status.success() {
-        native_run(&pg_ctl, &["-D", &pgdata_text, "-l", &log_text, "-o", &options, "-w", "-t", "90", "start"])?;
-    }
-
-    if !wait_for_tcp("127.0.0.1:55432", Duration::from_secs(90)) {
-        let details = fs::read_to_string(&log_path).unwrap_or_else(|_| "Log PostgreSQL ainda não foi criado.".to_string());
-        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
-        return Err(format!("PostgreSQL não abriu a porta 55432 após 90 segundos. Log: {tail}"));
-    }
-
-    // A listening TCP socket does not mean PostgreSQL has completed crash
-    // recovery. Wait until a real SQL query succeeds before inspecting/creating
-    // the application database.
-    let mut sql_ready = false;
-    let mut last_sql_error = String::new();
-    let sql_deadline = Instant::now() + Duration::from_secs(120);
-    while Instant::now() < sql_deadline {
-        let probe = Command::new(&psql)
-            .args(["-X", "-w", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1"])
-            .env("PGPASSWORD", &db_password)
-            .env("LANG", "C")
-            .env("LC_ALL", "C")
-            .env_remove("PGCLIENTENCODING")
-            .output()
-            .map_err(|e| format!("Não foi possível testar prontidão SQL do PostgreSQL: {e}"))?;
-        if probe.status.success() && String::from_utf8_lossy(&probe.stdout).trim() == "1" {
-            sql_ready = true;
-            break;
-        }
-        last_sql_error = String::from_utf8_lossy(&probe.stderr).trim().to_string();
-        thread::sleep(Duration::from_secs(2));
-    }
-    if !sql_ready {
-        let details = fs::read_to_string(&log_path).unwrap_or_default();
-        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
-        return Err(format!("PostgreSQL abriu a porta, mas não ficou pronto para consultas SQL em 120 segundos. Último erro: {last_sql_error}. Log: {tail}"));
-    }
-
-    // initdb creates the cluster and maintenance databases, not the app DB.
-    // Create mb_optica exactly once; never drop or recreate an existing DB.
-    let database_check = Command::new(&psql)
-        .args(["-X", "-w", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'mb_optica'"])
-        .env("PGPASSWORD", &db_password)
-        .env("LANG", "C")
-        .env("LC_ALL", "C")
-        .env_remove("PGCLIENTENCODING")
-        .output()
-        .map_err(|e| format!("Não foi possível verificar o banco mb_optica: {e}"))?;
-    if !database_check.status.success() {
-        return Err(format!("Falha ao consultar bancos PostgreSQL: {}", String::from_utf8_lossy(&database_check.stderr)));
-    }
-    if String::from_utf8_lossy(&database_check.stdout).trim() != "1" {
-        let create = Command::new(&createdb)
-            .args(["-w", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "mb_optica"])
-            .env("PGPASSWORD", &db_password)
-            .env("LANG", "C")
-            .env("LC_ALL", "C")
-            .env_remove("PGCLIENTENCODING")
-            .output()
-            .map_err(|e| format!("Não foi possível criar o banco mb_optica: {e}"))?;
-        if !create.status.success() {
-            return Err(format!("Falha ao criar o banco mb_optica: {}", String::from_utf8_lossy(&create.stderr)));
-        }
-    }
-
-    let database_url = format!("postgresql://mb_optica:{db_password}@127.0.0.1:{NATIVE_DB_PORT}/mb_optica?schema=public");
     let mut migration = Command::new(&node);
-    migration.arg(&prisma_cli).args(["migrate", "deploy"])
+    migration.arg(&prisma_cli).args(["db", "push", "--skip-generate", "--schema", "prisma/schema.sqlite.prisma"])
         .current_dir(&app_dir)
         .env("NODE_ENV", "production")
         .env("DATABASE_URL", &database_url)
-        .env("DIRECT_URL", &database_url)
         .env("AUTH_SECRET", &auth_secret)
         .env("BOOTSTRAP_TOKEN", &bootstrap_token)
         .env("STORE_TRADE_NAME", CUSTOMER_NAME)
         .env("STORE_STATE", "SC");
-    let migration_output = migration.output().map_err(|e| format!("Falha ao executar migrações: {e}"))?;
+    let migration_output = migration.output().map_err(|e| format!("Falha ao preparar banco SQLite: {e}"))?;
     if !migration_output.status.success() {
-        return Err(format!("Migrações do banco falharam: {}", String::from_utf8_lossy(&migration_output.stderr)));
+        return Err(format!("Preparação do banco SQLite falhou: {}", String::from_utf8_lossy(&migration_output.stderr)));
     }
 
     let mut slot = NATIVE_SERVER_PROCESS.get_or_init(|| Mutex::new(None)).lock()
@@ -297,21 +209,24 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         *slot = None;
     }
     if slot.is_none() {
+        let log_path = data_dir.join("server.log");
+        let stdout = OpenOptions::new().create(true).append(true).open(&log_path)
+            .map_err(|e| format!("Não foi possível abrir log do servidor: {e}"))?;
+        let stderr = stdout.try_clone().map_err(|e| format!("Não foi possível duplicar log do servidor: {e}"))?;
         let mut server = Command::new(&node);
         server.arg("server.js").current_dir(&app_dir)
             .env("NODE_ENV", "production")
             .env("PORT", "3000")
             .env("HOSTNAME", "127.0.0.1")
             .env("DATABASE_URL", &database_url)
-            .env("DIRECT_URL", &database_url)
             .env("AUTH_SECRET", &auth_secret)
             .env("BOOTSTRAP_TOKEN", &bootstrap_token)
             .env("STORE_TRADE_NAME", CUSTOMER_NAME)
             .env("STORE_STATE", "SC")
             .env("MB_OPTICA_OWNER_INSTANCE", if PILOT_MODE == "true" { "true" } else { "false" })
             .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null());
+            .stdout(stdout)
+            .stderr(stderr);
         *slot = Some(server.spawn().map_err(|e| format!("Não foi possível iniciar o servidor MB Gestão: {e}"))?);
     }
     Ok(())
