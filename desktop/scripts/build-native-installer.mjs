@@ -22,7 +22,9 @@ const config = {
   identifier,
   app: { windows: [{ label: "main", title: productName, width: 1360, height: 900, minWidth: 980, minHeight: 680, visible: false, url: "http://127.0.0.1:3000/" }] },
   bundle: {
-    resources: ["../resources/native"],
+    // Map the external folder explicitly to $RESOURCES/native. Array notation
+    // rewrites the leading ".." to "_up_", which does not match native_prepare().
+    resources: { "../resources/native": "native" },
     shortDescription: productName + " — instalação nativa Windows",
     longDescription: productName + ". Aplicação local independente, sem Docker."
   }
