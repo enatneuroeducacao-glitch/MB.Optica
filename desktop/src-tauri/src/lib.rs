@@ -220,11 +220,38 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
         return Err(format!("PostgreSQL não abriu a porta 55432 após 90 segundos. Log: {tail}"));
     }
 
-    // initdb creates the cluster and its maintenance databases, but not the
-    // application database. Create mb_optica exactly once, preserving it on
-    // every subsequent application launch.
+    // A listening TCP socket does not mean PostgreSQL has completed crash
+    // recovery. Wait until a real SQL query succeeds before inspecting/creating
+    // the application database.
+    let mut sql_ready = false;
+    let mut last_sql_error = String::new();
+    let sql_deadline = Instant::now() + Duration::from_secs(120);
+    while Instant::now() < sql_deadline {
+        let probe = Command::new(&psql)
+            .args(["-X", "-w", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1"])
+            .env("PGPASSWORD", &db_password)
+            .env("LANG", "C")
+            .env("LC_ALL", "C")
+            .env_remove("PGCLIENTENCODING")
+            .output()
+            .map_err(|e| format!("Não foi possível testar prontidão SQL do PostgreSQL: {e}"))?;
+        if probe.status.success() && String::from_utf8_lossy(&probe.stdout).trim() == "1" {
+            sql_ready = true;
+            break;
+        }
+        last_sql_error = String::from_utf8_lossy(&probe.stderr).trim().to_string();
+        thread::sleep(Duration::from_secs(2));
+    }
+    if !sql_ready {
+        let details = fs::read_to_string(&log_path).unwrap_or_default();
+        let tail = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+        return Err(format!("PostgreSQL abriu a porta, mas não ficou pronto para consultas SQL em 120 segundos. Último erro: {last_sql_error}. Log: {tail}"));
+    }
+
+    // initdb creates the cluster and maintenance databases, not the app DB.
+    // Create mb_optica exactly once; never drop or recreate an existing DB.
     let database_check = Command::new(&psql)
-        .args(["-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'mb_optica'"])
+        .args(["-X", "-w", "-v", "ON_ERROR_STOP=1", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "-d", "postgres", "-tAc", "SELECT 1 FROM pg_database WHERE datname = 'mb_optica'"])
         .env("PGPASSWORD", &db_password)
         .env("LANG", "C")
         .env("LC_ALL", "C")
@@ -236,7 +263,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     }
     if String::from_utf8_lossy(&database_check.stdout).trim() != "1" {
         let create = Command::new(&createdb)
-            .args(["-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "mb_optica"])
+            .args(["-w", "-h", "127.0.0.1", "-p", NATIVE_DB_PORT, "-U", "mb_optica", "mb_optica"])
             .env("PGPASSWORD", &db_password)
             .env("LANG", "C")
             .env("LC_ALL", "C")
