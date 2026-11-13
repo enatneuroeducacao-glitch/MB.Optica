@@ -11,6 +11,7 @@ const required = [
   join(app, "server.js"),
   join(app, "node_modules/prisma/build/index.js"),
   join(app, "node_modules/@prisma/engines/package.json"),
+  join(app, "node_modules/@prisma/debug/package.json"),
   join(pg, "bin/initdb.exe"),
   join(pg, "bin/pg_ctl.exe"),
   join(pg, "bin/postgres.exe"),
