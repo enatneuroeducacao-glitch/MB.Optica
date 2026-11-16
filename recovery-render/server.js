@@ -48,7 +48,7 @@ function page(message = '') {
   <label>Token de acesso</label><input name="token" type="password" required autocomplete="off">
   <label>Arquivo Recovery (.tar.gz)</label><input name="backup" type="file" accept=".gz,.tar.gz" required>
   <p><small>Limite de 100 MB. O arquivo será validado antes da restauração. A operação altera somente o banco temporário configurado.</small></p>
-  <button type="submit">Validar e restaurar no banco temporário</button></form>\n  <form method="post" action="/audit"><label>Auditoria somente leitura</label><input name="token" type="password" required autocomplete="off"><button type="submit">Consultar dados restaurados</button></form>\n  <form method="post" action="/compare"><label>Comparação com Neon isolado</label><input name="token" type="password" required autocomplete="off"><button type="submit">Comparar registros por identificador</button></form>\n  <form method="post" action="/compare-business"><label>Comparação por chaves de negócio</label><input name="token" type="password" required autocomplete="off"><button type="submit">Validar números, códigos e chaves naturais</button></form>\n  <form method="post" action="/compare-detail"><label>Validação de conteúdo e integridade referencial</label><input name="token" type="password" required autocomplete="off"><button type="submit">Executar validação detalhada</button></form>
+  <button type="submit">Validar e restaurar no banco temporário</button></form>\n  <form method="post" action="/audit"><label>Auditoria somente leitura</label><input name="token" type="password" required autocomplete="off"><button type="submit">Consultar dados restaurados</button></form>\n  <form method="post" action="/compare"><label>Comparação com Neon isolado</label><input name="token" type="password" required autocomplete="off"><button type="submit">Comparar registros por identificador</button></form>\n  <form method="post" action="/compare-business"><label>Comparação por chaves de negócio</label><input name="token" type="password" required autocomplete="off"><button type="submit">Validar números, códigos e chaves naturais</button></form>\n  <form method="post" action="/stage-source"><label>Preparar cópia integral dos dados comerciais no Neon de homologação</label><input name="token" type="password" required autocomplete="off"><button type="submit">Copiar dados para staging isolado</button></form>\n  <form method="post" action="/compare-detail"><label>Validação de conteúdo e integridade referencial</label><input name="token" type="password" required autocomplete="off"><button type="submit">Executar validação detalhada</button></form>
   <p><small>Health: <a href="/health">/health</a></small></p></main></html>`;
 }
 app.get('/health', (req,res) => res.json({ ok: true, configured: !!TOKEN && !!DATABASE_URL && DATABASE_URL !== 'SET_IN_RENDER_DASHBOARD', target: TARGET_NAME }));
@@ -206,4 +206,76 @@ app.post('/compare-detail', express.urlencoded({extended:false}), async (req,res
  }catch(e){res.status(500).type('html').send(page('Falha na validação detalhada: '+e.message));}
  finally{if(source)await source.end();if(target)await target.end();}
 });
+
+const STAGE_TABLES = [
+  'FiscalConfig','FiscalDocument','Organization','OrganizationMembership','Subscription',
+  'Customer','Address','Prescription','Category','Supplier','Product','StockLot',
+  'StockMovement','StockMovementLot','Quote','QuoteItem','OpticalOrder','OpticalOrderItem',
+  'OrderEvent','Sale','SaleItem','PaymentMethod','CardMachine','PixKey','Payment','Account',
+  'AccountSettlement','CashSession','CashMovement','PayrollSettings','PayrollRecord',
+  'StoreSettings','Appointment','BirthdayReminder','ServiceOrderSequence','AccountingSettings',
+  'ChartOfAccount','AccountingPeriod','AccountingEntry','AccountingEntryLine','AccountingMapping',
+  'AccountingEvent','ThirdPartyFrameIntake','FrameAdaptationOrder'
+];
+app.post('/stage-source', express.urlencoded({extended:false}), async (req,res) => {
+  let source, target;
+  const snapshotId = crypto.randomUUID();
+  try {
+    if (!authorized(req)) return res.status(401).type('html').send(page('Token inválido para preparação de dados.'));
+    const targetUrl = process.env.NEON_TEST_DATABASE_URL || '';
+    const expectedBranch = process.env.NEON_TEST_BRANCH_ID || '';
+    if (!DATABASE_URL || !DATABASE_URL.includes(TARGET_NAME)) return res.status(403).type('html').send(page('Origem bloqueada: o banco contingencial autorizado não foi identificado.'));
+    if (!targetUrl.includes('ep-delicate-wildflower-b6r4m9uw') || expectedBranch !== 'br-noisy-hall-b6857yom') return res.status(403).type('html').send(page('Destino bloqueado: somente a branch Neon de homologação previamente definida pode receber a cópia.'));
+    source = new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false},max:2});
+    target = new Pool({connectionString:targetUrl,ssl:{rejectUnauthorized:false},max:2});
+    const sourceDb = await source.query('SELECT current_database() AS db');
+    const targetDb = await target.query('SELECT current_database() AS db');
+    if (sourceDb.rows[0].db !== 'mb_optica_db_contingencia' || targetDb.rows[0].db !== 'neondb') throw new Error('Identidade dos bancos não corresponde à origem e ao destino autorizados.');
+    await target.query('CREATE SCHEMA IF NOT EXISTS recovery');
+    await target.query(`CREATE TABLE IF NOT EXISTS recovery.source_rows (
+      snapshot_id uuid NOT NULL, source_table text NOT NULL, source_id text NOT NULL,
+      payload jsonb NOT NULL, captured_at timestamptz NOT NULL DEFAULT now(),
+      PRIMARY KEY(snapshot_id, source_table, source_id)
+    )`);
+    const existing = await source.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'");
+    const available = new Set(existing.rows.map(r=>r.table_name));
+    const results = [];
+    for (const table of STAGE_TABLES) {
+      if (!available.has(table)) { results.push({table, count:0, skipped:'not_present'}); continue; }
+      const rows = await source.query('SELECT to_jsonb(t) AS payload FROM public.' + '"' + table.replace(/"/g,'""') + '" t');
+      for (let i=0; i<rows.rows.length; i+=100) {
+        const batch = rows.rows.slice(i,i+100);
+        const values = [], params = [];
+        for (const item of batch) {
+          const payload = item.payload;
+          const id = payload.id == null ? crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex') : String(payload.id);
+          const n = params.length;
+          params.push(snapshotId, table, id, JSON.stringify(payload));
+          values.push('(,()=>console.log('Recovery console listening on '+PORT));
++(n+1)+'::uuid,,()=>console.log('Recovery console listening on '+PORT));
++(n+2)+'::text,,()=>console.log('Recovery console listening on '+PORT));
++(n+3)+'::text,,()=>console.log('Recovery console listening on '+PORT));
++(n+4)+'::jsonb)');
+        }
+        if (values.length) await target.query(
+          'INSERT INTO recovery.source_rows(snapshot_id,source_table,source_id,payload) VALUES '+values.join(','),
+          params
+        );
+      }
+      results.push({table,count:rows.rowCount});
+    }
+    const total = results.reduce((n,r)=>n+r.count,0);
+    const verify = await target.query('SELECT source_table, count(*)::int AS count FROM recovery.source_rows WHERE snapshot_id=$1 GROUP BY source_table ORDER BY source_table',[snapshotId]);
+    const verifiedTotal = verify.rows.reduce((n,r)=>n+r.count,0);
+    if (verifiedTotal !== total) throw new Error('A verificação pós-cópia não confere: origem '+total+', destino '+verifiedTotal+'. Snapshot preservado para investigação.');
+    const report = ['CÓPIA DE PREPARAÇÃO CONCLUÍDA — NÃO APLICADA ÀS TABELAS DO SISTEMA','Snapshot: '+snapshotId,'Origem: banco contingencial Render','Destino: branch Neon de homologação','Total de registros copiados: '+verifiedTotal,'','TABELA | REGISTROS',...verify.rows.map(r=>r.source_table+' | '+r.count),'','Foram excluídas tabelas de autenticação, usuários, tokens, sessões, preferências de contato e auditoria. Os dados foram guardados como JSONB em recovery.source_rows para conciliação, sem sobrescrever tabelas operacionais.'];
+    res.type('html').send(page(report.join('\n')));
+  } catch(e) {
+    res.status(500).type('html').send(page('Falha na preparação: '+e.message+'\nSnapshot: '+snapshotId));
+  } finally {
+    if(source) await source.end();
+    if(target) await target.end();
+  }
+});
+
 app.listen(PORT,'0.0.0.0',()=>console.log('Recovery console listening on '+PORT));
