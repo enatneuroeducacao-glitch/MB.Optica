@@ -158,4 +158,42 @@ app.post('/compare-business', express.urlencoded({extended:false}), async (req,r
  }catch(e){res.status(500).type('html').send(page('Falha na comparação por chaves: '+e.message));}
  finally{if(source)await source.end();if(target)await target.end();}
 });
+app.post('/compare-detail', express.urlencoded({extended:false}), async (req,res) => {
+ let source,target;
+ try {
+  if(!authorized(req)) return res.status(401).type('html').send(page('Token inválido.'));
+  const targetUrl=process.env.NEON_TEST_DATABASE_URL||'';
+  if(!DATABASE_URL.includes(TARGET_NAME)||!targetUrl.includes('ep-delicate-wildflower-b6r4m9uw')) return res.status(403).type('html').send(page('Destino de teste não validado.'));
+  source=new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false},max:2});
+  target=new Pool({connectionString:targetUrl,ssl:{rejectUnauthorized:false},max:2});
+  const checks=[['Sale','number'],['OpticalOrder','number'],['Quote','number'],['Product','code'],['Supplier','name'],['Category','name'],['PaymentMethod','name']];
+  const out=['CHAVE | AUSENTES NO NEON TESTE | COLISÕES COM CONTEÚDO DIFERENTE'];
+  for(const [table,key] of checks){
+   const has=await Promise.all([source,target].map(p=>p.query("SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name=$2) AS ok",[table,key])));
+   if(!has[0].rows[0].ok||!has[1].rows[0].ok){out.push(table+' | coluna indisponível | —');continue;}
+   const q='SELECT "'+key+'"::text AS k, to_jsonb(t) - \'id\' AS payload FROM "'+table+'" t WHERE "'+key+'" IS NOT NULL';
+   const [a,b]=await Promise.all([source.query(q),target.query(q)]);
+   const map=new Map(b.rows.map(r=>[r.k,JSON.stringify(r.payload)]));
+   const missing=a.rows.filter(r=>!map.has(r.k));
+   const changed=a.rows.filter(r=>map.has(r.k)&&map.get(r.k)!==JSON.stringify(r.payload)).length;
+   out.push(table+' ('+key+') | '+missing.length+' | '+changed);
+  }
+  const fkSql="SELECT conrelid::regclass::text AS child, conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace ORDER BY 1,2";
+  const [sf,tf]=await Promise.all([source.query(fkSql),target.query(fkSql)]);
+  out.push(''); out.push('INTEGRIDADE REFERENCIAL — contagem de referências órfãs');
+  async function orphanCount(pool, f){
+   const m=f.definition.match(/^FOREIGN KEY \\(([^)]+)\\) REFERENCES ([^ (]+)\\(([^)]+)\\)/);
+   if(!m) return 'não avaliado';
+   const child=f.child.split('.').pop().replace(/\"/g,''); const parent=m[2].replace(/\"/g,'').split('.').pop();
+   const cols=m[1].split(',').map(x=>'c.'+x.trim()); const pcols=m[3].split(',').map(x=>'p.'+x.trim());
+   const join=cols.map((x,i)=>x+' = '+pcols[i]).join(' AND ');
+   const sql='SELECT COUNT(*)::text AS n FROM "'+child+'" c WHERE '+cols.map(x=>x+' IS NOT NULL').join(' AND ')+' AND NOT EXISTS (SELECT 1 FROM "'+parent+'" p WHERE '+join+')';
+   const r=await pool.query(sql); return r.rows[0].n;
+  }
+  for(const f of sf.rows){ const r=await orphanCount(source,f); out.push('RENDER '+f.child+'.'+f.conname+' | '+r); }
+  for(const f of tf.rows){ const r=await orphanCount(target,f); out.push('NEON '+f.child+'.'+f.conname+' | '+r); }
+  res.type('html').send(page('VALIDAÇÃO DETALHADA — SOMENTE LEITURA\\n'+out.join('\\n')+'\\n\\nComparação por chaves e conteúdo; nenhum registro foi alterado. A auditoria não exibe dados pessoais.'));
+ }catch(e){res.status(500).type('html').send(page('Falha na validação detalhada: '+e.message));}
+ finally{if(source)await source.end();if(target)await target.end();}
+});
 app.listen(PORT,'0.0.0.0',()=>console.log('Recovery console listening on '+PORT));
