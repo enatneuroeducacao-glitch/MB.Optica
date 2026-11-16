@@ -251,7 +251,7 @@ app.post('/stage-source', express.urlencoded({extended:false}), async (req,res) 
           const id = payload.id == null ? crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex') : String(payload.id);
           const n = params.length;
           params.push(snapshotId, table, id, JSON.stringify(payload));
-          values.push('(,()=>console.log('Recovery console listening on '+PORT));
+          values.push('($'+(n+1)+'::uuid,$'+(n+2)+'::text,$'+(n+3)+'::text,$'+(n+4)+'::jsonb)');
 +(n+1)+'::uuid,,()=>console.log('Recovery console listening on '+PORT));
 +(n+2)+'::text,,()=>console.log('Recovery console listening on '+PORT));
 +(n+3)+'::text,,()=>console.log('Recovery console listening on '+PORT));
