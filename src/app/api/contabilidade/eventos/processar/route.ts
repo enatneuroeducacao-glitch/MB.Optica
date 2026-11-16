@@ -37,13 +37,14 @@ export async function POST(request: Request) {
       // Recupera os dados do pagamento operacional de origem, sem inventar valores nem criar outro recebimento.
       // Eventos antigos podem guardar o nome do meio de pagamento sem o ID.
       // Recupera o cadastro ativo pelo nome para permitir o mapeamento correto.
-      if (event.eventType === "SUPPLIER_PAYMENT_MADE" && !payload.paymentMethodId && typeof payload.paymentMethod === "string" && payload.paymentMethod.trim()) {
+      const paymentMethodName = typeof payload.paymentMethod === "string" ? payload.paymentMethod.trim() : "";
+      if (event.eventType === "SUPPLIER_PAYMENT_MADE" && !payload.paymentMethodId && paymentMethodName) {
         const activeMethods = await tx.paymentMethod.findMany({
           where: { active: true },
           select: { id: true, name: true },
         });
         const sourceMethod = activeMethods.find(
-          (method) => method.name.trim().toLocaleLowerCase("pt-BR") === payload.paymentMethod.trim().toLocaleLowerCase("pt-BR")
+          (method) => method.name.trim().toLocaleLowerCase("pt-BR") === paymentMethodName.toLocaleLowerCase("pt-BR")
         );
         if (sourceMethod) {
           payload = { ...payload, paymentMethodId: sourceMethod.id, paymentMethodName: sourceMethod.name };
@@ -77,7 +78,10 @@ export async function POST(request: Request) {
         const methodRecord = sourceSettlement?.paymentMethod?.active
           ? sourceSettlement.paymentMethod
           : legacyMethodName
-            ? await tx.paymentMethod.findFirst({ where: { name: { equals: legacyMethodName, mode: "insensitive" }, active: true } })
+            ? (await tx.paymentMethod.findMany({
+                where: { active: true },
+                select: { id: true, name: true, active: true, isCash: true },
+              })).find((method) => method.name.trim().toLocaleLowerCase("pt-BR") === legacyMethodName.toLocaleLowerCase("pt-BR")) ?? null
             : null;
         payload = {
           ...payload,
