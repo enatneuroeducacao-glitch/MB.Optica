@@ -1,58 +1,87 @@
-name: Operational Customers and Products Backup
+name: Encrypted Full PostgreSQL Backup
 
 on:
   workflow_dispatch:
+  schedule:
+    # Full encrypted snapshot every 6 hours (UTC).
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: read
 
+concurrency:
+  group: mb-optica-production-backup
+  cancel-in-progress: false
+
 jobs:
   backup:
+    name: Full database backup
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
-      DATABASE_URL: ${{ secrets.MB_OPTICA_DATABASE_URL }}
-      ALLOW_OPERATIONAL_BACKUP: "1"
+      DATABASE_URL: ${{ secrets.MB_OPTICA_BACKUP_DATABASE_URL }}
+      AGE_RECIPIENT: ${{ secrets.MB_OPTICA_BACKUP_AGE_RECIPIENT }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Normalize database URL
+      - name: Validate required secrets
         shell: bash
         run: |
-          raw="$DATABASE_URL"
-          raw="$(printf '%s' "$raw" | sed -e "s/^['\"]//" -e "s/['\"]$//" | xargs)"
-          if [[ "$raw" != postgresql://* && "$raw" != postgres://* ]]; then
-            echo "MB_OPTICA_DATABASE_URL não contém uma URL PostgreSQL válida."
-            echo "O segredo deve ser a DATABASE_URL do banco operacional, iniciando com postgresql:// ou postgres://."
+          set -euo pipefail
+          if [[ -z "${DATABASE_URL:-}" ]]; then
+            echo "::error::Configure o secret MB_OPTICA_BACKUP_DATABASE_URL com a URL direta do PostgreSQL de produção (não use endpoint pooler)."
             exit 1
           fi
-          printf 'DATABASE_URL=%s\n' "$raw" >> "$GITHUB_ENV"
+          if [[ "$DATABASE_URL" != postgresql://* && "$DATABASE_URL" != postgres://* ]]; then
+            echo "::error::MB_OPTICA_BACKUP_DATABASE_URL não é uma URL PostgreSQL válida."
+            exit 1
+          fi
+          if [[ -z "${AGE_RECIPIENT:-}" ]]; then
+            echo "::error::Configure MB_OPTICA_BACKUP_AGE_RECIPIENT com a chave pública age. A chave privada deve ficar fora do GitHub."
+            exit 1
+          fi
 
-      - name: Install
-        run: npm install --no-audit --no-fund
+      - name: Install age encryption
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes age
 
-      - name: Validate Prisma schema
-        run: npm run db:validate
+      - name: Create full PostgreSQL dump and verify it
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backups
+          stamp="$(date -u +'%Y%m%dT%H%M%SZ')"
+          dump="backups/mb-optica-full-${stamp}.dump"
+          encrypted="${dump}.age"
+          export BACKUP_STAMP="$stamp"
+          trap 'rm -f "$dump"' EXIT
 
-      - name: Operational database preflight
-        run: npm run db:preflight
+          docker run --rm \
+            -e DATABASE_URL="$DATABASE_URL" \
+            -e BACKUP_STAMP="$BACKUP_STAMP" \
+            -v "$PWD/backups:/backup" \
+            postgres:18-alpine \
+            sh -euc 'pg_dump "$DATABASE_URL" --format=custom --compress=9 --no-owner --no-acl --file="/backup/mb-optica-full-${BACKUP_STAMP}.dump"'
 
-      - name: Check migration status
-        run: npx prisma migrate status
+          docker run --rm \
+            -v "$PWD/backups:/backup" \
+            postgres:18-alpine \
+            pg_restore --list "/backup/mb-optica-full-${BACKUP_STAMP}.dump" >/dev/null
 
-      - name: Create protected operational backup
-        run: npm run backup:operational
+          age --encrypt --recipient "$AGE_RECIPIENT" --output "$encrypted" "$dump"
+          sha256sum "$encrypted" > "${encrypted}.sha256"
+          rm -f "$dump"
+          trap - EXIT
 
-      - name: Upload backup artifact
+          echo "Backup integral criado e validado; conteúdo protegido com age."
+          ls -lh "$encrypted" "${encrypted}.sha256"
+
+      - name: Upload encrypted backup
         uses: actions/upload-artifact@v4
         with:
-          name: mb-optica-operational-backup
-          path: backups/operational-*.json
+          name: mb-optica-full-backup-${{ github.run_id }}
+          path: |
+            backups/*.dump.age
+            backups/*.dump.age.sha256
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 90
