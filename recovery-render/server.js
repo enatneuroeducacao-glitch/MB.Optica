@@ -230,7 +230,7 @@ app.post('/stage-source', express.urlencoded({extended:false}), async (req,res) 
     target = new Pool({connectionString:targetUrl,ssl:{rejectUnauthorized:false},max:2});
     const sourceDb = await source.query('SELECT current_database() AS db');
     const targetDb = await target.query('SELECT current_database() AS db');
-    if (sourceDb.rows[0].db !== 'mb_optica_db_contingencia' || targetDb.rows[0].db !== 'neondb') throw new Error('Identidade não confere. Banco de origem detectado: '+sourceDb.rows[0].db+' (esperado: mb_optica_db_contingencia); banco de destino detectado: '+targetDb.rows[0].db+' (esperado: neondb). Nenhum registro foi copiado.');
+    if (sourceDb.rows[0].db !== TARGET_NAME || targetDb.rows[0].db !== 'neondb') throw new Error('Identidade não confere. Banco de origem detectado: '+sourceDb.rows[0].db+' (esperado: '+TARGET_NAME+'); banco de destino detectado: '+targetDb.rows[0].db+' (esperado: neondb). Nenhum registro foi copiado.');
     await target.query('CREATE SCHEMA IF NOT EXISTS recovery');
     await target.query(`CREATE TABLE IF NOT EXISTS recovery.source_rows (
       snapshot_id uuid NOT NULL, source_table text NOT NULL, source_id text NOT NULL,
