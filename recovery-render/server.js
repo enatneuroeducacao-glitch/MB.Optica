@@ -178,20 +178,30 @@ app.post('/compare-detail', express.urlencoded({extended:false}), async (req,res
    const changed=a.rows.filter(r=>map.has(r.k)&&map.get(r.k)!==JSON.stringify(r.payload)).length;
    out.push(table+' ('+key+') | '+missing.length+' | '+changed);
   }
-  const fkSql="SELECT conrelid::regclass::text AS child, conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE contype='f' AND connamespace='public'::regnamespace ORDER BY 1,2";
+  const fkSql=`SELECT child.relname AS child, con.conname, parent.relname AS parent,
+    array_agg(ca.attname ORDER BY ck.ord) AS child_cols, array_agg(pa.attname ORDER BY ck.ord) AS parent_cols
+    FROM pg_constraint con
+    JOIN pg_class child ON child.oid=con.conrelid
+    JOIN pg_namespace ns ON ns.oid=child.relnamespace
+    JOIN pg_class parent ON parent.oid=con.confrelid
+    JOIN LATERAL unnest(con.conkey) WITH ORDINALITY ck(attnum,ord) ON true
+    JOIN LATERAL unnest(con.confkey) WITH ORDINALITY pk(attnum,ord) ON pk.ord=ck.ord
+    JOIN pg_attribute ca ON ca.attrelid=child.oid AND ca.attnum=ck.attnum
+    JOIN pg_attribute pa ON pa.attrelid=parent.oid AND pa.attnum=pk.attnum
+    WHERE con.contype='f' AND ns.nspname='public'
+    GROUP BY child.relname,con.conname,parent.relname ORDER BY child.relname,con.conname`;
   const [sf,tf]=await Promise.all([source.query(fkSql),target.query(fkSql)]);
-  out.push(''); out.push('INTEGRIDADE REFERENCIAL — contagem de referências órfãs');
-  async function orphanCount(pool, f){
-   const m=f.definition.match(/^FOREIGN KEY \\(([^)]+)\\) REFERENCES ([^ (]+)\\(([^)]+)\\)/);
-   if(!m) return 'não avaliado';
-   const child=f.child.split('.').pop().replace(/\"/g,''); const parent=m[2].replace(/\"/g,'').split('.').pop();
-   const cols=m[1].split(',').map(x=>'c.'+x.trim()); const pcols=m[3].split(',').map(x=>'p.'+x.trim());
-   const join=cols.map((x,i)=>x+' = '+pcols[i]).join(' AND ');
-   const sql='SELECT COUNT(*)::text AS n FROM "'+child+'" c WHERE '+cols.map(x=>x+' IS NOT NULL').join(' AND ')+' AND NOT EXISTS (SELECT 1 FROM "'+parent+'" p WHERE '+join+')';
+  out.push(''); out.push('INTEGRIDADE REFERENCIAL — referências órfãs (contagem real)');
+  const qi=x=>'\\"'+String(x).replace(/\\"/g,'\\"\\"')+'\\"';
+  async function orphanCount(pool,f){
+   const cols=f.child_cols.map(qi), pcols=f.parent_cols.map(qi);
+   const join=cols.map((x,i)=>'p.'+pcols[i]+' = c.'+x).join(' AND ');
+   const notnull=cols.map(x=>'c.'+x+' IS NOT NULL').join(' AND ');
+   const sql='SELECT COUNT(*)::text AS n FROM public.'+qi(f.child)+' c WHERE '+notnull+' AND NOT EXISTS (SELECT 1 FROM public.'+qi(f.parent)+' p WHERE '+join+')';
    const r=await pool.query(sql); return r.rows[0].n;
   }
-  for(const f of sf.rows){ const r=await orphanCount(source,f); out.push('RENDER '+f.child+'.'+f.conname+' | '+r); }
-  for(const f of tf.rows){ const r=await orphanCount(target,f); out.push('NEON '+f.child+'.'+f.conname+' | '+r); }
+  for(const f of sf.rows){ const r=await orphanCount(source,f); out.push('RENDER '+f.child+'.'+f.conname+' -> '+f.parent+' | '+r); }
+  for(const f of tf.rows){ const r=await orphanCount(target,f); out.push('NEON '+f.child+'.'+f.conname+' -> '+f.parent+' | '+r); }
   res.type('html').send(page('VALIDAÇÃO DETALHADA — SOMENTE LEITURA\\n'+out.join('\\n')+'\\n\\nComparação por chaves e conteúdo; nenhum registro foi alterado. A auditoria não exibe dados pessoais.'));
  }catch(e){res.status(500).type('html').send(page('Falha na validação detalhada: '+e.message));}
  finally{if(source)await source.end();if(target)await target.end();}
