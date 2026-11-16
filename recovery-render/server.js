@@ -87,4 +87,13 @@ app.post('/restore', upload.single('backup'), async (req,res) => {
     fs.rmSync(temp,{recursive:true,force:true});
   }
 });
+app.post('/audit', express.urlencoded({extended:false}), async (req,res) => {
+  try {
+    if (!authorized(req)) return res.status(401).type('html').send(page('Token inválido para auditoria.'));
+    if (!DATABASE_URL || DATABASE_URL === 'SET_IN_RENDER_DASHBOARD' || !DATABASE_URL.includes(TARGET_NAME)) return res.status(503).type('html').send(page('Banco temporário não configurado corretamente.'));
+    const sql = `SELECT 'sales' AS section, COUNT(*)::text AS record_count, COALESCE(SUM(total) FILTER (WHERE canceled = false),0)::numeric(14,2)::text AS valid_total, COALESCE(SUM(total) FILTER (WHERE canceled = false AND "createdAt" >= TIMESTAMP '2026-11-01' AND "createdAt" < TIMESTAMP '2026-12-01'),0)::numeric(14,2)::text AS november_total, COUNT(*) FILTER (WHERE canceled = false AND "createdAt" >= TIMESTAMP '2026-11-01' AND "createdAt" < TIMESTAMP '2026-12-01')::text AS november_count, MAX("createdAt")::text AS latest_sale FROM "Sale" UNION ALL SELECT 'customers', COUNT(*)::text, '', '', '', '' FROM "Customer" UNION ALL SELECT 'products', COUNT(*)::text, '', '', '', '' FROM "Product" UNION ALL SELECT 'payments', COUNT(*)::text, '', '', '', '' FROM "Payment" UNION ALL SELECT 'stock_movements', COUNT(*)::text, '', '', '', '' FROM "StockMovement";`;
+    const q = await run('psql', [DATABASE_URL,'-X','-A','-F',' | ','-c',sql]);
+    res.type('html').send(page('AUDITORIA SOMENTE LEITURA\n'+q.out+'\n\nNenhum dado foi alterado. Valores em unidade monetária do banco.'));
+  } catch(e) { res.status(500).type('html').send(page('Falha na auditoria: '+e.message)); }
+});
 app.listen(PORT,'0.0.0.0',()=>console.log('Recovery console listening on '+PORT));
