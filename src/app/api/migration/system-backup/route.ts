@@ -123,14 +123,21 @@ export async function POST(request: Request) {
 
     const discovered = await getPublicTables(db);
     const currentNames = discovered.map(item => item.table_name);
-    const archiveNames = [...new Set(archive.tableOrder.map((name: unknown) => String(name)))];
+    if (archive.tableOrder.some((name: unknown) => typeof name !== "string") ||
+        new Set(archive.tableOrder).size !== archive.tableOrder.length) {
+      return NextResponse.json({ ok: false, error: "A ordem de tabelas do backup contém nomes inválidos ou repetidos." }, { status: 400 });
+    }
+    const archiveNames = [...archive.tableOrder] as string[];
+    const archiveTableKeys = Object.keys(archive.tables).sort();
+    const orderedTableKeys = [...archiveNames].sort();
     const missing = currentNames.filter(name => !archiveNames.includes(name));
     const unknown = archiveNames.filter(name => !currentNames.includes(name));
-    if (missing.length || unknown.length) {
+    const extraPayloadTables = archiveTableKeys.filter(name => !archiveNames.includes(name));
+    if (missing.length || unknown.length || extraPayloadTables.length || archiveNames.length !== currentNames.length) {
       return NextResponse.json({
         ok: false,
         error: "A estrutura do banco de dados não corresponde ao backup. Nenhum dado foi alterado.",
-        details: { missingTables: missing, unknownTables: unknown },
+        details: { missingTables: missing, unknownTables: unknown, extraPayloadTables },
       }, { status: 409 });
     }
 
