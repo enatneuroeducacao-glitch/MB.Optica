@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const { Pool } = require('pg');
 const { spawn } = require('child_process');
 
 const app = express();
@@ -97,5 +98,38 @@ app.post('/audit', express.urlencoded({extended:false}), async (req,res) => {
     const detail = await run('psql',[DATABASE_URL,'-X','-A','-F',' | ','-c',detailSql]);
     res.type('html').send(page('AUDITORIA SOMENTE LEITURA\n'+q.out+'\n\nDETALHE DAS VENDAS DE NOVEMBRO (sem dados pessoais)\n'+detail.out+'\n\nNenhum dado foi alterado. Pagamentos somados sem reversões.'));
   } catch(e) { res.status(500).type('html').send(page('Falha na auditoria: '+e.message)); }
+});
+
+app.post('/compare', express.urlencoded({extended:false}), async (req,res) => {
+  let source, target;
+  try {
+    if (!authorized(req)) return res.status(401).type('html').send(page('Token inválido para comparação.'));
+    const targetUrl = process.env.NEON_TEST_DATABASE_URL || '';
+    if (!DATABASE_URL.includes(TARGET_NAME) || !targetUrl.includes('ep-delicate-wildflower-b6r4m9uw')) return res.status(403).type('html').send(page('Bloqueado: origem/destino não correspondem aos bancos temporários de recuperação.'));
+    source = new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false},max:2});
+    target = new Pool({connectionString:targetUrl,ssl:{rejectUnauthorized:false},max:2});
+    const sourceTables = await source.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name");
+    const targetTables = await target.query("SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'");
+    const targetNames = new Set(targetTables.rows.map(r=>r.table_name));
+    const out = ['TABELA | RENDER | NEON TESTE | REGISTROS NO RENDER AUSENTES NO NEON'];
+    for (const row of sourceTables.rows) {
+      const t = row.table_name;
+      if (!targetNames.has(t)) { out.push(t+' | tabela ausente no Neon teste | — | —'); continue; }
+      const [sc,tc] = await Promise.all([
+        source.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name='id'",[t]),
+        target.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1 AND column_name='id'",[t])
+      ]);
+      if (!sc.rowCount || !tc.rowCount) { out.push(t+' | chave não é id simples | — | não comparada'); continue; }
+      const [sr,tr] = await Promise.all([
+        source.query('SELECT id::text AS id FROM public.'+ '"' + t.replace(/"/g,'""') + '"'),
+        target.query('SELECT id::text AS id FROM public.'+ '"' + t.replace(/"/g,'""') + '"')
+      ]);
+      const ids = new Set(tr.rows.map(x=>x.id));
+      const missing = sr.rows.filter(x=>!ids.has(x.id)).length;
+      out.push(t+' | '+sr.rowCount+' | '+tr.rowCount+' | '+missing);
+    }
+    res.type('html').send(page('COMPARAÇÃO SOMENTE LEITURA — RENDER RECUPERADO x NEON TESTE\\n'+out.join('\\n')+'\\n\\nNenhuma tabela de negócio foi alterada. Destino: branch isolada '+(process.env.NEON_TEST_BRANCH_ID||'Neon teste')+'.'));
+  } catch(e) { res.status(500).type('html').send(page('Falha na comparação: '+e.message)); }
+  finally { if(source) await source.end(); if(target) await target.end(); }
 });
 app.listen(PORT,'0.0.0.0',()=>console.log('Recovery console listening on '+PORT));
