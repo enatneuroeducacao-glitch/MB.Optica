@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         const column = quote(item.column_name);
         await tx.$queryRawUnsafe(
           `SELECT setval(pg_get_serial_sequence($1, $2), GREATEST(COALESCE((SELECT MAX(${column}) FROM ${table}), 1), 1), EXISTS(SELECT 1 FROM ${table}))`,
-          item.table_name,
+          quote(item.table_name),
           item.column_name
         );
       }
