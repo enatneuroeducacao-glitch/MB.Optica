@@ -129,7 +129,6 @@ export async function POST(request: Request) {
     }
     const archiveNames = [...archive.tableOrder] as string[];
     const archiveTableKeys = Object.keys(archive.tables).sort();
-    const orderedTableKeys = [...archiveNames].sort();
     const missing = currentNames.filter(name => !archiveNames.includes(name));
     const unknown = archiveNames.filter(name => !currentNames.includes(name));
     const extraPayloadTables = archiveTableKeys.filter(name => !archiveNames.includes(name));
