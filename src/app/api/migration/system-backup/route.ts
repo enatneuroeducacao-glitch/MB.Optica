@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 
 const FORMAT = "MB_GESTAO_FULL_BACKUP_V1";
-const quote = (identifier: string) => '"' + identifier.replace(/"/g, '""') + "'";
+const quote = (identifier: string) => '"' + identifier.replace(/"/g, '""') + '"';
 
 async function getPublicTables(client: typeof db) {
   return client.$queryRaw<Array<{ table_name: string }>>`
