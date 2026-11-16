@@ -132,4 +132,30 @@ app.post('/compare', express.urlencoded({extended:false}), async (req,res) => {
   } catch(e) { res.status(500).type('html').send(page('Falha na comparação: '+e.message)); }
   finally { if(source) await source.end(); if(target) await target.end(); }
 });
+app.post('/compare-business', express.urlencoded({extended:false}), async (req,res) => {
+ let source,target;
+ try {
+  if(!authorized(req)) return res.status(401).type('html').send(page('Token inválido.'));
+  const targetUrl=process.env.NEON_TEST_DATABASE_URL||'';
+  if(!DATABASE_URL.includes(TARGET_NAME)||!targetUrl.includes('ep-delicate-wildflower-b6r4m9uw')) return res.status(403).type('html').send(page('Destino de teste não validado.'));
+  source=new Pool({connectionString:DATABASE_URL,ssl:{rejectUnauthorized:false},max:2});
+  target=new Pool({connectionString:targetUrl,ssl:{rejectUnauthorized:false},max:2});
+  const checks=[['Sale','number::text'],['OpticalOrder','number::text'],['Quote','number::text'],['Product','code'],['Customer','"cpfCnpj"'],['PaymentMethod','name'],['Supplier','name'],['Category','name']];
+  const out=['TABELA | CHAVE DE NEGÓCIO | RENDER | NEON TESTE | CHAVES DO RENDER NÃO ENCONTRADAS NO NEON'];
+  for(const [table,keyExpr] of checks){
+   const exists=await Promise.all([source,target].map(p=>p.query("SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1) AS ok",[table])));
+   if(!exists[0].rows[0].ok||!exists[1].rows[0].ok){out.push(table+' | '+keyExpr+' | tabela ausente | — | —');continue;}
+   const q='SELECT '+keyExpr+' AS k FROM "'+table+'" WHERE '+keyExpr+' IS NOT NULL';
+   const [a,b]=await Promise.all([source.query(q),target.query(q)]);
+   const targetKeys=new Set(b.rows.map(r=>String(r.k)));
+   const missing=a.rows.filter(r=>!targetKeys.has(String(r.k))).length;
+   out.push(table+' | '+keyExpr+' | '+a.rowCount+' | '+b.rowCount+' | '+missing);
+  }
+  const salesDetail=await source.query("SELECT s.number::text AS number, s.total::text AS total, s.canceled, to_char(s.\"createdAt\" AT TIME ZONE 'America/Sao_Paulo','DD/MM/YYYY') AS date FROM \"Sale\" s WHERE s.\"createdAt\">=TIMESTAMP '2026-11-01' AND s.\"createdAt\"<TIMESTAMP '2026-12-01' ORDER BY s.number");
+  out.push('VENDAS DE NOVEMBRO | número | valor | status | data');
+  for(const r of salesDetail.rows) out.push([r.number,r.total,r.canceled?'CANCELADA':'VALIDA',r.date].join(' | '));
+  res.type('html').send(page('COMPARAÇÃO POR CHAVES DE NEGÓCIO — SOMENTE LEITURA\\n'+out.join('\\n')+'\\n\\nAviso: CPF/CNPJ nulo não identifica cliente; pagamentos, itens e estoque ainda exigem conciliação relacional. Nenhuma escrita executada.'));
+ }catch(e){res.status(500).type('html').send(page('Falha na comparação por chaves: '+e.message));}
+ finally{if(source)await source.end();if(target)await target.end();}
+});
 app.listen(PORT,'0.0.0.0',()=>console.log('Recovery console listening on '+PORT));
