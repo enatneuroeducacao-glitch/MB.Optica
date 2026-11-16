@@ -27,4 +27,4 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma
 EXPOSE 3000
-CMD ["sh","-c","test -n \"$NEON_DATABASE_URL\" || { echo 'NEON_DATABASE_URL is required'; exit 1; }; export DATABASE_URL=\"$NEON_DATABASE_URL\" DIRECT_URL=\"$NEON_DATABASE_URL\"; npx prisma migrate deploy && node server.js"]
+CMD ["sh","-c","NEON_URL=\"${NEON_DATABASE_URL:-${DATABASE_URL:-}}\"; test -n \"$NEON_URL\" || { echo NEON_DATABASE_URL_or_DATABASE_URL_is_required; exit 1; }; export DATABASE_URL=\"$NEON_URL\" DIRECT_URL=\"$NEON_URL\"; npx prisma migrate deploy && node server.js"]
