@@ -1,30 +1,9 @@
-FROM node:22-alpine AS deps
+FROM postgres:18-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json ./
-COPY prisma ./prisma
-RUN npm install --no-audit --no-fund
-
-FROM deps AS migrator
-WORKDIR /app
-COPY . .
-CMD ["npx","prisma","migrate","deploy"]
-
-FROM deps AS builder
-WORKDIR /app
-COPY . .
-ENV DIRECT_URL=postgresql://postgres:postgres@localhost:5432/mb_optica?schema=public
-RUN npx prisma generate
-RUN npm run build
-
-FROM node:22-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=10000
-ENV HOSTNAME=0.0.0.0
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/prisma ./prisma
-EXPOSE 3000
-CMD ["sh","-c","NEON_URL=\"${NEON_DATABASE_URL:-${DATABASE_URL:-}}\"; test -n \"$NEON_URL\" || { echo NEON_DATABASE_URL_or_DATABASE_URL_is_required; exit 1; }; export DATABASE_URL=\"$NEON_URL\" DIRECT_URL=\"$NEON_URL\"; npx prisma migrate deploy && node server.js"]
+COPY recovery-render/package.json ./package.json
+RUN npm install --omit=dev
+COPY recovery-render/server.js ./server.js
+ENV NODE_ENV=production PORT=10000
+EXPOSE 10000
+CMD ["node","server.js"]
