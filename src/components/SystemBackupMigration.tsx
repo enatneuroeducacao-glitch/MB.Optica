@@ -29,16 +29,22 @@ function fromBase64(value: string) {
   return bytes;
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 async function deriveKey(password: string, salt: Uint8Array) {
   const material = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(password),
+    toArrayBuffer(new TextEncoder().encode(password)),
     "PBKDF2",
     false,
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: toArrayBuffer(salt), iterations: ITERATIONS, hash: "SHA-256" },
     material,
     { name: "AES-GCM", length: 256 },
     false,
@@ -51,9 +57,9 @@ async function encryptBackup(plainText: string, password: string) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveKey(password, salt);
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: toArrayBuffer(iv) },
     key,
-    new TextEncoder().encode(plainText)
+    toArrayBuffer(new TextEncoder().encode(plainText))
   );
   return {
     format: ENVELOPE_FORMAT,
@@ -80,9 +86,9 @@ async function decryptBackup(envelope: any, password: string) {
   }
   const key = await deriveKey(password, fromBase64(envelope.salt));
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: fromBase64(envelope.iv) },
+    { name: "AES-GCM", iv: toArrayBuffer(fromBase64(envelope.iv)) },
     key,
-    fromBase64(envelope.data)
+    toArrayBuffer(fromBase64(envelope.data))
   );
   return new TextDecoder().decode(plain);
 }
