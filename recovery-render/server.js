@@ -252,10 +252,6 @@ app.post('/stage-source', express.urlencoded({extended:false}), async (req,res) 
           const n = params.length;
           params.push(snapshotId, table, id, JSON.stringify(payload));
           values.push('($'+(n+1)+'::uuid,$'+(n+2)+'::text,$'+(n+3)+'::text,$'+(n+4)+'::jsonb)');
-+(n+1)+'::uuid,,()=>console.log('Recovery console listening on '+PORT));
-+(n+2)+'::text,,()=>console.log('Recovery console listening on '+PORT));
-+(n+3)+'::text,,()=>console.log('Recovery console listening on '+PORT));
-+(n+4)+'::jsonb)');
         }
         if (values.length) await target.query(
           'INSERT INTO recovery.source_rows(snapshot_id,source_table,source_id,payload) VALUES '+values.join(','),
