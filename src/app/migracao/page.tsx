@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SystemBackupMigration from "@/components/SystemBackupMigration";
 
 type Audit = {
   source:string;
@@ -171,6 +172,8 @@ export default function Page(){
     </div>
 
     {message&&<div className="panel settings-message">{message}</div>}
+
+    <SystemBackupMigration />
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:10,marginBottom:16}}>
       {[
