@@ -179,7 +179,7 @@ app.post('/compare-detail', express.urlencoded({extended:false}), async (req,res
    out.push(table+' ('+key+') | '+missing.length+' | '+changed);
   }
   const fkSql=`SELECT child.relname AS child, con.conname, parent.relname AS parent,
-    array_agg(ca.attname ORDER BY ck.ord) AS child_cols, array_agg(pa.attname ORDER BY ck.ord) AS parent_cols
+    json_agg(ca.attname ORDER BY ck.ord) AS child_cols, json_agg(pa.attname ORDER BY ck.ord) AS parent_cols
     FROM pg_constraint con
     JOIN pg_class child ON child.oid=con.conrelid
     JOIN pg_namespace ns ON ns.oid=child.relnamespace
@@ -192,7 +192,7 @@ app.post('/compare-detail', express.urlencoded({extended:false}), async (req,res
     GROUP BY child.relname,con.conname,parent.relname ORDER BY child.relname,con.conname`;
   const [sf,tf]=await Promise.all([source.query(fkSql),target.query(fkSql)]);
   out.push(''); out.push('INTEGRIDADE REFERENCIAL — referências órfãs (contagem real)');
-  const qi=x=>'\\"'+String(x).replace(/\\"/g,'\\"\\"')+'\\"';
+  const qi=x=>'"'+String(x).replace(/"/g,'""')+'"';
   async function orphanCount(pool,f){
    const cols=f.child_cols.map(qi), pcols=f.parent_cols.map(qi);
    const join=cols.map((x,i)=>'p.'+pcols[i]+' = c.'+x).join(' AND ');
