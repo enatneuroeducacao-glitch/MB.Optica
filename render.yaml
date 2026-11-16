@@ -19,5 +19,7 @@ services:
         value: "true"
       - key: AUTH_SECRET
         generateValue: true
+      - key: NEON_DATABASE_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
