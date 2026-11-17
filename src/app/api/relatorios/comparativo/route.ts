@@ -25,7 +25,7 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
     });
     const totals = new Map<string, { sales: number; total: number }>();
-    for (const sale of sales) {
+    for (const sale of includedSales) {
       const key = keyOf(sale.createdAt);
       if (!key) continue;
       const current = totals.get(key) || { sales: 0, total: 0 };
@@ -33,7 +33,12 @@ export async function GET() {
       current.total += Number(sale.total || 0);
       totals.set(key, current);
     }
-    const firstObservedMonth = sales.length ? keyOf(sales[0].createdAt) : null;
+    // A competência outubro/2026 começa em 17/10 conforme o período confirmado da integração.
+    const includedSales = sales.filter((sale) => {
+      const d = new Date(sale.createdAt);
+      return !(d.getUTCFullYear() === 2026 && d.getUTCMonth() === 9 && d.getUTCDate() < 17);
+    });
+    const firstObservedMonth = includedSales.length ? keyOf(includedSales[0].createdAt) : null;
     const startKey = firstObservedMonth || currentKey;
     const [startYear, startMonth] = startKey.split("-").map(Number);
     const monthCount = firstObservedMonth ? Math.max(1, Math.min(36, (year - startYear) * 12 + month - startMonth + 1)) : 0;
