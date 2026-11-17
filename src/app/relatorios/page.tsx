@@ -31,6 +31,7 @@ export default function Relatorios(){
    const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...legacyMap.keys(),...manualMap.keys()])].sort();
    const monthly=months.map((month:string)=>{
      const op=operationalMap.get(month),manual=manualMap.get(month),aggregate=historicalMap.get(month),legacyRow=legacyMap.get(month);
+     if(month==="2026-10"&&op&&(op.sales>0||op.total>0))return {...op,total:13143,origin:"MB Óptica · conciliação confirmada",partial:false};
      if(op&&(op.sales>0||op.total>0))return {...op,origin:"MB Óptica",partial:false};
      if(manual)return manual;
      if(aggregate)return aggregate;
@@ -74,6 +75,7 @@ export default function Relatorios(){
       </div>)}
      </div>
      <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Regra da meta sugerida: média dos até 3 meses anteriores com faturamento positivo, acrescida de 10%. A meta é um indicador gerencial adaptativo, não altera vendas, financeiro ou dados históricos.</p>
+     <p style={{marginTop:8,fontSize:12,color:"var(--muted)"}}>Conciliação de outubro/2026: valor confirmado no backup de outubro R$ 13.143,00. Os R$ 700,00 recebidos em novembro pertencem ao fluxo de caixa de novembro e não devem ser somados novamente a outubro. A exibição conciliada não altera os lançamentos originais.</p>
     </div>
     <div className="report-grid-2" style={{marginTop:16}}>
      <div className="panel"><div className="panel-heading"><div><h2>Leitura da meta</h2><p>O sistema mostra exatamente quanto foi alcançado ou ficou pendente.</p></div></div><div className="report-metrics"><div><b>{current?.target===null?"—":money(current?.total)}</b><span>faturamento atual</span></div><div><b>{current?.target===null?"—":money(current?.target)}</b><span>meta sugerida</span></div><div><b>{current?.target===null?"—":money(Math.abs(current?.variance||0))}</b><span>{current?.variance>=0?"acima da meta":"pendente"}</span></div></div></div>
@@ -118,7 +120,7 @@ export default function Relatorios(){
    const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,partial:false,origin:"Manual"}]));
    const operationalMap=new Map<string,any>(operational.map((x:any)=>[x.month,x]));
    const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...manualMap.keys()])].sort();
-   const monthly=months.map((month:string)=>{const op=operationalMap.get(month),manual=manualMap.get(month),historic=historicalMap.get(month);if(op&&(op.sales>0||op.total>0))return {...op,partial:false};if(manual)return manual;if(historic)return historic;return {month,sales:0,total:0,received:0,partial:false,origin:"—"};});
+   const monthly=months.map((month:string)=>{const op=operationalMap.get(month),manual=manualMap.get(month),historic=historicalMap.get(month);if(month==="2026-10"&&op&&(op.sales>0||op.total>0))return {...op,total:13143,origin:"MB Óptica · conciliação confirmada",partial:false};if(op&&(op.sales>0||op.total>0))return {...op,partial:false};if(manual)return manual;if(historic)return historic;return {month,sales:0,total:0,received:0,partial:false,origin:"—"};});
    const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0,partial:false};
    const previous=monthly.filter((x:any)=>x.month<current.month&&n(x.total)>0).slice(-1)[0]||{month:"—",sales:0,total:0,received:0};
    const variation=previous.total>0?((current.total-previous.total)/previous.total)*100:null;
