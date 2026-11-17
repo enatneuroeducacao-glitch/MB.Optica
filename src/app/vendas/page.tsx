@@ -155,7 +155,7 @@ export default function Vendas(){
  const previousMonthKey=monthKey(previousMonthDate);
  const monthLabel=new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric",timeZone:"America/Sao_Paulo"}).format(now);
  const previousMonthLabel=new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric",timeZone:"America/Sao_Paulo"}).format(previousMonthDate);
- const stats=useMemo(()=>{const monthSales=sales.filter(s=>!s.canceled&&monthKey(s.createdAt)===currentMonthKey);const previousSales=sales.filter(s=>!s.canceled&&monthKey(s.createdAt)===previousMonthKey);const gross=monthSales.reduce((sum,s)=>sum+Number(s.total||0),0);const previousGross=previousSales.reduce((sum,s)=>sum+Number(s.total||0),0);return {count:monthSales.length,gross,ticket:monthSales.length?gross/monthSales.length:0,previousCount:previousSales.length,previousGross}},[sales,currentMonthKey,previousMonthKey]);
+ const stats=useMemo(()=>{const monthSales=sales.filter(s=>!s.canceled&&monthKey(s.createdAt)===currentMonthKey);const previousSales=sales.filter(s=>{if(s.canceled||monthKey(s.createdAt)!==previousMonthKey)return false;const d=new Date(s.createdAt);return !(d.getUTCFullYear()===2026&&d.getUTCMonth()===9&&d.getUTCDate()<17)});const gross=monthSales.reduce((sum,s)=>sum+Number(s.total||0),0);const previousGross=previousSales.reduce((sum,s)=>sum+Number(s.total||0),0);return {count:monthSales.length,gross,ticket:monthSales.length?gross/monthSales.length:0,previousCount:previousSales.length,previousGross}},[sales,currentMonthKey,previousMonthKey]);
  const goalValue=adaptiveGoal?.target??monthlyGoal;
  const goalProgress=goalValue>0?Math.min(100,stats.gross/goalValue*100):0;
  const revenueChange=stats.previousGross>0?(stats.gross-stats.previousGross)/stats.previousGross*100:null;
