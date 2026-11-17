@@ -25,13 +25,14 @@ export async function GET(req:Request){
     const includeArchived=url.searchParams.get("includeArchived")==="1";
     const q=(url.searchParams.get("q")||"").trim();
     await requireRole(["ADMIN","GERENTE","VENDEDOR","FINANCEIRO","LABORATORIO"]);
+    const searchTerms=q.length>=2?[...new Set([q,q.toLowerCase(),q.toUpperCase()])]:[];
     const data=await db.customer.findMany({
       where:{
         ...(includeArchived?{}:{active:true}),
-        ...(q.length>=2?{OR:[
-          {name:{contains:q,mode:"insensitive"}},
-          {cpfCnpj:{contains:q,mode:"insensitive"}}
-        ]}:{}),
+        ...(searchTerms.length?{OR:searchTerms.flatMap(term=>[
+          {name:{contains:term}},
+          {cpfCnpj:{contains:term}}
+        ])}:{}),
       },
       orderBy:{name:"asc"},
       take:q.length>=2?50:500,
