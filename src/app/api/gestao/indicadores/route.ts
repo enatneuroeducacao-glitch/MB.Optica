@@ -139,8 +139,13 @@ export async function GET(){
     const grossSalesBeforeDiscount=sales.reduce((sum,sale)=>sum+(sale.items||[]).reduce((lineSum,item)=>lineSum+num(item.total),0)+num(sale.surcharge),0);
     const discountPercent=grossSalesBeforeDiscount>0?(discountTotal/grossSalesBeforeDiscount)*100:0;
 
-    const previousTotal=previousMonthSales.reduce((sum,sale)=>sum+num(sale.total),0);
-    const previousCost=previousMonthSales.reduce(
+    // Em outubro/2026, considerar somente o intervalo integrado e validado: 17 a 31/10.
+    const validPreviousMonthSales=previousMonthSales.filter(sale=>{
+      const date=new Date(sale.createdAt);
+      return !(date.getUTCFullYear()===2026&&date.getUTCMonth()===9&&date.getUTCDate()<17);
+    });
+    const previousTotal=validPreviousMonthSales.reduce((sum,sale)=>sum+num(sale.total),0);
+    const previousCost=validPreviousMonthSales.reduce(
       (sum,sale)=>sum+(sale.items||[]).reduce(
         (lineSum,item)=>lineSum+num(item.unitCost)*num(item.quantity),
         0
@@ -148,7 +153,7 @@ export async function GET(){
       0
     );
     const previousMargin=previousTotal-previousCost;
-    const previousDiscountTotal=previousMonthSales.reduce((sum,sale)=>sum+num(sale.discount),0);
+    const previousDiscountTotal=validPreviousMonthSales.reduce((sum,sale)=>sum+num(sale.discount),0);
     const previousMarginPercent=previousTotal>0?(previousMargin/previousTotal)*100:0;
     const marginVariationPoints=grossMarginPercent-previousMarginPercent;
     const marginVariationPercent=previousMarginPercent!==0?(marginVariationPoints/Math.abs(previousMarginPercent))*100:null;
