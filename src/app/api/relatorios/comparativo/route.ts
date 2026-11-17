@@ -24,6 +24,11 @@ export async function GET() {
       select: { createdAt: true, total: true },
       orderBy: { createdAt: "asc" },
     });
+    // A competência outubro/2026 começa em 17/10 conforme o período confirmado da integração.
+    const includedSales = sales.filter((sale) => {
+      const d = new Date(sale.createdAt);
+      return !(d.getUTCFullYear() === 2026 && d.getUTCMonth() === 9 && d.getUTCDate() < 17);
+    });
     const totals = new Map<string, { sales: number; total: number }>();
     for (const sale of includedSales) {
       const key = keyOf(sale.createdAt);
@@ -33,11 +38,6 @@ export async function GET() {
       current.total += Number(sale.total || 0);
       totals.set(key, current);
     }
-    // A competência outubro/2026 começa em 17/10 conforme o período confirmado da integração.
-    const includedSales = sales.filter((sale) => {
-      const d = new Date(sale.createdAt);
-      return !(d.getUTCFullYear() === 2026 && d.getUTCMonth() === 9 && d.getUTCDate() < 17);
-    });
     const firstObservedMonth = includedSales.length ? keyOf(includedSales[0].createdAt) : null;
     const startKey = firstObservedMonth || currentKey;
     const [startYear, startMonth] = startKey.split("-").map(Number);
@@ -53,7 +53,7 @@ export async function GET() {
       source: "MB_OPTICA",
       timezone: TZ,
       coverage: { from: firstObservedMonth, through: currentKey, months: monthly.length, currentMonthPartial: true, basis: "primeira venda operacional registrada; competências anteriores não são tratadas como zero" },
-      count: sales.length,
+      count: includedSales.length,
       monthly,
       methodology: "Vendas operacionais não canceladas, agrupadas pela competência local de São Paulo. A consulta cobre todos os registros desde o início da janela de 36 meses, sem limite artificial de 1.000 vendas. O mês corrente é parcial.",
     });
