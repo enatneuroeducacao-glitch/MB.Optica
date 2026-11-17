@@ -63,7 +63,7 @@ jobs:
           set -euo pipefail
           run_id="$REQUESTED_BACKUP_RUN_ID"
           if [[ -z "$run_id" ]]; then
-            run_id="$(gh run list --workflow backup-operational.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+            run_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/backup-operational.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id // empty')"
           fi
           if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
             echo "::error::Não foi encontrado um backup bem-sucedido ou o ID informado é inválido."
