@@ -6,7 +6,7 @@ const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","FOLHA-PONTO","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[historicalBilling,setHistoricalBilling]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");
+ const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[historicalBilling,setHistoricalBilling]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");const[selectedYear,setSelectedYear]=useState("all");const[selectedMonth,setSelectedMonth]=useState("all");
  useEffect(()=>{if(!manualError)return;const text=manualError.trim();const kind=/(não foi possível|falha|erro|inválid|obrigatório|máximo|ultrapassar|bloqueou|não encontrado)/i.test(text)?"error":"info";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Atenção — Relatórios":"Informação — Relatórios",detail:text,kind,actionHref:kind==="error"?"/relatorios":undefined,actionLabel:kind==="error"?"Abrir relatórios em nova aba":undefined,code:kind==="error"?"RELAT_RIOS_ERROR":undefined}}));setManualError("");},[manualError]);
 
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const requested=params.get("aba");if(requested==="INCONSISTENCIAS"||requested==="INCONSISTÊNCIAS")setTab("INCONSISTÊNCIAS")},[]);
@@ -59,6 +59,9 @@ export default function Relatorios(){
    const reached=enriched.filter((x:any)=>x.target!==null&&x.variance>=-0.009).length;
    const pending=enriched.filter((x:any)=>x.target!==null&&x.variance<-0.009).length;
    const current=enriched[enriched.length-1]||null;
+   const availableYears=[...new Set(enriched.map((x:any)=>String(x.month).slice(0,4)))].sort((a,b)=>b.localeCompare(a));
+   const availableMonths=[...new Set(enriched.filter((x:any)=>selectedYear==="all"||String(x.month).startsWith(selectedYear+"-")).map((x:any)=>String(x.month).slice(5,7)))].sort((a,b)=>b.localeCompare(a));
+   const visibleMonths=enriched.filter((x:any)=>(selectedYear==="all"||String(x.month).startsWith(selectedYear+"-"))&&(selectedMonth==="all"||String(x.month).slice(5,7)===selectedMonth)).sort((a:any,b:any)=>String(b.month).localeCompare(String(a.month)));
    return <>
     <div className="report-kpis">
      <Card t="Vendas" v={s.sales}/><Card t="Faturamento" v={money(s.saleTotal)}/><Card t="Margem bruta" v={money(s.grossMargin)}/><Card t="A receber" v={money(s.receivable)}/><Card t="A pagar" v={money(s.payable)}/><Card t="Estoque baixo" v={s.lowStock}/><Card t="Pedidos" v={s.orders}/><Card t="Alertas" v={s.inconsistencies}/>
@@ -68,9 +71,15 @@ export default function Relatorios(){
      <div className="report-kpis compact">
       <Card t="Meta atingida" v={reached} d="meses dentro ou acima da meta"/><Card t="Meses pendentes" v={pending} d="abaixo da meta sugerida"/><Card t="Ticket médio atual" v={current?money(current.ticket):money(0)} d={current?.month||"sem mês"}/><Card t="Meta do mês atual" v={current?.target===null?"sem base":money(current.target)} d="média dos 3 últimos meses válidos + 10%"/>
      </div>
-     <div className="report-table" style={{marginTop:14}}>
+     <div className="settings-form" style={{marginTop:14,marginBottom:10,alignItems:"end"}}>
+      <label>Ano<select value={selectedYear} onChange={e=>{setSelectedYear(e.target.value);setSelectedMonth("all")}}><option value="all">Todos os anos</option>{availableYears.map((year:string)=><option key={year} value={year}>{year}</option>)}</select></label>
+      <label>Mês<select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}><option value="all">Todos os meses</option>{availableMonths.map((month:string)=><option key={month} value={month}>{new Date(2000,Number(month)-1,1).toLocaleDateString("pt-BR",{month:"long"})}</option>)}</select></label>
+      <div style={{alignSelf:"end"}}><button className="secondary" onClick={()=>{setSelectedYear("all");setSelectedMonth("all")}}>Limpar filtros</button></div>
+      <small style={{alignSelf:"center",color:"var(--muted)"}}>{visibleMonths.length} competência(s) · mais recente primeiro</small>
+     </div>
+     <div className="report-table">
       <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Ticket médio</span><span>Meta</span><span>Resultado</span></div>
-      {enriched.map((x:any)=><div className="report-row" key={x.month}>
+      {visibleMonths.map((x:any)=><div className="report-row" key={x.month}>
        <strong>{x.month}{x.partial&&<><br/><small>Período parcial</small></>}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.sales>0?money(x.ticket):"—"}</span><span>{x.target===null?"—":money(x.target)}</span><span><b>{x.status}</b>{x.target!==null&&x.variance>=-0.009?<><br/><small>Ultrapassou {money(Math.max(0,x.variance))}</small></>:x.target!==null?<><br/><small>Faltam {money(Math.abs(x.variance))}</small></>:<><br/><small>Sem histórico anterior para meta</small></>}</span>
       </div>)}
      </div>
@@ -176,7 +185,7 @@ export default function Relatorios(){
      <div className="report-kpis compact"><Card t="Vendas BeepStart" v={historicalBilling?.summary?.sales??legacySales?.count??0}/><Card t="Total BeepStart" v={money(historicalBilling?.summary?.total??legacySales?.total??0)} d="28 competências agregadas"/><Card t="Lançamentos manuais" v={manualHistorical.length} d="sem impacto operacional"/><Card t="Vendas atuais" v={current.sales} d="mantidas separadas"/></div>
      <div className="report-table">
       <div className="report-row head"><span>Mês</span><span>Vendas</span><span>Faturamento</span><span>Origem</span></div>
-      {historicalRows.map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}{x.partial&&<><br/><small>Período parcial</small></>}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.origin}</span></div>)}
+      {[...historicalRows].sort((a:any,b:any)=>String(b.month).localeCompare(String(a.month))).map((x:any)=><div className="report-row" key={"beep-"+x.month}><strong>{x.month.split("-").reverse().join("/")}{x.partial&&<><br/><small>Período parcial</small></>}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>{x.origin}</span></div>)}
       {manualHistorical.map((x:any)=><div className="report-row" key={"manual-"+x.id}><strong>{String(x.month).split("-").reverse().join("/")}</strong><span>{x.sales}</span><strong>{money(x.total)}</strong><span>Manual</span></div>)}
      </div>
      <p style={{marginTop:10,fontSize:12,color:"var(--muted)"}}>Os valores BeepStart são somente leitura. O lançamento manual é apenas histórico e não altera as vendas atuais.</p>
