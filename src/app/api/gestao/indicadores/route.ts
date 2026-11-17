@@ -73,6 +73,7 @@ export async function GET(){
       db.sale.findMany({
         where:{canceled:false,createdAt:{gte:previousMonthStart,lt:monthStart}},
         select:{
+          createdAt:true,
           total:true,
           discount:true,
           surcharge:true,
