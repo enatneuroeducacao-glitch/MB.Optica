@@ -98,12 +98,16 @@ jobs:
         shell: bash
         env:
           ENCRYPTED_FILE: ${{ steps.download.outputs.encrypted_file }}
+          CHECKSUM_FILE: ${{ steps.download.outputs.checksum_file }}
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install --yes age
           cd "$RUNNER_TEMP/restore-artifact"
-          sha256sum -c "$(basename "${{ steps.download.outputs.checksum_file }}")"
+          expected="$(awk '{print $1}' "$CHECKSUM_FILE")"
+          actual="$(sha256sum "$ENCRYPTED_FILE" | awk '{print $1}')"
+          [[ -n "$expected" && "$actual" == "$expected" ]] || { echo "::error::SHA-256 do backup não confere."; exit 1; }
+          echo "SHA-256 do backup confirmado."
           identity="$RUNNER_TEMP/age-identity.txt"
           printf '%s\n' "$AGE_IDENTITY" > "$identity"
           chmod 600 "$identity"
