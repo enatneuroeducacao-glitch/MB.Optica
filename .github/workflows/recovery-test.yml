@@ -73,6 +73,7 @@ jobs:
           echo "Backup selecionado: execução $run_id"
 
       - name: Download encrypted backup artifact
+        id: download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
