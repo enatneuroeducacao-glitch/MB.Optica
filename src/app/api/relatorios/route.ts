@@ -28,7 +28,13 @@ export async function GET(){
       db.supplier.findMany({include:{products:{select:{id:true}}},orderBy:{name:"asc"}})
     ]);
 
-    const activeSales=sales.filter((s:any)=>!s.canceled);
+    // Outubro/2026: o período integrado confirmado pelo responsável começa em 17/10.
+    // Preserva os registros anteriores no banco, mas não os mistura ao faturamento desta integração.
+    const isInConfirmedOctoberPeriod=(sale:any)=>{
+      const date=new Date(sale.createdAt);
+      return !(date.getUTCFullYear()===2026 && date.getUTCMonth()===9 && date.getUTCDate()<17);
+    };
+    const activeSales=sales.filter((s:any)=>!s.canceled&&isInConfirmedOctoberPeriod(s));
     const saleTotal=activeSales.reduce((a:number,s:any)=>a+n(s.total),0);
     const saleCost=activeSales.reduce((a:number,s:any)=>a+s.items.reduce((x:number,i:any)=>x+n(i.unitCost)*n(i.quantity),0),0);
     const paid=settlements.filter((x:any)=>x.account.type==="RECEBER").reduce((a:number,x:any)=>a+n(x.amount),0);
