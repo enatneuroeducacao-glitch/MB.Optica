@@ -1,0 +1,146 @@
+name: Isolated PostgreSQL Recovery Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      backup_run_id:
+        description: "ID da execução do backup; deixe vazio para usar o último backup bem-sucedido"
+        required: false
+        type: string
+  schedule:
+    # Test restore into the isolated recovery database every Sunday at 04:30 UTC.
+    - cron: "30 4 * * 0"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: mb-optica-isolated-recovery
+  cancel-in-progress: false
+
+jobs:
+  restore-test:
+    name: Restore encrypted backup into isolated database
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SOURCE_DATABASE_URL: ${{ secrets.MB_OPTICA_BACKUP_DATABASE_URL }}
+      RESTORE_DATABASE_URL: ${{ secrets.MB_OPTICA_RESTORE_DATABASE_URL }}
+      AGE_IDENTITY: ${{ secrets.MB_OPTICA_BACKUP_AGE_IDENTITY }}
+      REQUESTED_BACKUP_RUN_ID: ${{ inputs.backup_run_id }}
+    steps:
+      - name: Validate recovery secrets and enforce isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in SOURCE_DATABASE_URL RESTORE_DATABASE_URL AGE_IDENTITY; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Falta configurar o secret correspondente para o teste de recuperação."
+              exit 1
+            fi
+          done
+          python3 - <<'PY'
+          import os
+          from urllib.parse import urlparse, unquote
+          source = urlparse(os.environ["SOURCE_DATABASE_URL"])
+          target = urlparse(os.environ["RESTORE_DATABASE_URL"])
+          if source.scheme not in ("postgres", "postgresql") or target.scheme not in ("postgres", "postgresql"):
+              raise SystemExit("As duas conexões precisam ser URLs PostgreSQL.")
+          if not source.hostname or not target.hostname or not source.path or not target.path:
+              raise SystemExit("Não foi possível identificar host e banco nas URLs.")
+          if source.hostname.lower() == target.hostname.lower() or (source.hostname.lower(), unquote(source.path)) == (target.hostname.lower(), unquote(target.path)):
+              raise SystemExit("Bloqueado: o destino precisa ser um endpoint Neon separado da produção.")
+          print("Isolamento confirmado: destino usa endpoint PostgreSQL diferente da produção.")
+          PY
+
+      - name: Select latest successful backup when no run ID is supplied
+        id: select-backup
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id="$REQUESTED_BACKUP_RUN_ID"
+          if [[ -z "$run_id" ]]; then
+            run_id="$(gh run list --workflow backup-operational.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          if [[ ! "$run_id" =~ ^[0-9]+$ ]]; then
+            echo "::error::Não foi encontrado um backup bem-sucedido ou o ID informado é inválido."
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "Backup selecionado: execução $run_id"
+
+      - name: Download encrypted backup artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/restore-artifact"
+          gh run download "${{ steps.select-backup.outputs.run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "mb-optica-full-backup-${{ steps.select-backup.outputs.run_id }}" \
+            --dir "$RUNNER_TEMP/restore-artifact"
+          shopt -s nullglob
+          files=("$RUNNER_TEMP"/restore-artifact/*.dump.age)
+          checksums=("$RUNNER_TEMP"/restore-artifact/*.dump.age.sha256)
+          [[ ${#files[@]} -eq 1 && ${#checksums[@]} -eq 1 ]] || {
+            echo "::error::O artefato deve conter exatamente um dump criptografado e seu SHA-256."
+            exit 1
+          }
+          echo "encrypted_file=${files[0]}" >> "$GITHUB_OUTPUT"
+          echo "checksum_file=${checksums[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify checksum and decrypt backup
+        id: decrypt
+        shell: bash
+        env:
+          ENCRYPTED_FILE: ${{ steps.download.outputs.encrypted_file }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes age
+          cd "$RUNNER_TEMP/restore-artifact"
+          sha256sum -c "$(basename "${{ steps.download.outputs.checksum_file }}")"
+          identity="$RUNNER_TEMP/age-identity.txt"
+          printf '%s\n' "$AGE_IDENTITY" > "$identity"
+          chmod 600 "$identity"
+          trap 'rm -f "$identity"' EXIT
+          age --decrypt --identity "$identity" \
+            --output "$RUNNER_TEMP/mb-optica-restore.dump" \
+            "$ENCRYPTED_FILE"
+          docker run --rm \
+            -v "$RUNNER_TEMP:/restore:ro" \
+            postgres:18-alpine \
+            pg_restore --list /restore/mb-optica-restore.dump >/dev/null
+          echo "Arquivo conferido, descriptografado e estruturalmente legível."
+
+      - name: Restore only into the isolated recovery database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL" \
+            -v "$RUNNER_TEMP:/restore:ro" \
+            postgres:18-alpine \
+            sh -euc 'pg_restore --clean --if-exists --exit-on-error --no-owner --no-acl --dbname "$RESTORE_DATABASE_URL" /restore/mb-optica-restore.dump'
+          echo "Restauração concluída no banco isolado."
+
+      - name: Verify restored public tables
+        shell: bash
+        run: |
+          set -euo pipefail
+          count="$(docker run --rm -e RESTORE_DATABASE_URL="$RESTORE_DATABASE_URL" postgres:18-alpine \
+            sh -euc 'psql "$RESTORE_DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema = '\''public'\'' AND table_type = '\''BASE TABLE'\'';"')"
+          if [[ ! "$count" =~ ^[0-9]+$ ]] || (( count < 1 )); then
+            echo "::error::A restauração não apresentou tabelas públicas."
+            exit 1
+          fi
+          echo "Teste de recuperação aprovado: $count tabelas públicas encontradas no destino isolado."
+
+      - name: Cleanup decrypted data
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/mb-optica-restore.dump" "$RUNNER_TEMP/age-identity.txt"
+          rm -rf "$RUNNER_TEMP/restore-artifact"
