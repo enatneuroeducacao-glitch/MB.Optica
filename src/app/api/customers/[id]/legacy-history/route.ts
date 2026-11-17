@@ -41,7 +41,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
     if(!customer) return NextResponse.json({ok:false,error:"Cliente não encontrado."},{status:404});
 
     const legacyCustomers=await db.legacyRecord.findMany({
-      where:{source:"BEEPSTART",collectionKey:{equals:"Cliente",mode:"insensitive"}},
+      where:{source:"BEEPSTART",collectionKey:{in:["Cliente","cliente"]}},
       select:{id:true,legacyId:true,payload:true,targetId:true}
     });
     const cn=digits(customer.cpfCnpj), cp=digits(customer.phone||customer.whatsapp);
@@ -60,9 +60,9 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
 
     const all=await db.legacyRecord.findMany({
       where:{source:"BEEPSTART",OR:[
-        {collectionKey:{equals:"Venda",mode:"insensitive"}},
-        {collectionKey:{equals:"ContaAReceber",mode:"insensitive"}},
-        {collectionKey:{equals:"EnderecoLocal",mode:"insensitive"}}
+        {collectionKey:{in:["Venda","venda"]}},
+        {collectionKey:{in:["ContaAReceber","contaareceber"]}},
+        {collectionKey:{in:["EnderecoLocal","enderecolocal"]}}
       ]},
       select:{collectionKey:true,legacyId:true,payload:true}
     });

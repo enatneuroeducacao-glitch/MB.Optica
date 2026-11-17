@@ -302,10 +302,11 @@ export async function POST(req:Request){
           if(!sale||sale.canceled) throw new Error("Venda vinculada não encontrada ou cancelada");
 
           const methodName=String(b.method||"").trim();
+          const methodNames=[...new Set([methodName,methodName.toLowerCase(),methodName.toUpperCase()])].filter(Boolean);
           const method=b.methodId
             ? await tx.paymentMethod.findUnique({where:{id:String(b.methodId)}})
-            : methodName
-              ? await tx.paymentMethod.findFirst({where:{active:true,name:{equals:methodName,mode:"insensitive"}}})
+            : methodNames.length
+              ? await tx.paymentMethod.findFirst({where:{active:true,name:{in:methodNames}}})
               : null;
           if(!method||!method.active) throw new Error("Meio de recebimento inválido para a parcela");
 
