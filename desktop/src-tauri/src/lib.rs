@@ -1,4 +1,5 @@
 mod updater;
+mod backup;
 use rand::{distributions::Alphanumeric, Rng};
 use std::{
     env,
@@ -18,7 +19,7 @@ const PROJECT: &str = "mb-gestao-optica-piloto";
 const HEALTH: &str = "127.0.0.1:3000";
 const PILOT_MODE: &str = match option_env!("MB_GESTAO_PILOT_MODE") { Some(value) => value, None => "" };
 const CUSTOMER_NAME: &str = match option_env!("MB_GESTAO_CUSTOMER_NAME") { Some(value) => value, None => "Optica" };
-const NATIVE_MODE: bool = option_env!("MB_GESTAO_NATIVE_MODE").is_some();
+pub(crate) const NATIVE_MODE: bool = option_env!("MB_GESTAO_NATIVE_MODE").is_some();
 const NATIVE_DB_PORT: &str = "55432";
 static NATIVE_SERVER_PROCESS: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
 
@@ -64,7 +65,7 @@ fn docker_checked(exe: &Path, args: &[&str]) -> Result<(), String> {
     Ok(())
 }
 
-fn wait_for_server() -> bool {
+pub(crate) fn wait_for_server() -> bool {
     let deadline = Instant::now() + Duration::from_secs(240);
     while Instant::now() < deadline {
         if let Ok(addresses) = HEALTH.to_socket_addrs() {
@@ -150,7 +151,7 @@ fn wait_for_tcp(address: &str, timeout: Duration) -> bool {
     false
 }
 
-fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
+pub(crate) fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     let resource_dir = windows_compatible_path(resource_dir);
     let data_dir = windows_compatible_path(data_dir);
     let root = resource_dir.join("native");
@@ -232,7 +233,7 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn stop_native_server() {
+pub(crate) fn stop_native_server() {
     if let Some(slot) = NATIVE_SERVER_PROCESS.get() {
         if let Ok(mut guard) = slot.lock() {
             if let Some(mut child) = guard.take() {
@@ -301,14 +302,13 @@ fn show_error(window: &WebviewWindow, message: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default();
-    let builder = if NATIVE_MODE {
-        // O atualizador legado altera imagens Docker e bancos PostgreSQL.
-        // Ele não pode ser exposto no perfil nativo SQLite.
-        builder
-    } else {
-        builder.invoke_handler(tauri::generate_handler![updater::check_for_update, updater::apply_update])
-    };
+    let builder = tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            backup::backup_database,
+            backup::restore_database,
+            updater::check_for_update,
+            updater::apply_update
+        ]);
     let builder = builder.setup(|app| {
             let window: WebviewWindow = app.get_webview_window("main")
                 .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Janela principal não encontrada"))?;
