@@ -13,6 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tauri::{Manager, WebviewWindow};
+use rusqlite::Connection;
 
 const IMAGE: &str = "mb-optica-local:pilot";
 const PROJECT: &str = "mb-gestao-optica-piloto";
@@ -195,8 +196,36 @@ pub(crate) fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(),
     let database_path = database_file.to_string_lossy().replace('\\', "/");
     let database_url = format!("file:{database_path}");
 
+    // Nunca altere silenciosamente um banco preexistente sem histórico de migrações.
+    // Instalações novas recebem a baseline versionada; bancos antigos exigem adoção
+    // explícita após backup, comparação de schema e reconciliação.
+    let migration_dir = app_dir.join("prisma").join("sqlite").join("migrations");
+    let baseline = migration_dir.join("20261127100000_initial_sqlite").join("migration.sql");
+    if !baseline.is_file() {
+        return Err(format!("Migração SQLite versionada ausente: {}. Reinstale um pacote íntegro.", baseline.display()));
+    }
+    let database = Connection::open(&database_file)
+        .map_err(|e| format!("Não foi possível inspecionar o banco SQLite local: {e}"))?;
+    let has_application_tables: bool = database.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_prisma_migrations')",
+        [],
+        |row| row.get(0),
+    ).map_err(|e| format!("Não foi possível verificar as tabelas SQLite: {e}"))?;
+    let has_migration_history: bool = database.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='_prisma_migrations')",
+        [],
+        |row| row.get(0),
+    ).map_err(|e| format!("Não foi possível verificar o histórico de migrações SQLite: {e}"))?;
+    drop(database);
+
+    if has_application_tables && !has_migration_history {
+        return Err(
+            "O banco SQLite contém tabelas, mas não possui histórico de migrações.             Por segurança, a inicialização foi interrompida sem modificar os dados.             Faça backup e execute o procedimento de adoção de schema antes de atualizar.".into()
+        );
+    }
+
     let mut migration = Command::new(&node);
-    migration.arg(&prisma_cli).args(["db", "push", "--skip-generate", "--schema", "prisma/sqlite/schema.prisma"])
+    migration.arg(&prisma_cli).args(["migrate", "deploy", "--schema", "prisma/sqlite/schema.prisma"])
         .current_dir(&app_dir)
         .env("NODE_ENV", "production")
         .env("DATABASE_URL", &database_url)
@@ -204,9 +233,9 @@ pub(crate) fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(),
         .env("BOOTSTRAP_TOKEN", &bootstrap_token)
         .env("STORE_TRADE_NAME", CUSTOMER_NAME)
         .env("STORE_STATE", "SC");
-    let migration_output = migration.output().map_err(|e| format!("Falha ao preparar banco SQLite: {e}"))?;
+    let migration_output = migration.output().map_err(|e| format!("Falha ao executar migrações SQLite: {e}"))?;
     if !migration_output.status.success() {
-        return Err(format!("Preparação do banco SQLite falhou: {}", String::from_utf8_lossy(&migration_output.stderr)));
+        return Err(format!("Migração SQLite falhou. O banco foi preservado: {}", String::from_utf8_lossy(&migration_output.stderr)));
     }
 
     let mut slot = NATIVE_SERVER_PROCESS.get_or_init(|| Mutex::new(None)).lock()
