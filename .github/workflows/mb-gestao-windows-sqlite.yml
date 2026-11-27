@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-sqlite-installer:
@@ -64,36 +64,18 @@ jobs:
           npx prisma --version
           if ($LASTEXITCODE -ne 0) { throw "Prisma CLI indisponível" }
 
-      - name: Generate isolated SQLite baseline migration for review
+      - name: Apply versioned SQLite migrations and detect schema drift
         shell: pwsh
         env:
           DATABASE_URL: "file:./build-validation.db"
         run: |
           $ErrorActionPreference = "Stop"
-          New-Item -ItemType Directory -Force "prisma/sqlite/migrations/20261127100000_initial_sqlite" | Out-Null
-          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/sqlite/schema.prisma --script | Set-Content -Path "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql" -Encoding utf8
-          if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar baseline SQLite" }
-          if ((Get-Item "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql").Length -lt 1000) { throw "Baseline SQLite gerada parece incompleta" }
-
-      - name: Version generated SQLite baseline on audit branch
-        if: github.ref == 'refs/heads/audit/mb-gestao-offline-hybrid-20261127'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql"
-          git diff --cached --quiet
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Baseline SQLite já está versionada."
-          } else {
-            git commit -m "chore: version initial SQLite baseline migration"
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao criar commit da baseline SQLite" }
-            git push origin HEAD:refs/heads/audit/mb-gestao-offline-hybrid-20261127
-            if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar baseline na branch de auditoria" }
-          }
+          if (!(Test-Path "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql")) { throw "Baseline SQLite versionada ausente" }
+          if (!(Test-Path "prisma/sqlite/migrations/20261127120000_site_sync_outbox/migration.sql")) { throw "Migração outbox SQLite versionada ausente" }
+          npx prisma migrate deploy --schema prisma/sqlite/schema.prisma
+          if ($LASTEXITCODE -ne 0) { throw "Aplicação das migrações SQLite falhou" }
+          npx prisma migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/sqlite/schema.prisma --exit-code
+          if ($LASTEXITCODE -ne 0) { throw "Schema SQLite diverge das migrações versionadas" }
 
       - name: Build Windows Next.js application with SQLite client
         env:
