@@ -330,9 +330,13 @@ fn prepare_instance(resource_dir: PathBuf, data_dir: PathBuf) -> Result<(), Stri
 }
 
 fn show_error(window: &WebviewWindow, message: &str) {
+    let adoption_action = if message.contains("contém tabelas") && message.contains("histórico de migrações") {
+        "<section style='margin-top:24px;padding:20px;background:#fff;border:1px solid #d8dee8;border-radius:10px'><h2>Adoção segura do banco existente</h2><p>O procedimento fará um backup validado, comparará o schema atual com a baseline anterior e só registrará a migração se não houver diferenças. Se houver divergência, cancelará sem alterar os dados.</p><button id='adopt' style='padding:12px 18px;background:#1457c5;color:white;border:0;border-radius:8px;font-size:16px;cursor:pointer' onclick='adoptSchema()'>Fazer backup e verificar adoção</button><p id='adopt-result' style='white-space:pre-wrap'></p></section><script>async function adoptSchema(){const b=document.getElementById('adopt');const r=document.getElementById('adopt-result');b.disabled=true;b.textContent='Verificando...';try{r.textContent=await window.__TAURI__.core.invoke('adopt_existing_database');}catch(e){r.textContent=String(e);b.disabled=false;b.textContent='Tentar novamente';}}</script>"
+    } else { "" };
     let html = format!(
-        "<html><head><meta charset='utf-8'><title>MB Gestão - Inicialização</title></head><body style='font:16px Segoe UI,Arial;background:#f5f7fa;color:#172033;padding:48px;max-width:850px;margin:auto'><h1>Não foi possível iniciar o MB Gestão</h1><p>O servidor local não iniciou. Confira a mensagem abaixo:</p><pre style='white-space:pre-wrap;background:white;border:1px solid #ddd;border-radius:8px;padding:20px'>{}</pre><p>Depois de corrigir, feche e abra novamente o MB Gestão. Seus dados locais foram preservados.</p></body></html>",
-        message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;")
+        "<html><head><meta charset='utf-8'><title>MB Gestão - Inicialização</title></head><body style='font:16px Segoe UI,Arial;background:#f5f7fa;color:#172033;padding:48px;max-width:850px;margin:auto'><h1>Não foi possível iniciar o MB Gestão</h1><p>O servidor local não iniciou. Confira a mensagem abaixo:</p><pre style='white-space:pre-wrap;background:white;border:1px solid #ddd;border-radius:8px;padding:20px'>{}</pre>{}<p>Depois de corrigir, feche e abra novamente o MB Gestão. Seus dados locais foram preservados.</p></body></html>",
+        message.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#39;"),
+        adoption_action
     );
     let script = format!("document.open();document.write({:?});document.close();", html);
     let _ = window.eval(&script);
@@ -345,6 +349,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             backup::backup_database,
             backup::restore_database,
+            backup::adopt_existing_database,
             updater::check_for_update,
             updater::apply_update
         ]);
