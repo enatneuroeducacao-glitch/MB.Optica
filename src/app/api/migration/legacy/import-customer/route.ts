@@ -48,19 +48,17 @@ export async function POST(request: Request){
       });
     }
 
-    const addressLegacy=enderecoId
-      ? await db.legacyRecord.findFirst({where:{source:"BEEPSTART",collectionKey:{equals:"EnderecoLocal",mode:"insensitive"},legacyId:enderecoId},orderBy:{importedAt:"desc"}})
-      : null;
+    const addressCandidates=enderecoId
+      ? await db.legacyRecord.findMany({where:{source:"BEEPSTART",legacyId:enderecoId},orderBy:{importedAt:"desc"}})
+      : [];
+    const addressLegacy=addressCandidates.find(r=>String(r.collectionKey||"").toLowerCase()==="enderecolocal")||null;
     const a=(addressLegacy?.payload||{}) as Record<string,unknown>;
 
-    const related=await db.legacyRecord.findMany({
-      where:{source:"BEEPSTART",OR:[
-        {collectionKey:{equals:"Venda",mode:"insensitive"}},
-        {collectionKey:{equals:"ContaAReceber",mode:"insensitive"}},
-        {collectionKey:{equals:"EnderecoLocal",mode:"insensitive"}}
-      ]},
+    const relatedCandidates=await db.legacyRecord.findMany({
+      where:{source:"BEEPSTART"},
       select:{id:true,collectionKey:true,legacyId:true,payload:true,targetEntity:true,targetId:true}
     });
+    const related=relatedCandidates.filter(r=>["venda","contaareceber","enderecolocal"].includes(String(r.collectionKey||"").toLowerCase()));
     const sales=related.filter(r=>String(r.collectionKey).toLowerCase()==="venda" && text((r.payload as Record<string,unknown>)?.clienteID)===text(legacy.legacyId));
     const receivables=related.filter(r=>String(r.collectionKey).toLowerCase()==="contaareceber" && text((r.payload as Record<string,unknown>)?.clienteID)===text(legacy.legacyId));
 
