@@ -65,22 +65,27 @@ fn docker_checked(exe: &Path, args: &[&str]) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn wait_for_server() -> bool {
-    let deadline = Instant::now() + Duration::from_secs(240);
-    while Instant::now() < deadline {
-        if let Ok(addresses) = HEALTH.to_socket_addrs() {
-            for address in addresses {
-                if let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_secs(2)) {
-                    let _ = stream.set_read_timeout(Some(Duration::from_secs(3)));
-                    let _ = stream.write_all(b"GET /api/health/ready HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
-                    let mut response = String::new();
-                    if stream.read_to_string(&mut response).is_ok()
-                        && (response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200")) {
-                        return true;
-                    }
+fn server_ready_once() -> bool {
+    if let Ok(addresses) = HEALTH.to_socket_addrs() {
+        for address in addresses {
+            if let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_secs(1)) {
+                let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+                let _ = stream.write_all(b"GET /api/health/ready HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+                let mut response = String::new();
+                if stream.read_to_string(&mut response).is_ok()
+                    && (response.starts_with("HTTP/1.1 200") || response.starts_with("HTTP/1.0 200")) {
+                    return true;
                 }
             }
         }
+    }
+    false
+}
+
+pub(crate) fn wait_for_server() -> bool {
+    let deadline = Instant::now() + Duration::from_secs(240);
+    while Instant::now() < deadline {
+        if server_ready_once() { return true; }
         thread::sleep(Duration::from_secs(2));
     }
     false
@@ -208,6 +213,11 @@ pub(crate) fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(),
         .map_err(|_| "Controle do servidor local indisponível".to_string())?;
     if slot.as_mut().and_then(|child| child.try_wait().ok().flatten()).is_some() {
         *slot = None;
+    }
+    if slot.is_none() && server_ready_once() {
+        // Another MB Gestão process already owns the local server. Do not
+        // spawn a second Node process or claim ownership of the existing one.
+        return Ok(());
     }
     if slot.is_none() {
         let log_path = data_dir.join("server.log");
