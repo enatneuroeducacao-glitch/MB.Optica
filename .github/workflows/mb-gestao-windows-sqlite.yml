@@ -1,10 +1,11 @@
-name: MB Gestão — Instalador Windows SQLite (Ótica Imagem)
+name: MB Gestão Inteligente — Instalador Windows SQLite (sem Docker)
 
 on:
   push:
     branches:
       - "experiment/sqlite-native-windows"
       - "audit/mb-gestao-offline-hybrid-20261127"
+      - "main"
     paths:
       - "desktop/**"
       - "prisma/**"
@@ -124,11 +125,10 @@ jobs:
         working-directory: desktop
         env:
           MB_GESTAO_NATIVE_MODE: "true"
-          MB_GESTAO_PILOT_MODE: "true"
-          MB_GESTAO_CUSTOMER_NAME: "Ótica Imagem"
-          MB_GESTAO_PRODUCT_NAME: "MB Gestão - Ótica Imagem"
-          MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.opticaimagem"
-          MB_GESTAO_INSTALLER_SLUG: "optica-imagem-sqlite"
+          MB_GESTAO_CUSTOMER_NAME: "MB Gestão Inteligente"
+          MB_GESTAO_PRODUCT_NAME: "MB Gestão Inteligente"
+          MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.gestao"
+          MB_GESTAO_INSTALLER_SLUG: "mb-gestao-inteligente-sqlite"
         run: npm run tauri:build:native
 
       - uses: actions/upload-artifact@v4
@@ -140,7 +140,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: mb-gestao-optica-imagem-native-sqlite
+          name: mb-gestao-inteligente-native-sqlite
           path: desktop/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 14

@@ -8,6 +8,8 @@ const required = (name) => {
   return value;
 };
 const productName = required("MB_GESTAO_PRODUCT_NAME");
+if (process.env.MB_GESTAO_NATIVE_MODE !== "true") throw new Error("MB_GESTAO_NATIVE_MODE=true é obrigatório para impedir a compilação do caminho Docker.");
+if (process.env.MB_GESTAO_PILOT_MODE === "true") throw new Error("O modo piloto não pode ser usado no instalador geral MB Gestão Inteligente.");
 const identifier = required("MB_GESTAO_APP_IDENTIFIER");
 const slug = required("MB_GESTAO_INSTALLER_SLUG");
 if (!/^[a-z][a-z0-9-]{1,47}$/.test(slug)) throw new Error("Slug inválido");
@@ -22,7 +24,7 @@ const config = {
   // contains non-ASCII characters (e.g. "Gestão" -> CP1252 byte 0xE3).
   // Keep the installed resource path ASCII-only; the window title below
   // retains the customer-facing Portuguese product name.
-  productName: "MBGestaoOpticaImagem",
+  productName,
   identifier,
   app: { windows: [{ label: "main", title: productName, width: 1360, height: 900, minWidth: 980, minHeight: 680, visible: false, url: "http://127.0.0.1:3000/" }] },
   bundle: {
