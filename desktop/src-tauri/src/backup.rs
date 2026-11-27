@@ -1,6 +1,7 @@
 use rusqlite::{backup::Backup, Connection};
 use std::{
     fs,
+    process::Command,
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
