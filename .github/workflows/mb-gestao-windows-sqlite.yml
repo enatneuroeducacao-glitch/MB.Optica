@@ -2,7 +2,9 @@ name: MB Gestão — Instalador Windows SQLite (Ótica Imagem)
 
 on:
   push:
-    branches: ["experiment/sqlite-native-windows"]
+    branches:
+      - "experiment/sqlite-native-windows"
+      - "audit/mb-gestao-offline-hybrid-20261127"
     paths:
       - "desktop/**"
       - "prisma/**"
@@ -55,6 +57,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Schema SQLite inválido" }
           npx prisma generate --schema=prisma/schema.sqlite.prisma
           if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar Prisma Client SQLite" }
+          npx prisma --version
+          if ($LASTEXITCODE -ne 0) { throw "Prisma CLI indisponível" }
 
       - name: Build Windows Next.js application with SQLite client
         env:
@@ -62,7 +66,11 @@ jobs:
           DATABASE_URL: "file:./build-validation.db"
           AUTH_SECRET: build-only-not-a-real-secret
           BOOTSTRAP_TOKEN: build-only-not-a-real-token
-        run: npm run build
+        run: |
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { throw "Typecheck falhou" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Build Next.js falhou" }
 
       - name: Bundle Node.js and standalone application
         shell: pwsh
