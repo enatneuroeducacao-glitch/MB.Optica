@@ -232,6 +232,17 @@ fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn stop_native_server() {
+    if let Some(slot) = NATIVE_SERVER_PROCESS.get() {
+        if let Ok(mut guard) = slot.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+}
+
 fn prepare_instance(resource_dir: PathBuf, data_dir: PathBuf) -> Result<(), String> {
     if NATIVE_MODE { return native_prepare(&resource_dir, &data_dir); }
     fs::create_dir_all(&data_dir).map_err(|e| format!("Falha ao criar dados locais: {e}"))?;
@@ -290,9 +301,15 @@ fn show_error(window: &WebviewWindow, message: &str) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![updater::check_for_update, updater::apply_update])
-        .setup(|app| {
+    let builder = tauri::Builder::default();
+    let builder = if NATIVE_MODE {
+        // O atualizador legado altera imagens Docker e bancos PostgreSQL.
+        // Ele não pode ser exposto no perfil nativo SQLite.
+        builder
+    } else {
+        builder.invoke_handler(tauri::generate_handler![updater::check_for_update, updater::apply_update])
+    };
+    let builder = builder.setup(|app| {
             let window: WebviewWindow = app.get_webview_window("main")
                 .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "Janela principal não encontrada"))?;
             window.hide()?;
@@ -303,7 +320,12 @@ pub fn run() {
                     let data_dir = handle.path().app_data_dir().map_err(|e| format!("Diretório de dados indisponível: {e}"))?;
                     prepare_instance(resource_dir, data_dir)?;
                     if !wait_for_server() {
-                        return Err("O servidor MB Gestão não respondeu após 4 minutos. Verifique os contêineres no Docker Desktop.".into());
+                        stop_native_server();
+                        return Err(if NATIVE_MODE {
+                            "O servidor local MB Gestão não respondeu após 4 minutos. Consulte o arquivo server.log na pasta de dados do aplicativo.".into()
+                        } else {
+                            "O servidor MB Gestão não respondeu após 4 minutos. Verifique os contêineres no Docker Desktop.".into()
+                        });
                     }
                     Ok(())
                 })();
@@ -317,7 +339,13 @@ pub fn run() {
                 }
             });
             Ok(())
-        })
-        .run(tauri::generate_context!())
-        .expect("erro ao iniciar o MB Gestão Inteligente");
+        });
+    let mut app = builder
+        .build(tauri::generate_context!())
+        .expect("erro ao construir o MB Gestão Inteligente");
+    app.run(|_handle, event| {
+        if matches!(event, tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }) {
+            stop_native_server();
+        }
+    });
 }
