@@ -53,9 +53,9 @@ jobs:
         env:
           DATABASE_URL: "file:./build-validation.db"
         run: |
-          npx prisma validate --schema=prisma/schema.sqlite.prisma
+          npx prisma validate --schema=prisma/sqlite/schema.prisma
           if ($LASTEXITCODE -ne 0) { throw "Schema SQLite inválido" }
-          npx prisma generate --schema=prisma/schema.sqlite.prisma
+          npx prisma generate --schema=prisma/sqlite/schema.prisma
           if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar Prisma Client SQLite" }
           npx prisma --version
           if ($LASTEXITCODE -ne 0) { throw "Prisma CLI indisponível" }
@@ -92,7 +92,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar runtime isolado do Prisma CLI" }
           & node "desktop/resources/native/prisma-cli/node_modules/prisma/build/index.js" --version
           if ($LASTEXITCODE -ne 0) { throw "Prisma CLI isolado inválido" }
-          if (-not (Test-Path "desktop/resources/native/app/prisma/schema.sqlite.prisma")) { throw "Schema SQLite ausente no pacote" }
+          if (-not (Test-Path "desktop/resources/native/app/prisma/sqlite/schema.prisma")) { throw "Schema SQLite ausente no pacote" }
           if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
 
       - name: Validate native SQLite payload
