@@ -126,3 +126,39 @@ Trabalho iniciado na branch isolada. A main permanece como base imutável.
 - Comparação com `main`: branch à frente por 3 commits e atrás por 0; main não foi modificada.
 - No momento desta atualização, a API de Actions não retornou execução do workflow nesta branch. Portanto, typecheck, build e instalador ainda não estão aprovados.
 - Nenhuma operação foi executada em Render, Neon, Supabase remoto ou banco de produção.
+
+
+## 9. Continuação da implementação — 2026-11-27
+
+### Compilação confirmada
+- Run `45992168704` (execução nº 31) concluiu com sucesso.
+- Typecheck, build Next.js, empacotamento Node, validação do payload nativo, compilação NSIS e upload do instalador foram concluídos.
+- Isso comprova que existe um artefato instalável, mas não comprova operação offline real em Windows limpo.
+
+### Isolamento de migrações SQLite
+- Schema SQLite movido para `prisma/sqlite/schema.prisma`, separando a futura trilha de migrações SQLite da pasta `prisma/migrations` usada pelo PostgreSQL.
+- Criado `prisma/sqlite/migrations/migration_lock.toml` com provider SQLite.
+- Workflow gera baseline inicial com `prisma migrate diff --from-empty` e publica SQL como artefato de revisão.
+- O script `desktop/scripts/build-native-installer.mjs` também foi ajustado para validar o novo caminho. Uma execução intermediária falhou porque esse script ainda referenciava o caminho antigo; corrigido em commit posterior.
+- O inicializador ainda usa `db push` até a baseline SQL ser inspecionada, versionada e testada. Não retirar antes disso.
+
+### Ciclo de vida e atualizador
+- Processo Node agora recebe encerramento explícito no evento de saída do Tauri (kill + wait).
+- Se a verificação de saúde falhar, o processo iniciado é encerrado.
+- Verificação rápida de saúde antes do spawn evita iniciar outro Node quando já existe um servidor MB Gestão saudável em loopback.
+- Mensagem de falha do modo nativo orienta a consultar `server.log`, sem instrução de Docker.
+- Comandos de atualização Docker/PostgreSQL são bloqueados no build nativo SQLite.
+
+### Backup e restauração SQLite
+- Adicionada dependência `rusqlite` com recursos `bundled` e `backup`.
+- Criados comandos Tauri para backup por SQLite Backup API e verificação `PRAGMA integrity_check`.
+- Restauração aceita somente nome de arquivo dentro da pasta local `backups`, valida o backup antes de usar, para o Node durante a substituição, cria cópia prévia, remove sidecars WAL/SHM, valida o banco restaurado e tenta rollback se a validação falhar.
+- A compilação Rust dessas alterações ainda aguarda resultado do CI; não declarar backup/restore homologados até testes de restauração em Windows.
+
+### Sincronização
+- `src/lib/site-stock-sync.ts` continua sem outbox durável; ainda não foi alterado para não introduzir gravação remota ou mudança de esquema sem trilha de migração aprovada.
+- Próxima implementação deve gravar estado pendente localmente e executar retry idempotente em background. Falha remota não pode reverter a transação local.
+
+### Homologação offline
+- Ainda falta teste de instalação/primeiro boot, reinício, desligamento abrupto, backup/restauração e fluxos operacionais sem internet em Windows limpo.
+- O atualizador remoto permanece desabilitado no perfil SQLite.
