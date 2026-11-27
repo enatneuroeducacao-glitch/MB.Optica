@@ -100,3 +100,29 @@ A main auditada tem commit 5a08ef56 (2026-11-17). O workflow Windows de homologa
 - Toda migração deve ocorrer primeiro em cópia isolada, com backup antes/depois e reconciliação de registros e totais financeiros.
 
 **Conclusão:** o caminho SQLite é tecnicamente possível e já tem esqueleto, mas o projeto ainda não está pronto para distribuição. O primeiro objetivo deve ser obter build SQLite verde e seguro; depois validar servidor, banco, backup, sincronização e operação real sem rede.
+
+
+## 8. Atualização de execução — 2026-11-27
+
+Trabalho iniciado na branch isolada. A main permanece como base imutável.
+
+### Alterações já registradas na branch
+
+- `package.json`: Prisma CLI e `@prisma/client` fixados em `6.16.0` (versões exatas, sem caret), para eliminar a divergência de resolução observada entre Client e CLI.
+- `.github/workflows/mb-gestao-windows-sqlite.yml`: workflow agora pode ser disparado por push nesta branch de auditoria; acrescentado `npm run typecheck` antes do build Next.js e verificação explícita de versão/geração do Prisma.
+
+### Novas constatações que impedem avançar diretamente para o instalador
+
+- Não existe `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml` ou `yarn.lock` na raiz. Fixar Prisma reduz a deriva, mas a instalação completa ainda não é totalmente reproduzível; será necessário gerar e versionar lockfile em ambiente Node/npm controlado.
+- O diretório `prisma/migrations` contém migrações PostgreSQL, mas não foi encontrada uma trilha de migrações SQLite. Portanto, retirar `db push` agora sem antes gerar e validar uma baseline SQLite deixaria instalações novas sem inicialização segura. Não foi feita essa remoção prematura.
+- `native_prepare()` executa `db push` antes de iniciar o Node em cada abertura. Isso continua sendo bloqueador P0 e precisa ser substituído por um migrador SQLite versionado com backup e preflight.
+- `updater.rs` continua inteiramente orientado a Docker/PostgreSQL. A atualização não pode ser exposta no perfil SQLite até a implementação específica de backup, migração e rollback SQLite.
+- O módulo de sincronização continua fazendo PATCH remoto dentro da chamada da rotina de sincronização e não possui outbox durável. A fila precisa ser desenhada junto com os pontos de gravação locais, usando chaves idempotentes e política de retry.
+
+### Validação
+
+- Commit de pinagem Prisma: `36140018380a20f50a19eb1459174c249776d6b4`.
+- Commit de workflow: `b46c54e83bc963c3b35ba421d29fbc5ed5956f4f`.
+- Comparação com `main`: branch à frente por 3 commits e atrás por 0; main não foi modificada.
+- No momento desta atualização, a API de Actions não retornou execução do workflow nesta branch. Portanto, typecheck, build e instalador ainda não estão aprovados.
+- Nenhuma operação foi executada em Render, Neon, Supabase remoto ou banco de produção.
