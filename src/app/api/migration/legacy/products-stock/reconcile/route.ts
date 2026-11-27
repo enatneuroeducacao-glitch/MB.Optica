@@ -63,7 +63,8 @@ export async function POST(req:Request){
    orderBy:{importedAt:"desc"},
    take:5000
   });
-  const lots=await db.legacyRecord.findMany({where:{source:"BEEPSTART",collectionKey:{equals:"Lote",mode:"insensitive"}},select:{payload:true},take:100000});
+  const lotRows=await db.legacyRecord.findMany({where:{source:"BEEPSTART"},select:{collectionKey:true,payload:true},take:100000});
+  const lots=lotRows.filter(r=>String(r.collectionKey||"").toLowerCase()==="lote");
   const lotStock=lotStockByProduct(lots);
 
   const result={alreadyConsistent:0,relinked:0,repaired:0,skippedNoStock:0,errors:[] as any[],products:[] as any[],diagnostic:{candidates:rows.length,productTargets:rows.filter((r:any)=>r.targetEntity==="Product").length,withTargetId:rows.filter((r:any)=>Boolean(r.targetId)).length,selectivelyImported:rows.filter((r:any)=>r.status==="IMPORTED_SELECTIVELY").length}};
@@ -115,8 +116,8 @@ export async function POST(req:Request){
 
      let supplierId:string|undefined;
      if(p.supplier){
-      const s=await tx.supplier.findFirst({where:{name:{equals:p.supplier.slice(0,120),mode:"insensitive"}},select:{id:true}});
-      supplierId=s?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
+      const s=await tx.supplier.findFirst({where:{},select:{id:true,name:true}});
+      supplierId=txSuppliers.find(x=>String(x.name||"").toLowerCase()===p.supplier.slice(0,120).toLowerCase())?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
      }
 
      const product=await tx.product.create({
