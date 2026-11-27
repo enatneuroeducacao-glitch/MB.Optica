@@ -23,6 +23,10 @@ on:
       - ".github/workflows/mb-gestao-windows-sqlite.yml"
   workflow_dispatch:
 
+concurrency:
+  group: mb-gestao-sqlite-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
