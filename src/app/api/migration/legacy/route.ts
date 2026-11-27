@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     const rows = await db.legacyRecord.findMany({
       where: {
         source: "BEEPSTART",
-        ...(collection ? { collectionKey: { equals: collection, mode: "insensitive" } } : {}),
+        
       },
       orderBy: { importedAt: "desc" },
       // A textual search must inspect the complete legacy index, not only the newest 250 records.
@@ -47,9 +47,12 @@ export async function GET(request: Request) {
       select: { id:true, collectionKey:true, legacyId:true, legacyKey:true, payload:true, status:true, importedAt:true }
     });
 
-    const filtered = q
-      ? rows.filter(row => JSON.stringify(row.payload).toLowerCase().includes(q)).slice(0, take)
+    const collectionFiltered=collection
+      ? rows.filter(row=>String(row.collectionKey||"").toLowerCase()===collection.toLowerCase())
       : rows;
+    const filtered = q
+      ? collectionFiltered.filter(row => JSON.stringify(row.payload).toLowerCase().includes(q)).slice(0, take)
+      : collectionFiltered;
 
     const customerRows=filtered.filter(row=>String(row.collectionKey||"").toLowerCase()==="cliente");
     const customerDocs=[...new Set(customerRows.map(row=>{
