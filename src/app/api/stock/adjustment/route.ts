@@ -1,4 +1,4 @@
-import {syncPublishedProductStock} from "@/lib/site-stock-sync";
+import {enqueuePublishedProductStockSync} from "@/lib/site-stock-outbox";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {requireRole} from "@/lib/auth";
@@ -41,9 +41,9 @@ export async function POST(req:Request){
    const movement=await tx.stockMovement.create({data:{productId:product.id,type:"AJUSTE",quantity,unitCost:direction==="ENTRADA"?Number(b.cost??product.cost):undefined,reference:"AJUSTE",referenceId:lotId,notes:b.reason?String(b.reason).trim():"Ajuste de estoque",lotLinks:direction==="SAIDA"?{create:consumed}:undefined}});
    if(lotId)await tx.stockMovementLot.create({data:{movementId:movement.id,lotId,quantity}});
    await writeAudit(tx,{action:"CREATE",entity:"StockMovement",entityId:movement.id,userId:actor.id,metadata:{type:"AJUSTE",direction,quantity,consumed,lotId}});
-   return {movement,direction,consumed,lotId};
+   const siteSync=await enqueuePublishedProductStockSync(tx,product.id);
+   return {movement,direction,consumed,lotId,siteSync};
   });
-  const siteSync=await syncPublishedProductStock(result.movement.productId);
-  return NextResponse.json({...result,siteSync},{status:201});
+  return NextResponse.json(result,{status:201});
  }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível ajustar o estoque."},{status:400});}
 }
