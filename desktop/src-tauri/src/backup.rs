@@ -21,6 +21,16 @@ fn timestamp() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
 }
 
+fn remove_sqlite_sidecars(database: &Path) -> Result<(), String> {
+    for suffix in ["-wal", "-shm"] {
+        let sidecar = PathBuf::from(format!("{}{}", database.to_string_lossy(), suffix));
+        if sidecar.exists() {
+            fs::remove_file(&sidecar).map_err(|e| format!("Não foi possível remover arquivo temporário SQLite {}: {e}", sidecar.display()))?;
+        }
+    }
+    Ok(())
+}
+
 fn integrity(path: &Path) -> Result<(), String> {
     let connection = Connection::open(path).map_err(|e| format!("Não foi possível abrir SQLite para validação: {e}"))?;
     let result: String = connection.query_row("PRAGMA integrity_check", [], |row| row.get(0))
@@ -91,12 +101,14 @@ pub fn restore_database(app: AppHandle, backup_name: String) -> Result<String, S
     };
 
     let operation = (|| -> Result<(), String> {
+        remove_sqlite_sidecars(&database)?;
         fs::copy(&source, &database).map_err(|e| format!("Falha ao copiar backup: {e}"))?;
         integrity(&database)?;
         Ok(())
     })();
 
     if let Err(error) = operation {
+        let _ = remove_sqlite_sidecars(&database);
         let rollback_result = fs::copy(&rollback, &database);
         let restart_result = restart_server(&app);
         return Err(format!(
