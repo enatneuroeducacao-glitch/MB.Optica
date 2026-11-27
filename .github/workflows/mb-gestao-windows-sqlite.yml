@@ -60,6 +60,17 @@ jobs:
           npx prisma --version
           if ($LASTEXITCODE -ne 0) { throw "Prisma CLI indisponível" }
 
+      - name: Generate isolated SQLite baseline migration for review
+        shell: pwsh
+        env:
+          DATABASE_URL: "file:./build-validation.db"
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force "prisma/sqlite/migrations/20261127100000_initial_sqlite" | Out-Null
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/sqlite/schema.prisma --script | Set-Content -Path "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql" -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar baseline SQLite" }
+          if ((Get-Item "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql").Length -lt 1000) { throw "Baseline SQLite gerada parece incompleta" }
+
       - name: Build Windows Next.js application with SQLite client
         env:
           NODE_ENV: production
@@ -113,6 +124,13 @@ jobs:
           MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.opticaimagem"
           MB_GESTAO_INSTALLER_SLUG: "optica-imagem-sqlite"
         run: npm run tauri:build:native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mb-gestao-sqlite-baseline-review
+          path: prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql
+          if-no-files-found: error
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         with:
