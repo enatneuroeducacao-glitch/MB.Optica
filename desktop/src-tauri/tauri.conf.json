@@ -21,7 +21,9 @@
       }
     ],
     "security": {
-      "capabilities": []
+      "capabilities": [
+        "main-capability"
+      ]
     },
     "withGlobalTauri": true
   },

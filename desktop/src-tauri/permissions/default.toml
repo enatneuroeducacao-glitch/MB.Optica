@@ -1,0 +1,24 @@
+[[permission]]
+identifier = "allow-check-for-update"
+description = "Permite consultar se h? uma atualiza??o dispon?vel."
+commands.allow = ["check_for_update"]
+
+[[permission]]
+identifier = "allow-apply-update"
+description = "Permite aplicar atualiza??o no perfil PostgreSQL/Docker compat?vel."
+commands.allow = ["apply_update"]
+
+[[permission]]
+identifier = "allow-backup-database"
+description = "Permite gerar backup local do banco de dados."
+commands.allow = ["backup_database"]
+
+[[permission]]
+identifier = "allow-restore-database"
+description = "Permite restaurar backup ap?s confirma??o expl?cita."
+commands.allow = ["restore_database"]
+
+[[permission]]
+identifier = "allow-adopt-existing-database"
+description = "Permite verificar e adotar schema SQLite existente ap?s backup."
+commands.allow = ["adopt_existing_database"]

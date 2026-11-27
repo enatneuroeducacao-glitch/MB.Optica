@@ -81,6 +81,7 @@ jobs:
       - name: Build Windows Next.js application with SQLite client
         env:
           NODE_ENV: production
+          NEXT_PUBLIC_MB_GESTAO_NATIVE_MODE: "true"
           DATABASE_URL: "file:./build-validation.db"
           AUTH_SECRET: build-only-not-a-real-secret
           BOOTSTRAP_TOKEN: build-only-not-a-real-token

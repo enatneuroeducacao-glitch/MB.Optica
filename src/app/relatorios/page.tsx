@@ -6,12 +6,13 @@ const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","FOLHA-PONTO","INCONSISTÊNCIAS"];
 const Card=({t,v,d}:{t:string;v:any;d?:string})=><div className="report-card"><span>{t}</span><strong>{v}</strong>{d&&<small>{d}</small>}</div>;
 export default function Relatorios(){
- const[d,setD]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[historicalBilling,setHistoricalBilling]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");const[selectedYear,setSelectedYear]=useState("all");const[selectedMonth,setSelectedMonth]=useState("all");
+ const[d,setD]=useState<any>(null);const[monthlyTarget,setMonthlyTarget]=useState<any>(null);const[legacy,setLegacy]=useState<any>(null);const[legacySales,setLegacySales]=useState<any>(null);const[historicalBilling,setHistoricalBilling]=useState<any>(null);const[manualHistorical,setManualHistorical]=useState<any[]>([]);const[management,setManagement]=useState<any>(null);const[tab,setTab]=useState("VISÃO");const[q,setQ]=useState("");const[showManualHistorical,setShowManualHistorical]=useState(false);const[manualForm,setManualForm]=useState({month:"",sales:"",total:"",notes:""});const[manualSaving,setManualSaving]=useState(false);const[manualError,setManualError]=useState("");const[timeFrom,setTimeFrom]=useState("");const[timeTo,setTimeTo]=useState("");const[selectedYear,setSelectedYear]=useState("all");const[selectedMonth,setSelectedMonth]=useState("all");
  useEffect(()=>{if(!manualError)return;const text=manualError.trim();const kind=/(não foi possível|falha|erro|inválid|obrigatório|máximo|ultrapassar|bloqueou|não encontrado)/i.test(text)?"error":"info";window.dispatchEvent(new CustomEvent("mb:notice",{detail:{title:kind==="error"?"Atenção — Relatórios":"Informação — Relatórios",detail:text,kind,actionHref:kind==="error"?"/relatorios":undefined,actionLabel:kind==="error"?"Abrir relatórios em nova aba":undefined,code:kind==="error"?"RELAT_RIOS_ERROR":undefined}}));setManualError("");},[manualError]);
 
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const requested=params.get("aba");if(requested==="INCONSISTENCIAS"||requested==="INCONSISTÊNCIAS")setTab("INCONSISTÊNCIAS")},[]);
  useEffect(()=>{fetch("/api/migration/financial-summary",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacy).catch(()=>{})},[]);useEffect(()=>{fetch("/api/migration/financial-sales",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setLegacySales).catch(()=>{})},[]);useEffect(()=>{fetch("/beepstart-historico-mensal.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setHistoricalBilling).catch(()=>{})},[]);useEffect(()=>{fetch("/api/relatorios/historico-manual",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>setManualHistorical(x?.entries||[])).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
+ useEffect(()=>{fetch("/api/reports/monthly-target",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setMonthlyTarget).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
  const s=d.summary,inc=d.inconsistencies||[];
@@ -28,10 +29,9 @@ export default function Relatorios(){
    const legacyMap=new Map<string,any>((legacySales?.monthly||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"BeepStart legado",partial:false}]));
    const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,origin:"Manual",partial:false}]));
    const operationalMap=new Map<string,any>(operational.map((x:any)=>[x.month,x]));
-   const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...legacyMap.keys(),...manualMap.keys()])].sort();
+   const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...legacyMap.keys(),...manualMap.keys(),...(monthlyTarget?.month?[monthlyTarget.month]:[])])].sort();
    const monthly=months.map((month:string)=>{
      const op=operationalMap.get(month),manual=manualMap.get(month),aggregate=historicalMap.get(month),legacyRow=legacyMap.get(month);
-     if(month==="2026-10"&&op&&(op.sales>0||op.total>0))return {...op,total:13143,origin:"MB Óptica · conciliação confirmada",partial:false};
      if(op&&(op.sales>0||op.total>0))return {...op,origin:"MB Óptica",partial:false};
      if(manual)return manual;
      if(aggregate)return aggregate;
@@ -44,7 +44,8 @@ export default function Relatorios(){
      return previous.reduce((sum:number,x:any)=>sum+n(x.total),0)/previous.length*1.10;
    };
    const enriched=monthly.map((x:any,i:number)=>{
-     const target=targetFor(i);
+     const calculatedTarget=targetFor(i);
+     const target=x.month===monthlyTarget?.month&&monthlyTarget?.target!==null&&monthlyTarget?.target!==undefined?n(monthlyTarget.target):calculatedTarget;
      const ticket=x.sales>0?x.total/x.sales:0;
      const variance=target===null?0:x.total-target;
      const achievement=target&&target>0?x.total/target*100:null;
@@ -129,7 +130,7 @@ export default function Relatorios(){
    const manualMap=new Map<string,any>((manualHistorical||[]).map((x:any)=>[String(x.month),{month:String(x.month),sales:n(x.sales),total:n(x.total),received:0,partial:false,origin:"Manual"}]));
    const operationalMap=new Map<string,any>(operational.map((x:any)=>[x.month,x]));
    const months=[...new Set<string>([...operationalMap.keys(),...historicalMap.keys(),...manualMap.keys()])].sort();
-   const monthly=months.map((month:string)=>{const op=operationalMap.get(month),manual=manualMap.get(month),historic=historicalMap.get(month);if(month==="2026-10"&&op&&(op.sales>0||op.total>0))return {...op,total:13143,origin:"MB Óptica · conciliação confirmada",partial:false};if(op&&(op.sales>0||op.total>0))return {...op,partial:false};if(manual)return manual;if(historic)return historic;return {month,sales:0,total:0,received:0,partial:false,origin:"—"};});
+   const monthly=months.map((month:string)=>{const op=operationalMap.get(month),manual=manualMap.get(month),historic=historicalMap.get(month);if(op&&(op.sales>0||op.total>0))return {...op,partial:false};if(manual)return manual;if(historic)return historic;return {month,sales:0,total:0,received:0,partial:false,origin:"—"};});
    const current=monthly[monthly.length-1]||{month:"—",sales:0,total:0,received:0,partial:false};
    const previous=monthly.filter((x:any)=>x.month<current.month&&n(x.total)>0).slice(-1)[0]||{month:"—",sales:0,total:0,received:0};
    const variation=previous.total>0?((current.total-previous.total)/previous.total)*100:null;

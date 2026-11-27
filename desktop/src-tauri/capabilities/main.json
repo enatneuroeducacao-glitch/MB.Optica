@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-capability",
+  "description": "Permiss?es m?nimas da janela principal do MB Gest?o Inteligente.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "allow-check-for-update",
+    "allow-apply-update",
+    "allow-backup-database",
+    "allow-restore-database",
+    "allow-adopt-existing-database"
+  ]
+}
