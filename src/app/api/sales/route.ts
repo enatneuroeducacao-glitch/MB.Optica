@@ -368,7 +368,7 @@ export async function POST(req:Request){
         }
       }
 
-      const productIds=[...new Set((b.items||[]).map((item:any)=>String(item.productId||"")).filter(Boolean))];
+      const productIds: string[] = Array.from(new Set<string>((b.items || []).map((item: any) => String(item.productId || "")).filter((id: string): id is string => id.length > 0)));
       for(const productId of productIds) await enqueuePublishedProductStockSync(tx,productId);
       await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
       return {...sale,accounts:createdAccounts,entryPayment,payments:createdPayments};
