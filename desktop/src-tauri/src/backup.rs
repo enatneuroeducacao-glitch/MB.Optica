@@ -173,7 +173,7 @@ pub fn adopt_existing_database(app: AppHandle) -> Result<String, String> {
         return Err(format!("Pacote incompleto para adoção segura. Backup preservado em {}.", backup.display()));
     }
 
-    let database_url = format!("file:{}", database.to_string_lossy().replace('\\\\', "/"));
+    let database_url = format!("file:{}", database.to_string_lossy().replace('\\', "/"));
     let diff = Command::new(&node)
         .arg(&prisma_cli)
         .args(["migrate", "diff", "--from-url", &database_url, "--to-schema-datamodel"])
