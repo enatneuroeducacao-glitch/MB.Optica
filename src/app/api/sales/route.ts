@@ -1,4 +1,4 @@
-import {syncPublishedProductStocks} from "@/lib/site-stock-sync";
+import {enqueuePublishedProductStockSync} from "@/lib/site-stock-outbox";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
@@ -368,12 +368,13 @@ export async function POST(req:Request){
         }
       }
 
+      const productIds=[...new Set((b.items||[]).map((item:any)=>String(item.productId||"")).filter(Boolean))];
+      for(const productId of productIds) await enqueuePublishedProductStockSync(tx,productId);
       await writeAudit(tx,{action:"CREATE",entity:"Sale",entityId:sale.id,userId:seller.id,metadata:{total:sale.total.toString(),items:sale.items.length}});
       return {...sale,accounts:createdAccounts,entryPayment,payments:createdPayments};
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,maxWait:10000,timeout:20000});
 
-    const siteSync=await syncPublishedProductStocks((b.items||[]).map((item:any)=>String(item.productId||"")).filter(Boolean));
-    return NextResponse.json({...result,siteSync},{status:201});
+    return NextResponse.json({...result,siteSync:{queued:true}},{status:201});
   }catch(error){
     return NextResponse.json({error:"Não foi possível registrar a venda",detail:String(error)},{status:400});
   }
