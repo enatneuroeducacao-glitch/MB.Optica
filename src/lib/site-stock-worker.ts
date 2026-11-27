@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { syncPublishedProductStock } from "@/lib/site-stock-sync";
+import { isSiteSyncEnabled, syncPublishedProductStock } from "@/lib/site-stock-sync";
 
 const MAX_ATTEMPTS = 12;
 const POLL_MS = 15_000;
@@ -12,6 +12,7 @@ type WorkerState = typeof globalThis & {
 };
 
 async function processOne() {
+  if (!isSiteSyncEnabled()) return;
   const now = new Date();
 
   // Recover work abandoned by an abruptly terminated process.
