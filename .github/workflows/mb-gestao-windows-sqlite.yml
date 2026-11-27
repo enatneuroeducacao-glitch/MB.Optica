@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-sqlite-installer:
@@ -74,6 +74,26 @@ jobs:
           npx prisma migrate diff --from-empty --to-schema-datamodel prisma/sqlite/schema.prisma --script | Set-Content -Path "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql" -Encoding utf8
           if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar baseline SQLite" }
           if ((Get-Item "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql").Length -lt 1000) { throw "Baseline SQLite gerada parece incompleta" }
+
+      - name: Version generated SQLite baseline on audit branch
+        if: github.ref == 'refs/heads/audit/mb-gestao-offline-hybrid-20261127'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Baseline SQLite já está versionada."
+          } else {
+            git commit -m "chore: version initial SQLite baseline migration"
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao criar commit da baseline SQLite" }
+            git push origin HEAD:refs/heads/audit/mb-gestao-offline-hybrid-20261127
+            if ($LASTEXITCODE -ne 0) { throw "Falha ao publicar baseline na branch de auditoria" }
+          }
 
       - name: Build Windows Next.js application with SQLite client
         env:
