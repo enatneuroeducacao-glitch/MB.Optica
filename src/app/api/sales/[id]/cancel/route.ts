@@ -1,4 +1,4 @@
-import {syncPublishedProductStocks} from "@/lib/site-stock-sync";
+import {enqueuePublishedProductStockSync} from "@/lib/site-stock-outbox";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {Prisma} from "@prisma/client";
@@ -124,6 +124,9 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
         payload: { amount: Number(sale.total), entryDate: canceledAt.toISOString(), description: "Estorno do reconhecimento da venda #" + sale.number + " — " + reason },
       });
 
+      const affectedProductIds=[...new Set(movements.map(m=>m.productId))];
+      for(const productId of affectedProductIds) await enqueuePublishedProductStockSync(tx,productId);
+
       await writeAudit(tx,{
         action:"CANCEL",
         entity:"Sale",
@@ -140,9 +143,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
       return canceled;
     },{isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
 
-    const movements=await db.stockMovement.findMany({where:{reference:"CANCELAMENTO_VENDA",referenceId:id},select:{productId:true}});
-    const siteSync=await syncPublishedProductStocks(movements.map(m=>m.productId));
-    return NextResponse.json({...result,siteSync});
+    return NextResponse.json({...result,siteSync:{queued:true}});
   }catch(error){
     return NextResponse.json({error:"Não foi possível cancelar a venda",detail:String(error)},{status:400});
   }
