@@ -60,9 +60,9 @@ jobs:
         env:
           MB_GESTAO_DEPLOYMENT_MODE: local
           MB_GESTAO_TARGET_URL: http://127.0.0.1:3000/
-          MB_GESTAO_PRODUCT_NAME: MB Gestão - Óptica Piloto
-          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.piloto
-          MB_GESTAO_INSTALLER_SLUG: optica-piloto
+          MB_GESTAO_PRODUCT_NAME: MB Gestão Inteligente (legado Docker)
+          MB_GESTAO_APP_IDENTIFIER: br.com.mboptica.legacy.docker
+          MB_GESTAO_INSTALLER_SLUG: mb-gestao-legado-docker
         run: npm run tauri:validate:customer
       - name: Build self-contained Windows NSIS installer
         env:
@@ -75,7 +75,7 @@ jobs:
       - name: Upload homologation installer
         uses: actions/upload-artifact@v4
         with:
-          name: mb-gestao-windows-installer-homologation
+          name: mb-gestao-legacy-docker-installer
           path: desktop/src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 7
