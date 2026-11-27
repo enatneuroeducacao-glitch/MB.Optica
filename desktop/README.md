@@ -68,14 +68,23 @@ MB_GESTAO_TARGET_URL=https://pilot.example.com MB_GESTAO_PRODUCT_NAME="MB Gestã
 
 The customer build rejects the MB Óptica production host and requires a unique application identifier. It does not provision a server or database; those must exist independently before the installer is built. The variables above are configuration, not secrets.
 
-## Local-server edition (one optical per computer/server)
+## MB Gestão Inteligente — instalador autônomo SQLite (sem Docker)
 
-The local edition opens only `http://127.0.0.1:3000/`. It does not point to the MB Óptica production URL. Provision the local application and PostgreSQL first using the instructions in `deploy/local-optical/README.md`; Docker Desktop is required for this pilot.
+O instalador nativo é a edição destinada ao uso diário no computador da ótica. Ele inclui Node.js para Windows, aplicação Next.js standalone, Prisma CLI e banco SQLite local. O servidor escuta somente em `127.0.0.1`. Docker Desktop, PostgreSQL e conexão com a internet não são requisitos para abrir e operar o sistema.
 
-Build the local Windows installer from this directory:
+O banco e os arquivos operacionais ficam no diretório persistente de dados do usuário, fora da pasta de instalação. A sincronização com serviços externos é opcional e deve ocorrer em segundo plano.
 
-```bash
-MB_GESTAO_PRODUCT_NAME="MB Gestão - Óptica Piloto" MB_GESTAO_APP_IDENTIFIER=br.com.mboptica.piloto MB_GESTAO_INSTALLER_SLUG=optica-piloto npm run tauri:build:local
-```
+No GitHub Actions, execute o workflow **MB Gestão Inteligente — Instalador Windows SQLite (sem Docker)**. Ele deve compilar com `MB_GESTAO_NATIVE_MODE=true`, sem modo piloto e sem qualquer etapa Docker. O artefato é publicado como `mb-gestao-inteligente-native-sqlite`.
 
-The local Tauri installer is currently a desktop client for the already-running local service. It does not yet install Docker Desktop, provision PostgreSQL, or automatically start/stop the local server. Those are explicit remaining installer-integration tasks; do not distribute this artifact as a one-click all-in-one installer until those tasks and clean-machine acceptance tests are complete.
+Para compilação local em Windows, use Node.js 22, Rust stable, WebView2 e NSIS; prepare o bundle nativo conforme o workflow e execute `npm run tauri:build:native` com:
+
+- `MB_GESTAO_NATIVE_MODE=true`
+- `MB_GESTAO_PRODUCT_NAME=MB Gestão Inteligente`
+- `MB_GESTAO_APP_IDENTIFIER=br.com.mboptica.gestao`
+- `MB_GESTAO_INSTALLER_SLUG=mb-gestao-inteligente-sqlite`
+
+Não use `MB_GESTAO_PILOT_MODE` no instalador geral. O build script rejeita explicitamente esse modo e também rejeita a ausência do modo nativo.
+
+### Docker e edição PostgreSQL legada
+
+Os workflows e instaladores antigos baseados em Docker/PostgreSQL permanecem separados para desenvolvimento ou instalações legadas. Eles não são o instalador autônomo SQLite e não devem ser usados para distribuir o MB Gestão Inteligente offline.
