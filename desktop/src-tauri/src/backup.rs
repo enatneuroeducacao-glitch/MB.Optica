@@ -128,3 +128,106 @@ pub fn restore_database(app: AppHandle, backup_name: String) -> Result<String, S
     restart_server(&app)?;
     Ok(format!("Banco restaurado e validado. Cópia anterior preservada em {}.", rollback.display()))
 }
+
+
+/// Explicitly adopts an existing SQLite database only when its schema exactly
+/// matches the preserved pre-outbox baseline. Always creates and verifies a
+/// consistent backup before invoking Prisma migration metadata commands.
+#[tauri::command]
+pub fn adopt_existing_database(app: AppHandle) -> Result<String, String> {
+    if !crate::NATIVE_MODE {
+        return Err("A adoção de schema só está disponível no instalador SQLite nativo.".into());
+    }
+    let (database, backups) = paths(&app)?;
+    if !database.is_file() {
+        return Err("Banco local não encontrado. A adoção é destinada somente a instalações existentes.".into());
+    }
+    integrity(&database)?;
+
+    let connection = Connection::open(&database).map_err(|e| e.to_string())?;
+    let has_tables: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_prisma_migrations')",
+        [], |row| row.get(0),
+    ).map_err(|e| e.to_string())?;
+    let has_history: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='_prisma_migrations')",
+        [], |row| row.get(0),
+    ).map_err(|e| e.to_string())?;
+    drop(connection);
+
+    if !has_tables {
+        return Err("O banco não contém tabelas da aplicação; não é um banco legado elegível para adoção.".into());
+    }
+    if has_history {
+        return Err("Este banco já possui histórico Prisma. Use a atualização normal; a adoção não deve ser repetida.".into());
+    }
+
+    let backup = create_backup(&database, &backups, "mb-gestao-pre-adoption")?;
+    let resources = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let native_root = resources.join("native");
+    let app_dir = native_root.join("app");
+    let node = native_root.join("node.exe");
+    let prisma_cli = native_root.join("prisma-cli").join("node_modules").join("prisma").join("build").join("index.js");
+    let baseline_schema = app_dir.join("prisma").join("sqlite").join("schema.baseline.prisma");
+    if !node.is_file() || !prisma_cli.is_file() || !baseline_schema.is_file() {
+        return Err(format!("Pacote incompleto para adoção segura. Backup preservado em {}.", backup.display()));
+    }
+
+    let database_url = format!("file:{}", database.to_string_lossy().replace('\\\\', "/"));
+    let diff = Command::new(&node)
+        .arg(&prisma_cli)
+        .args(["migrate", "diff", "--from-url", &database_url, "--to-schema-datamodel"])
+        .arg(&baseline_schema)
+        .arg("--exit-code")
+        .current_dir(&app_dir)
+        .env("NODE_ENV", "production")
+        .env("DATABASE_URL", &database_url)
+        .output()
+        .map_err(|e| format!("Não foi possível comparar o schema. Backup preservado em {}. Erro: {e}", backup.display()))?;
+
+    if !diff.status.success() {
+        let detail = String::from_utf8_lossy(&diff.stdout).to_string() + &String::from_utf8_lossy(&diff.stderr);
+        return Err(format!(
+            "Adoção cancelada: o banco existente não corresponde exatamente ao schema-base desta versão. Nenhuma migração foi marcada e os dados não foram alterados. Revise a diferença e planeje uma migração específica. Backup validado: {}. Detalhes: {}",
+            backup.display(), detail
+        ));
+    }
+
+    let resolve = Command::new(&node)
+        .arg(&prisma_cli)
+        .args(["migrate", "resolve", "--applied", "20261127100000_initial_sqlite", "--schema"])
+        .arg(app_dir.join("prisma").join("sqlite").join("schema.prisma"))
+        .current_dir(&app_dir)
+        .env("NODE_ENV", "production")
+        .env("DATABASE_URL", &database_url)
+        .output()
+        .map_err(|e| format!("Falha ao registrar baseline. Backup preservado em {}. Erro: {e}", backup.display()))?;
+    if !resolve.status.success() {
+        return Err(format!(
+            "Não foi possível registrar a baseline. O backup permanece preservado em {}. Detalhes: {}",
+            backup.display(), String::from_utf8_lossy(&resolve.stderr)
+        ));
+    }
+
+    let deploy = Command::new(&node)
+        .arg(&prisma_cli)
+        .args(["migrate", "deploy", "--schema"])
+        .arg(app_dir.join("prisma").join("sqlite").join("schema.prisma"))
+        .current_dir(&app_dir)
+        .env("NODE_ENV", "production")
+        .env("DATABASE_URL", &database_url)
+        .output()
+        .map_err(|e| format!("Baseline registrada, mas não foi possível aplicar migrações posteriores. Backup preservado em {}. Erro: {e}", backup.display()))?;
+    if !deploy.status.success() {
+        return Err(format!(
+            "Baseline registrada, mas uma migração posterior falhou. O banco e o backup foram preservados; reabra o aplicativo para retomar o deploy da migração pendente. Backup: {}. Detalhes: {}",
+            backup.display(), String::from_utf8_lossy(&deploy.stderr)
+        ));
+    }
+
+    integrity(&database)?;
+    Ok(format!(
+        "Adoção concluída. Schema legado comparado sem diferenças; baseline registrada e migrações posteriores aplicadas. Backup validado: {}. Feche e abra novamente o MB Gestão.",
+        backup.display()
+    ))
+}
