@@ -1,4 +1,4 @@
-import {syncPublishedProductStock} from "@/lib/site-stock-sync";
+import {enqueuePublishedProductStockSync} from "@/lib/site-stock-outbox";
 import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {requireRole} from "@/lib/auth";
@@ -25,9 +25,9 @@ export async function POST(req:Request){
    const movement=await tx.stockMovement.create({data:{productId:product.id,type:"ENTRADA",quantity,unitCost,reference:"LOTE",referenceId:lot.id,notes:b.reason?String(b.reason).trim():"Entrada de estoque"}});
    await tx.stockMovementLot.create({data:{movementId:movement.id,lotId:lot.id,quantity}});
    await writeAudit(tx,{action:"CREATE",entity:"StockMovement",entityId:movement.id,userId:actor.id,metadata:{type:"ENTRADA",quantity,lotId:lot.id}});
-   return {lot,movement};
+   const siteSync=await enqueuePublishedProductStockSync(tx,product.id);
+   return {lot,movement,siteSync};
   });
-  const siteSync=await syncPublishedProductStock(result.lot.productId);
-  return NextResponse.json({...result,siteSync},{status:201});
+  return NextResponse.json(result,{status:201});
  }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível registrar a entrada."},{status:400});}
 }
