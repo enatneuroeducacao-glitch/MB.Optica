@@ -125,6 +125,7 @@ jobs:
         working-directory: desktop
         env:
           MB_GESTAO_NATIVE_MODE: "true"
+          MB_GESTAO_PILOT_MODE: "true"
           MB_GESTAO_CUSTOMER_NAME: "MB Gestão Inteligente"
           MB_GESTAO_PRODUCT_NAME: "MB Gestão Inteligente"
           MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.gestao"
