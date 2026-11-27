@@ -74,7 +74,7 @@ jobs:
           if (!(Test-Path "prisma/sqlite/migrations/20261127120000_site_sync_outbox/migration.sql")) { throw "Migração outbox SQLite versionada ausente" }
           npx prisma migrate deploy --schema prisma/sqlite/schema.prisma
           if ($LASTEXITCODE -ne 0) { throw "Aplicação das migrações SQLite falhou" }
-          npx prisma migrate diff --from-url $env:DATABASE_URL --to-schema-datamodel prisma/sqlite/schema.prisma --exit-code
+          npx prisma migrate diff --from-url "file:./prisma/sqlite/build-validation.db" --to-schema-datamodel prisma/sqlite/schema.prisma --exit-code
           if ($LASTEXITCODE -ne 0) { throw "Schema SQLite diverge das migrações versionadas" }
 
       - name: Build Windows Next.js application with SQLite client
