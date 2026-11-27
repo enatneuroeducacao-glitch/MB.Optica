@@ -116,8 +116,8 @@ export async function POST(req:Request){
 
      let supplierId:string|undefined;
      if(p.supplier){
-      const s=await tx.supplier.findFirst({where:{},select:{id:true,name:true}});
-      supplierId=txSuppliers.find(x=>String(x.name||"").toLowerCase()===p.supplier.slice(0,120).toLowerCase())?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
+      const suppliers=await tx.supplier.findMany({select:{id:true,name:true}});
+      supplierId=suppliers.find(x=>String(x.name||"").toLowerCase()===p.supplier.slice(0,120).toLowerCase())?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
      }
 
      const product=await tx.product.create({
