@@ -64,21 +64,22 @@ const lotStockByProduct=(lots:any[])=>{
 };
 
 async function getLegacyProductRows(ids?:string[]){
- return db.legacyRecord.findMany({
-  where:{source:"BEEPSTART",collectionKey:{equals:"Produto",mode:"insensitive"},...(ids?.length?{id:{in:ids}}:{})},
-  select:{id:true,legacyId:true,payload:true,status:true,targetEntity:true,targetId:true},
+ const rows=await db.legacyRecord.findMany({
+  where:{source:"BEEPSTART",...(ids?.length?{id:{in:ids}}:{})},
+  select:{id:true,legacyId:true,payload:true,status:true,targetEntity:true,targetId:true,collectionKey:true},
   orderBy:{importedAt:"desc"},
   take:10000
  });
+ return rows.filter((row:any)=>String(row.collectionKey||"").toLowerCase()==="produto");
 }
 
 async function getLotStock(){
- const lots=await db.legacyRecord.findMany({
-  where:{source:"BEEPSTART",collectionKey:{equals:"Lote",mode:"insensitive"}},
-  select:{payload:true},
+ const rows=await db.legacyRecord.findMany({
+  where:{source:"BEEPSTART"},
+  select:{collectionKey:true,payload:true},
   take:100000
  });
- return lotStockByProduct(lots);
+ return lotStockByProduct(rows.filter((row:any)=>String(row.collectionKey||"").toLowerCase()==="lote"));
 }
 
 export async function GET(){
@@ -171,11 +172,10 @@ export async function POST(req:Request){
 
      let supplierId:string|undefined;
      if(p.supplier){
-      const s=await tx.supplier.findFirst({
-       where:{name:{equals:p.supplier.slice(0,120),mode:"insensitive"}},
-       select:{id:true}
-      });
-      supplierId=s?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
+      const suppliers=await tx.supplier.findMany({select:{id:true,name:true}});
+      const normalizedSupplier=p.supplier.slice(0,120).toLocaleLowerCase("pt-BR");
+      const existingSupplier=suppliers.find(item=>String(item.name||"").toLocaleLowerCase("pt-BR")===normalizedSupplier);
+      supplierId=existingSupplier?.id||(await tx.supplier.create({data:{name:p.supplier.slice(0,120)},select:{id:true}})).id;
      }
 
      const product=await tx.product.create({

@@ -3,15 +3,17 @@ import {db} from "@/lib/db";
 const siteUrl=()=>String(process.env.MB_SITE_SUPABASE_URL||"").replace(/\/$/,"");
 const siteKey=()=>String(process.env.MB_SITE_SUPABASE_SERVICE_ROLE_KEY||"");
 const hideWhenOut=()=>String(process.env.MB_SITE_HIDE_OUT_OF_STOCK||"false").toLowerCase()==="true";
+export const isSiteSyncEnabled=()=>String(process.env.MB_SITE_SYNC_ENABLED||"false").toLowerCase()==="true";
 
 async function sitePatch(path:string,body:any){
  const key=siteKey();
- const r=await fetch(siteUrl()+path,{method:"PATCH",headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(body),cache:"no-store"});
+ const r=await fetch(siteUrl()+path,{method:"PATCH",headers:{apikey:key,Authorization:"Bearer "+key,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(12_000)});
  if(!r.ok){const t=await r.text();throw new Error("Supabase site HTTP "+r.status+": "+t)}
 }
 
 export async function syncPublishedProductStock(productId:string){
  try{
+  if(!isSiteSyncEnabled())return {ok:true,skipped:true,reason:"SYNC_DISABLED"};
   const product=await db.product.findUnique({where:{id:productId},include:{lots:{where:{archived:false}}}});
   if(!product||!product.publishedOnSite)return {ok:true,skipped:true,reason:"NOT_PUBLISHED"};
   const stock=product.lots.reduce((sum,lot)=>sum+Number(lot.quantity),0);

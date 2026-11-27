@@ -372,6 +372,22 @@ active Boolean @default(true)
 products Product[]
 accounts Account[]
 }
+
+model SiteSyncOutbox {
+  id String @id @default(cuid())
+  productId String
+  eventType String @default("PRODUCT_STOCK")
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  lockedAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, nextAttemptAt])
+  @@index([productId, status])
+}
+
 model Product {
   organizationId String? // Nullable during the additive multi-tenant rollout.
 id String @id @default(cuid())

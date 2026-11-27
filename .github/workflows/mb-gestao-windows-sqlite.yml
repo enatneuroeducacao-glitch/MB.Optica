@@ -2,7 +2,9 @@ name: MB Gestão — Instalador Windows SQLite (Ótica Imagem)
 
 on:
   push:
-    branches: ["experiment/sqlite-native-windows"]
+    branches:
+      - "experiment/sqlite-native-windows"
+      - "audit/mb-gestao-offline-hybrid-20261127"
     paths:
       - "desktop/**"
       - "prisma/**"
@@ -20,6 +22,10 @@ on:
       - "next.config.ts"
       - ".github/workflows/mb-gestao-windows-sqlite.yml"
   workflow_dispatch:
+
+concurrency:
+  group: mb-gestao-sqlite-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -51,10 +57,25 @@ jobs:
         env:
           DATABASE_URL: "file:./build-validation.db"
         run: |
-          npx prisma validate --schema=prisma/schema.sqlite.prisma
+          npx prisma validate --schema=prisma/sqlite/schema.prisma
           if ($LASTEXITCODE -ne 0) { throw "Schema SQLite inválido" }
-          npx prisma generate --schema=prisma/schema.sqlite.prisma
+          npx prisma generate --schema=prisma/sqlite/schema.prisma
           if ($LASTEXITCODE -ne 0) { throw "Falha ao gerar Prisma Client SQLite" }
+          npx prisma --version
+          if ($LASTEXITCODE -ne 0) { throw "Prisma CLI indisponível" }
+
+      - name: Apply versioned SQLite migrations and detect schema drift
+        shell: pwsh
+        env:
+          DATABASE_URL: "file:./build-validation.db"
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (!(Test-Path "prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql")) { throw "Baseline SQLite versionada ausente" }
+          if (!(Test-Path "prisma/sqlite/migrations/20261127120000_site_sync_outbox/migration.sql")) { throw "Migração outbox SQLite versionada ausente" }
+          npx prisma migrate deploy --schema prisma/sqlite/schema.prisma
+          if ($LASTEXITCODE -ne 0) { throw "Aplicação das migrações SQLite falhou" }
+          npx prisma migrate diff --from-url "file:./prisma/sqlite/build-validation.db" --to-schema-datamodel prisma/sqlite/schema.prisma --exit-code
+          if ($LASTEXITCODE -ne 0) { throw "Schema SQLite diverge das migrações versionadas" }
 
       - name: Build Windows Next.js application with SQLite client
         env:
@@ -62,7 +83,11 @@ jobs:
           DATABASE_URL: "file:./build-validation.db"
           AUTH_SECRET: build-only-not-a-real-secret
           BOOTSTRAP_TOKEN: build-only-not-a-real-token
-        run: npm run build
+        run: |
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { throw "Typecheck falhou" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "Build Next.js falhou" }
 
       - name: Bundle Node.js and standalone application
         shell: pwsh
@@ -84,7 +109,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar runtime isolado do Prisma CLI" }
           & node "desktop/resources/native/prisma-cli/node_modules/prisma/build/index.js" --version
           if ($LASTEXITCODE -ne 0) { throw "Prisma CLI isolado inválido" }
-          if (-not (Test-Path "desktop/resources/native/app/prisma/schema.sqlite.prisma")) { throw "Schema SQLite ausente no pacote" }
+          if (-not (Test-Path "desktop/resources/native/app/prisma/sqlite/schema.prisma")) { throw "Schema SQLite ausente no pacote" }
           if (-not (Test-Path "desktop/resources/native/app/server.js")) { throw "Next standalone server.js ausente" }
 
       - name: Validate native SQLite payload
@@ -105,6 +130,13 @@ jobs:
           MB_GESTAO_APP_IDENTIFIER: "br.com.mboptica.opticaimagem"
           MB_GESTAO_INSTALLER_SLUG: "optica-imagem-sqlite"
         run: npm run tauri:build:native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mb-gestao-sqlite-baseline-review
+          path: prisma/sqlite/migrations/20261127100000_initial_sqlite/migration.sql
+          if-no-files-found: error
+          retention-days: 14
 
       - uses: actions/upload-artifact@v4
         with:
