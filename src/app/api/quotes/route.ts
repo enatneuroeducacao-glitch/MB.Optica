@@ -43,12 +43,18 @@ export async function GET(req:Request){
   const rows=await db.quote.findMany({
    where:{
     ...(status&&status!=="TODOS"?{status}:{}),
-    ...(q?{customer:{OR:[{name:{contains:q,mode:"insensitive"}},{cpfCnpj:{contains:q,mode:"insensitive"}},{phone:{contains:q,mode:"insensitive"}}]}}:{})
+    
    },
-   orderBy:{createdAt:"desc"},take:300,
+   orderBy:{createdAt:"desc"},take:q?10000:300,
    include:{customer:true,seller:true,prescription:true,items:{include:{product:true}},order:{select:{id:true,number:true,status:true}}}
   });
-  return NextResponse.json(rows);
+  const normalizedQuery=q.toLocaleLowerCase("pt-BR");
+  const filtered=q?rows.filter(row=>{
+   const customer=row.customer;
+   return [customer?.name,customer?.cpfCnpj,customer?.phone]
+    .some(value=>String(value||"").toLocaleLowerCase("pt-BR").includes(normalizedQuery));
+  }).slice(0,300):rows;
+  return NextResponse.json(filtered);
  }catch(error){return apiError(error,"Não foi possível carregar os orçamentos.");}
 }
 
