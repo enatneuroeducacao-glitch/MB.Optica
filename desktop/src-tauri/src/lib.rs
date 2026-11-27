@@ -19,6 +19,7 @@ const IMAGE: &str = "mb-optica-local:pilot";
 const PROJECT: &str = "mb-gestao-optica-piloto";
 const HEALTH: &str = "127.0.0.1:3000";
 const PILOT_MODE: &str = match option_env!("MB_GESTAO_PILOT_MODE") { Some(value) => value, None => "" };
+const OWNER_MODE: &str = match option_env!("MB_GESTAO_OWNER_MODE") { Some(value) => value, None => "" };
 const CUSTOMER_NAME: &str = match option_env!("MB_GESTAO_CUSTOMER_NAME") { Some(value) => value, None => "Optica" };
 pub(crate) const NATIVE_MODE: bool = cfg!(mb_gestao_native_mode);
 const NATIVE_DB_PORT: &str = "55432";
@@ -263,7 +264,7 @@ pub(crate) fn native_prepare(resource_dir: &Path, data_dir: &Path) -> Result<(),
             .env("BOOTSTRAP_TOKEN", &bootstrap_token)
             .env("STORE_TRADE_NAME", CUSTOMER_NAME)
             .env("STORE_STATE", "SC")
-            .env("MB_OPTICA_OWNER_INSTANCE", if PILOT_MODE == "true" { "true" } else { "false" })
+            .env("MB_OPTICA_OWNER_INSTANCE", if OWNER_MODE == "true" { "true" } else { "false" })
             .stdin(std::process::Stdio::null())
             .stdout(stdout)
             .stderr(stderr);
