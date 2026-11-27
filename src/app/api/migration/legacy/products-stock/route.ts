@@ -64,21 +64,22 @@ const lotStockByProduct=(lots:any[])=>{
 };
 
 async function getLegacyProductRows(ids?:string[]){
- return db.legacyRecord.findMany({
-  where:{source:"BEEPSTART",collectionKey:{equals:"Produto",mode:"insensitive"},...(ids?.length?{id:{in:ids}}:{})},
-  select:{id:true,legacyId:true,payload:true,status:true,targetEntity:true,targetId:true},
+ const rows=await db.legacyRecord.findMany({
+  where:{source:"BEEPSTART",...(ids?.length?{id:{in:ids}}:{})},
+  select:{id:true,legacyId:true,payload:true,status:true,targetEntity:true,targetId:true,collectionKey:true},
   orderBy:{importedAt:"desc"},
   take:10000
  });
+ return rows.filter((row:any)=>String(row.collectionKey||"").toLowerCase()==="produto");
 }
 
 async function getLotStock(){
- const lots=await db.legacyRecord.findMany({
-  where:{source:"BEEPSTART",collectionKey:{equals:"Lote",mode:"insensitive"}},
-  select:{payload:true},
+ const rows=await db.legacyRecord.findMany({
+  where:{source:"BEEPSTART"},
+  select:{collectionKey:true,payload:true},
   take:100000
  });
- return lotStockByProduct(lots);
+ return lotStockByProduct(rows.filter((row:any)=>String(row.collectionKey||"").toLowerCase()==="lote"));
 }
 
 export async function GET(){
