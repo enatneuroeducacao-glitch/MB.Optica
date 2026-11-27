@@ -48,9 +48,14 @@ fn create_backup(database: &Path, backups: &Path, prefix: &str) -> Result<PathBu
     let destination = backups.join(format!("{prefix}-{}.sqlite", timestamp()));
     let source = Connection::open(database).map_err(|e| format!("Não foi possível abrir banco de origem: {e}"))?;
     let mut target = Connection::open(&destination).map_err(|e| format!("Não foi possível criar backup: {e}"))?;
-    let backup = Backup::new(&source, &mut target).map_err(|e| format!("Não foi possível iniciar backup SQLite: {e}"))?;
-    backup.run_to_completion(5, Duration::from_millis(250), None)
-        .map_err(|e| format!("Backup SQLite não foi concluído: {e}"))?;
+    {
+        // O objeto Backup mantém um empréstimo mutável da conexão de destino.
+        // Encerrá-lo neste escopo libera a conexão antes de validarmos o arquivo.
+        let backup = Backup::new(&source, &mut target)
+            .map_err(|e| format!("Não foi possível iniciar backup SQLite: {e}"))?;
+        backup.run_to_completion(5, Duration::from_millis(250), None)
+            .map_err(|e| format!("Backup SQLite não foi concluído: {e}"))?;
+    }
     drop(target);
     integrity(&destination)?;
     Ok(destination)
