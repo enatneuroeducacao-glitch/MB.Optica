@@ -1,24 +1,6 @@
-name: MB Gestão Windows Installer (Homologation)
+name: MB Gestão — instalador legado Docker/PostgreSQL (manual)
 
 on:
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "desktop/**"
-      - "deploy/local-optical/**"
-      - "Dockerfile"
-      - "prisma/**"
-      - "src/**"
-      - ".github/workflows/mb-gestao-windows.yml"
-  push:
-    branches: ["main"]
-    paths:
-      - "desktop/**"
-      - "deploy/local-optical/**"
-      - "Dockerfile"
-      - "prisma/**"
-      - "src/**"
-      - ".github/workflows/mb-gestao-windows.yml"
   workflow_dispatch:
 
 permissions:
