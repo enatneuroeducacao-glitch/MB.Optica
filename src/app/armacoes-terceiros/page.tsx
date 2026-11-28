@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 type FrameRecord = {
   id:string; customerName:string; customerId?:string|null; brand?:string|null; model?:string|null;
@@ -53,6 +54,7 @@ export default function ArmacoesTerceirosPage(){
  const [form,setForm]=useState({customerName:"",customerId:"",brand:"",model:"",source:"MARKETPLACE",purchaseDate:"",condition:"SEM_AVARIAS_APARENTES",risks:"",serviceRequested:"MONTAGEM_DE_LENTES",inspectionNotes:"",photoReferences:"",customerAcknowledged:false,servicePrice:""});
  const load=async()=>{setLoading(true);try{const r=await fetch("/api/third-party-frames",{cache:"no-store",credentials:"same-origin"});const d=await r.json();if(!r.ok)throw new Error(d.detail||d.error||"Falha ao carregar registros");setRecords(Array.isArray(d)?d:[])}catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar")}finally{setLoading(false)}};
  useEffect(()=>{void load()},[]);
+ useRealtimeRefresh(load,0);
  const update=(key:string,value:string|boolean)=>setForm(p=>({...p,[key]:value}));
  const submit=async(e:React.FormEvent)=>{e.preventDefault();setSaving(true);setMessage("");try{const r=await fetch("/api/third-party-frames",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify(form)});const d=await r.json();if(!r.ok)throw new Error(d.detail||d.error||"Não foi possível registrar");setMessage("Armação de terceiro registrada com sucesso.");setForm({customerName:"",customerId:"",brand:"",model:"",source:"MARKETPLACE",purchaseDate:"",condition:"SEM_AVARIAS_APARENTES",risks:"",serviceRequested:"MONTAGEM_DE_LENTES",inspectionNotes:"",photoReferences:"",customerAcknowledged:false,servicePrice:""});await load()}catch(e){setMessage(e instanceof Error?e.message:"Erro ao salvar")}finally{setSaving(false)}};
  const changeStatus=async(id:string,status:string)=>{try{const r=await fetch("/api/third-party-frames/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({status})});const d=await r.json();if(!r.ok)throw new Error(d.detail||d.error||"Falha ao atualizar");setMessage("Status atualizado.");await load()}catch(e){setMessage(e instanceof Error?e.message:"Erro ao atualizar")}};

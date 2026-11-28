@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Supplier={id:string;name:string;document?:string|null;phone?:string|null;email?:string|null;notes?:string|null;_count?:{products:number;accounts:number}};
 type Form={name:string;document:string;phone:string;email:string;notes:string};
@@ -27,6 +28,7 @@ export default function Fornecedores(){
  };
 
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
 
  const save=async(e:React.FormEvent)=>{
   e.preventDefault();setMsg("");setLoading(true);

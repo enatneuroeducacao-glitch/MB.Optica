@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;email?:string|null};
 type Rx=any;
@@ -96,6 +97,7 @@ export default function Receitas(){
  const [rows,setRows]=useState<Rx[]>([]),[customers,setCustomers]=useState<Customer[]>([]),[form,setForm]=useState(empty),[open,setOpen]=useState(false),[search,setSearch]=useState(""),[message,setMessage]=useState(""),[loading,setLoading]=useState(true);
  const load=async()=>{setLoading(true);setMessage("");try{const [r,c]=await Promise.all([fetch("/api/prescriptions",{cache:"no-store",credentials:"include"}),fetch("/api/customers",{cache:"no-store",credentials:"include"})]);const rd=await r.json(),cd=await c.json();if(!r.ok)throw new Error(rd.error||"Não foi possível carregar as receitas.");if(!c.ok)throw new Error(cd.error||"Não foi possível carregar os clientes.");setRows(rd);setCustomers(cd)}catch(e){setMessage(e instanceof Error?e.message:"Erro ao carregar o módulo.");}finally{setLoading(false)}};
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
  const save=async(e:React.FormEvent)=>{e.preventDefault();setMessage("");const r=await fetch("/api/prescriptions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});const d=await r.json();if(!r.ok){setMessage(d.error||"Não foi possível registrar a receita.");return}setMessage("Receita registrada com sucesso.");setForm(empty);setOpen(false);load()};
  const deletePrescription=async(r:Rx)=>{const c=customers.find(x=>x.id===r.customerId)||r.customer;const name=c?.name||"este cliente";if(!window.confirm(`Excluir somente esta receita de ${name}, de ${r.date?new Date(r.date).toLocaleDateString("pt-BR"):"data não informada"}? Os demais dados do cliente serão preservados.`))return;setMessage("");const response=await fetch(`/api/prescriptions/${r.id}`,{method:"DELETE",credentials:"include"});const data=await response.json();if(!response.ok){setMessage(data.error||"Não foi possível excluir a receita.");return}setMessage("Receita excluída com sucesso.");load()};
  const filtered=rows.filter(r=>{const c=customers.find(x=>x.id===r.customerId)||r.customer;return ((c?.name||"")+" "+(c?.cpfCnpj||"")+" "+(r.professional||"")).toLowerCase().includes(search.toLowerCase())});

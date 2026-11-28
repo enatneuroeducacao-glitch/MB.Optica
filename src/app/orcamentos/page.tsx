@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null};
 type Prescription={id:string;date:string;professional?:string|null;validUntil?:string|null};
@@ -61,6 +62,7 @@ export default function Orcamentos(){
   finally{setLoading(false);}
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
  useEffect(()=>{
   if(!customerId){setPrescriptions([]);setPrescriptionId("");return;}
   fetch("/api/prescriptions?customerId="+encodeURIComponent(customerId),{cache:"no-store"}).then(r=>r.json()).then(d=>setPrescriptions(Array.isArray(d)?d:[])).catch(()=>setPrescriptions([]));

@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatusBadge} from "@/components/StatusBadge";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;email?:string|null};
@@ -124,6 +125,7 @@ export default function Pedidos(){
   if(o.ok)setRows(od); if(c.ok)setCustomers(cd); if(p.ok)setProducts(pd); if(rx.ok)setPrescriptions(rd);
  };
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
 
  const customerPrescriptions=useMemo(
   ()=>prescriptions.filter(r=>r.customerId===form.customerId),

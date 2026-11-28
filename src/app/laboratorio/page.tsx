@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatusBadge} from "@/components/StatusBadge";
 
 type Order=any;
@@ -83,6 +84,7 @@ export default function Laboratorio(){
 
  const load=async()=>{const [r,fr]=await Promise.all([fetch("/api/orders"),fetch("/api/frame-adaptation-orders")]);const [d,fd]=await Promise.all([r.json(),fr.json()]);if(r.ok)setRows(d.filter((o:any)=>["PEDIDO",...stages,"ENTREGUE"].includes(o.status)));else setMsg(d.error||"Erro ao carregar pedidos.");if(fr.ok&&Array.isArray(fd))setFrameOrders(fd);};
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
  const saveFrameDueDate=async(o:Order)=>{const dueDate=frameDueDates[o.id]??(o.dueDate?String(o.dueDate).slice(0,10):"");if(!dueDate){setMsg("Informe a nova data prevista de entrega.");return}const r=await fetch("/api/frame-adaptation-orders",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:o.id,dueDate})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível alterar a data.");return}setMsg("Data prevista da OS #"+o.number+" atualizada.");await load();};
  const saveOrderDueDate=async()=>{if(!selected||!orderDueDate){setMsg("Informe a nova data prevista de entrega.");return}const r=await fetch("/api/orders/"+selected.id+"/status",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({dueDate:orderDueDate})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível alterar a data.");return}setMsg("Data prevista do pedido #"+selected.number+" atualizada.");await load();const fresh=await fetch("/api/orders").then(x=>x.json());setSelected(fresh.find((x:Order)=>x.id===selected.id)||null);};
  const updateFrameOrder=async(o:Order,status:string)=>{const r=await fetch("/api/frame-adaptation-orders",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id:o.id,status})});const d=await r.json();if(!r.ok){setMsg(d.detail||d.error||"Não foi possível atualizar a OS.");return}setMsg("Ordem de montagem #"+o.number+" atualizada.");await load();};

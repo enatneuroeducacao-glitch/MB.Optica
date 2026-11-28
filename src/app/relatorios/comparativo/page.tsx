@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRealtimeRefresh } from "@/lib/use-realtime-refresh";
 
 const num = (value: any) => Number(value || 0);
 const money = (value: number) => num(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -32,20 +33,25 @@ export default function AnaliseComparativa() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    let active = true;
-    Promise.all([
-      fetch("/api/relatorios/comparativo", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : Promise.reject(new Error("Não foi possível consultar o faturamento operacional."))),
-      fetch("/beepstart-historico-mensal.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("/api/migration/financial-sales", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch("/api/relatorios/historico-manual", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null)
-    ]).then(([op, h, l, m]) => {
-      if (!active) return;
+  const load = async () => {
+    try {
+      const [op, h, l, m] = await Promise.all([
+        fetch("/api/relatorios/comparativo", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : Promise.reject(new Error("Não foi possível consultar o faturamento operacional."))),
+        fetch("/beepstart-historico-mensal.json", { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch("/api/migration/financial-sales", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch("/api/relatorios/historico-manual", { cache: "no-store", credentials: "same-origin" }).then(r => r.ok ? r.json() : null).catch(() => null)
+      ]);
       setOperational(op); setHistory(h); setLegacy(l); setManual(m?.entries || []);
-    }).catch(e => { if (active) setError(e instanceof Error ? e.message : "Falha ao carregar os dados."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao carregar os dados.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+  useRealtimeRefresh(load, 0);
 
   const sourceRows = useMemo<MonthRow[]>(() => {
     const operationalRows: MonthRow[] = (operational?.monthly || []).map((x: any) => ({

@@ -29,6 +29,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
   },[]);
   useEffect(()=>{
     const originalFetch=window.fetch.bind(window);
+    const syncChannel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel("mb-data-sync-v1"):null;
     const routeForRequest=(url:string)=>{
       const value=url.toLowerCase();
       if(/auth|session|login|permission|entitlement/.test(value))return {href:"/configuracoes",label:"Abrir acesso e configurações"};
@@ -48,6 +49,12 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
       const url=typeof input==="string"?input:input instanceof URL?input.toString():input.url;
       try{
         const response=await originalFetch(input,init);
+        if(method!=="GET" && url.startsWith("/api/") && response.ok){
+          const detail={method,url:new URL(url,window.location.origin).pathname,at:Date.now()};
+          window.dispatchEvent(new CustomEvent("mb:data-updated",{detail}));
+          try{syncChannel?.postMessage(detail)}catch{}
+          try{localStorage.setItem("mb:data-sync",JSON.stringify(detail))}catch{}
+        }
         if(method!=="GET" && url.startsWith("/api/") && !response.ok){
           const destination=routeForRequest(url);
           try{
@@ -69,7 +76,7 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
         throw error;
       }
     };
-    return()=>{window.fetch=originalFetch};
+    return()=>{window.fetch=originalFetch;syncChannel?.close()};
   },[]);
   useEffect(()=>{fetch("/api/version",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.version)setVersion(d.version)}).catch(()=>{}); fetch("/api/entitlements",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d)setEntitlement(d)}).catch(()=>{})},[]);
   useEffect(()=>{
@@ -101,12 +108,14 @@ export function AppShell({children,user}:{children:ReactNode;user:User}){
     const timer=window.setInterval(checkAlerts,60000);
     const onFocus=()=>checkAlerts();
     const onMessagesUpdated=()=>checkAlerts();
+    const onDataUpdated=()=>checkAlerts();
     window.addEventListener("focus",onFocus);
     window.addEventListener("mb:messages-updated",onMessagesUpdated);
-    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("mb:messages-updated",onMessagesUpdated)};
+    window.addEventListener("mb:data-updated",onDataUpdated);
+    return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("mb:messages-updated",onMessagesUpdated);window.removeEventListener("mb:data-updated",onDataUpdated)};
   },[user?.email,path]);
 
-  useEffect(()=>{let active=true;const checkCash=async()=>{try{const r=await fetch("/api/cash/session",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(active)setCashSession(d)}catch{}};checkCash();const timer=window.setInterval(checkCash,60000);const onFocus=()=>checkCash();window.addEventListener("focus",onFocus);return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus)}},[path]);
+  useEffect(()=>{let active=true;const checkCash=async()=>{try{const r=await fetch("/api/cash/session",{cache:"no-store"});if(!r.ok)return;const d=await r.json();if(active)setCashSession(d)}catch{}};checkCash();const timer=window.setInterval(checkCash,60000);const onFocus=()=>checkCash();const onDataUpdated=()=>checkCash();window.addEventListener("focus",onFocus);window.addEventListener("mb:data-updated",onDataUpdated);return()=>{active=false;window.clearInterval(timer);window.removeEventListener("focus",onFocus);window.removeEventListener("mb:data-updated",onDataUpdated)}},[path]);
   useEffect(()=>{fetch("/api/branding").then(r=>r.ok?r.json():null).then(d=>setLogo(d?.branding?.logoData||null)).catch(()=>{})},[]);
 
   useEffect(()=>{

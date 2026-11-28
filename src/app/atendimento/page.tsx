@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useMemo,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 import {StatusBadge} from "@/components/StatusBadge";
 
 type Customer={id:string;name:string;cpfCnpj?:string|null;phone?:string|null;email?:string|null};
@@ -29,6 +30,7 @@ export default function Atendimento(){
 
  const load=async()=>{setLoading(true);try{const [p,r,o]=await Promise.all([fetch("/api/products",{cache:"no-store"}),fetch("/api/prescriptions",{cache:"no-store"}),fetch("/api/orders",{cache:"no-store"})]);const [pd,rd,od]=await Promise.all([p.json(),r.json(),o.json()]);if(p.ok)setProducts(Array.isArray(pd)?pd:[]);if(r.ok)setPrescriptions(Array.isArray(rd)?rd:[]);if(o.ok)setOrders(Array.isArray(od)?od:[]);if(!p.ok||!r.ok||!o.ok)setMsg("Não foi possível carregar todos os dados do atendimento.")}catch{setMsg("Erro ao carregar o fluxo.")}finally{setLoading(false)}};
  useEffect(()=>{load()},[]);
+ useRealtimeRefresh(load,0);
  useEffect(()=>{const q=query.trim();if(customerId||q.length<3){if(!customerId&&q.length<3)setCustomers([]);return}const timer=setTimeout(async()=>{try{const r=await fetch("/api/customers?q="+encodeURIComponent(q),{cache:"no-store"});if(r.ok)setCustomers(await r.json())}catch{setCustomers([])}},250);return()=>clearTimeout(timer)},[query,customerId]);
  const customer=customers.find(c=>c.id===customerId);
  const customerRx=useMemo(()=>prescriptions.filter(r=>r.customerId===customerId),[prescriptions,customerId]);

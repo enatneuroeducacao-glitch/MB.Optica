@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import {useEffect,useState} from "react";
+import {useRealtimeRefresh} from "@/lib/use-realtime-refresh";
 const n=(v:any)=>Number(v||0);
 const money=(v:any)=>n(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const tabs=["VISÃO","SAÚDE DO FATURAMENTO","FATURAMENTO","MARGEM","CONTAS","INADIMPLÊNCIA","FORNECEDORES","VENDAS","ESTOQUE","INTELIGÊNCIA GERENCIAL","RELATÓRIO CONSOLIDADO","PEDIDOS","FINANCEIRO","CLIENTES","ORÇAMENTOS","PRESCRIÇÕES","AGENDA","FISCAL","AUDITORIA","FOLHA-PONTO","INCONSISTÊNCIAS"];
@@ -14,6 +15,23 @@ export default function Relatorios(){
  useEffect(()=>{fetch("/api/relatorios",{cache:"no-store"}).then(r=>r.json()).then(setD)},[]);
  useEffect(()=>{fetch("/api/reports/monthly-target",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setMonthlyTarget).catch(()=>{})},[]);
  useEffect(()=>{fetch("/api/gestao/indicadores",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(setManagement).catch(()=>{})},[]);
+ const refreshReports=async()=>{
+  const [reportsRes,targetRes,managementRes,legacyRes,legacySalesRes,manualRes]=await Promise.all([
+   fetch("/api/relatorios",{cache:"no-store"}),
+   fetch("/api/reports/monthly-target",{cache:"no-store"}),
+   fetch("/api/gestao/indicadores",{cache:"no-store"}),
+   fetch("/api/migration/financial-summary",{cache:"no-store"}),
+   fetch("/api/migration/financial-sales",{cache:"no-store"}),
+   fetch("/api/relatorios/historico-manual",{cache:"no-store"})
+  ]);
+  if(reportsRes.ok)setD(await reportsRes.json());
+  if(targetRes.ok)setMonthlyTarget(await targetRes.json());
+  if(managementRes.ok)setManagement(await managementRes.json());
+  if(legacyRes.ok)setLegacy(await legacyRes.json());
+  if(legacySalesRes.ok)setLegacySales(await legacySalesRes.json());
+  if(manualRes.ok){const value=await manualRes.json();setManualHistorical(value?.entries||[]);}
+ };
+ useRealtimeRefresh(refreshReports,0);
  if(!d)return <section className="page"><div className="panel"><div className="panel-heading"><div><h2>Gerando relatórios...</h2><p>Consolidando todos os módulos.</p></div></div></div></section>;
  const s=d.summary,inc=d.inconsistencies||[];
  const download=()=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download="mb-optica-relatorios.json";a.click();URL.revokeObjectURL(u)};
